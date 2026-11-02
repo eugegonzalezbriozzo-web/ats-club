@@ -8,6 +8,7 @@ import { View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ANCHO_COMPU, BotonIcono, LogoClub } from '../../src/ui';
 import { FUENTES } from '../../src/texto';
+import { MenuLateral } from '../../src/MenuLateral';
 
 export default function TabsLayout() {
   const { t, alternar } = useTema();
@@ -31,6 +32,8 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      // En compu, menú lateral propio (alineado a la izquierda); en celular, la barra de abajo de siempre.
+      tabBar={lateral ? (props: any) => <MenuLateral {...props} visibles={['index', 'arqueros', ...(esSuperadmin ? [] : ['inscripciones']), 'mas']} /> : undefined}
       screenOptions={{
         headerStyle: { backgroundColor: t.header, borderBottomWidth: 4, borderBottomColor: t.band },
         headerTintColor: t.onHeader,
@@ -65,11 +68,8 @@ export default function TabsLayout() {
         tabBarActiveBackgroundColor: lateral ? t.chip : undefined,
         tabBarItemStyle: lateral ? { borderRadius: 10, marginHorizontal: 10, marginVertical: 2, justifyContent: 'flex-start', alignItems: 'center', paddingHorizontal: 14, minHeight: 44 } : { justifyContent: 'center' },
         // K2D es una letra alta: se le da alto de línea propio para que no se corte.
-        // En compu: el texto ocupa todo el ancho que queda, así íconos y textos quedan alineados a la izquierda.
-        tabBarLabelStyle: lateral
-          ? { fontSize: 15, lineHeight: 20, fontFamily: FUENTES['600'], flex: 1, textAlign: 'left', marginLeft: 14 }
-          : { fontSize: 12, lineHeight: 16, fontFamily: FUENTES['600'], marginTop: 2 },
-        tabBarIconStyle: lateral ? { width: 24, flex: 0, alignItems: 'center' } : { marginBottom: 0 },
+        tabBarLabelStyle: { fontSize: 12, lineHeight: 16, fontFamily: FUENTES['600'], marginTop: 2 },
+        tabBarIconStyle: { marginBottom: 0 },
         sceneStyle: { backgroundColor: t.bg },
       }}
     >
