@@ -63,10 +63,13 @@ export default function TabsLayout() {
           ? { backgroundColor: t.bg, borderRightColor: t.border, borderRightWidth: 1, width: 232, paddingTop: 12 }
           : { backgroundColor: t.bg, borderTopColor: t.border, height: 62 + insets.bottom, paddingTop: 6, paddingBottom: 8 + insets.bottom },
         tabBarActiveBackgroundColor: lateral ? t.chip : undefined,
-        tabBarItemStyle: lateral ? { borderRadius: 10, marginHorizontal: 10, marginVertical: 2, justifyContent: 'flex-start', paddingHorizontal: 12 } : { justifyContent: 'center' },
+        tabBarItemStyle: lateral ? { borderRadius: 10, marginHorizontal: 10, marginVertical: 2, justifyContent: 'flex-start', alignItems: 'center', paddingHorizontal: 14, minHeight: 44 } : { justifyContent: 'center' },
         // K2D es una letra alta: se le da alto de línea propio para que no se corte.
-        tabBarLabelStyle: { fontSize: lateral ? 15 : 12, lineHeight: lateral ? 20 : 16, fontFamily: FUENTES['600'], marginTop: lateral ? 0 : 2 },
-        tabBarIconStyle: lateral ? undefined : { marginBottom: 0 },
+        // En compu: el texto ocupa todo el ancho que queda, así íconos y textos quedan alineados a la izquierda.
+        tabBarLabelStyle: lateral
+          ? { fontSize: 15, lineHeight: 20, fontFamily: FUENTES['600'], flex: 1, textAlign: 'left', marginLeft: 14 }
+          : { fontSize: 12, lineHeight: 16, fontFamily: FUENTES['600'], marginTop: 2 },
+        tabBarIconStyle: lateral ? { width: 24, flex: 0, alignItems: 'center' } : { marginBottom: 0 },
         sceneStyle: { backgroundColor: t.bg },
       }}
     >
