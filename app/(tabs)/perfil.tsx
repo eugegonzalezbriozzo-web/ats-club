@@ -1,0 +1,115 @@
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../src/auth';
+import * as repo from '../../src/data/repo';
+import { ARCOS, Arco, CATEGORIAS, MAX_SOBRE_MI, Categoria, DIVISIONES, Division, LATERALIDADES, Lateralidad } from '../../src/types';
+import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
+import { FotoPerfil } from '../../src/FotoPerfil';
+import { armarNombreCompleto, confirmar } from '../../src/util';
+
+const NOMBRE_ROL = { usuario: 'Usuario', admin: 'Admin' } as const;
+
+export default function Perfil() {
+  const { usuario, club, esSuperadmin, refrescar, logout } = useAuth();
+  const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
+  const [alias, setAlias] = useState('');
+  const [sobreMi, setSobreMi] = useState('');
+  const [dni, setDni] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [ciudad, setCiudad] = useState('');
+  const [localidad, setLocalidad] = useState('');
+  const [direccion, setDireccion] = useState('');
+  const [arco, setArco] = useState<Arco>('Recurvo');
+  const [division, setDivision] = useState<Division>('Hombre');
+  const [categoria, setCategoria] = useState<Categoria>('Senior');
+  const [lateralidad, setLateralidad] = useState<Lateralidad>('Derecho');
+  const [federado, setFederado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [guardado, setGuardado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    if (!usuario) return;
+    setNombre(usuario.nombre);
+    setApellido(usuario.apellido);
+    setAlias(usuario.alias ?? '');
+    setSobreMi(usuario.sobreMi ?? '');
+    setDni(usuario.dni);
+    setTelefono(usuario.telefono ?? '');
+    setCiudad(usuario.ciudad ?? '');
+    setLocalidad(usuario.localidad ?? '');
+    setDireccion(usuario.direccion ?? '');
+    setArco(usuario.arco);
+    setDivision(usuario.division);
+    setCategoria(usuario.categoria);
+    setLateralidad(usuario.lateralidad);
+    setFederado(!!usuario.federado);
+  }, [usuario]);
+
+  if (!usuario) return null;
+
+  const guardar = async () => {
+    setError(null);
+    setGuardado(false);
+    if (!nombre.trim() || !apellido.trim()) return setError('Nombre y apellido son obligatorios.');
+    setEnviando(true);
+    try {
+      await repo.actualizarPerfil(usuario.id, { nombre: nombre.trim(), apellido: apellido.trim(), alias: alias.trim(), dni: dni.trim(), telefono: telefono.trim(), ciudad: ciudad.trim(), localidad: localidad.trim(), direccion: direccion.trim(), sobreMi: sobreMi.trim(), federado, arco, division, categoria, lateralidad });
+      await refrescar();
+      setGuardado(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <Pantalla>
+      <Titulo>Datos personales</Titulo>
+      <FotoPerfil
+        foto={usuario.foto ?? ''}
+        nombre={usuario.nombre}
+        apellido={usuario.apellido}
+        onChange={async (f) => {
+          await repo.actualizarPerfil(usuario.id, { foto: f });
+          await refrescar();
+        }}
+      />
+      <Txt muted>
+        {usuario.email} · {esSuperadmin ? 'Plataforma' : `${NOMBRE_ROL[usuario.rol]} · ${club?.nombre ?? ''}`}
+      </Txt>
+      <Campo label="Nombre" value={nombre} onChangeText={setNombre} />
+      <Campo label="Apellido" value={apellido} onChangeText={setApellido} />
+      <CampoCalculado label="Nombre completo" valor={armarNombreCompleto(nombre, apellido)} vacio="Se completa con nombre y apellido" ayuda="Se arma solo con los dos campos de arriba." />
+      <Campo label="Alias (opcional)" value={alias} onChangeText={setAlias} placeholder="Cómo te dicen en el club" autoComplete="nickname" />
+      <Campo label="DNI" value={dni} onChangeText={setDni} keyboardType="number-pad" />
+      <Campo label="WhatsApp (opcional)" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
+      <Campo label="Ciudad (opcional)" value={ciudad} onChangeText={setCiudad} autoComplete="postal-address-locality" />
+      <Campo label="Localidad (opcional)" value={localidad} onChangeText={setLocalidad} />
+      <Campo label="Dirección (opcional)" value={direccion} onChangeText={setDireccion} autoComplete="street-address" placeholder="Calle y número" />
+      <Campo
+        label="Algo sobre mí (opcional)"
+        value={sobreMi}
+        onChangeText={setSobreMi}
+        multiline
+        maxLength={MAX_SOBRE_MI}
+        placeholder="Contale al club quién sos: desde cuándo tirás, qué te gusta, tus logros…"
+      />
+      <Txt muted style={{ fontSize: 12 }}>Lo ven los socios de tu club en la pestaña Arqueros.</Txt>
+
+      <Titulo style={{ marginTop: 8 }}>Datos de arquero</Titulo>
+      <Txt muted>Se cargan por defecto cada vez que te inscribís a un torneo.</Txt>
+      <Pildoras label="Arco" opciones={ARCOS} valor={arco} onChange={setArco} />
+      <Pildoras label="División" opciones={DIVISIONES} valor={division} onChange={setDivision} />
+      <Pildoras label="Categoría" opciones={CATEGORIAS} valor={categoria} onChange={setCategoria} />
+      <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={lateralidad} onChange={setLateralidad} />
+      <CampoFederado valor={federado} onChange={setFederado} />
+
+      <MensajeError texto={error} />
+      {guardado ? <Aviso tipo="ok" texto="Perfil actualizado." /> : null}
+      <Boton titulo="Guardar cambios" onPress={guardar} cargando={enviando} />
+      <Boton titulo="Cerrar sesión" variante="secundario" icono="log-out-outline" onPress={logout} />
+    </Pantalla>
+  );
+}

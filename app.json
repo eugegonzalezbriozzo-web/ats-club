@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "ATS Club",
+    "slug": "arqueria-sierras-chicas",
+    "scheme": "arqueriasc",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {},
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app usa tus fotos para tu foto de perfil."
+        }
+      ]
+    ]
+  }
+}

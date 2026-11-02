@@ -1,0 +1,15 @@
+# Publicación web de ATS Club en Netlify (igual que ATS).
+# Netlify instala las dependencias, exporta la versión web de Expo y publica la carpeta dist.
+[build]
+  command = "npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# La app maneja sus propias rutas (/c/sierras-chicas, /torneo/..., etc.):
+# cualquier dirección abre la app y ella muestra la pantalla que corresponde.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
