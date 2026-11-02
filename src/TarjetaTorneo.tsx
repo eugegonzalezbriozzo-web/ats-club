@@ -22,7 +22,7 @@ export function TarjetaTorneo({ torneo, onPress, extra }: { torneo: Torneo; onPr
     <Tarjeta onPress={onPress} style={{ flexDirection: 'row', gap: 14 }}>
       <View
         style={{
-          width: 54,
+          width: fin ? 64 : 54,
           borderRadius: 10,
           backgroundColor: t.sec,
           borderTopWidth: 4,
@@ -33,7 +33,7 @@ export function TarjetaTorneo({ torneo, onPress, extra }: { torneo: Torneo; onPr
           alignSelf: 'flex-start',
         }}
       >
-        <Text style={{ color: t.onSec, fontSize: fin ? 17 : 24, ...FUENTE_TITULO }}>{fin ? `${dia}-${fin.dia}` : dia}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: t.onSec, fontSize: fin ? 18 : 24, ...FUENTE_TITULO }}>{fin ? `${Number(dia)}–${Number(fin.dia)}` : dia}</Text>
         <Text style={{ color: t.onSec, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{fin && fin.mes !== mes ? `${mes}-${fin.mes}` : mes}</Text>
       </View>
       <View style={{ flex: 1, gap: 6 }}>
