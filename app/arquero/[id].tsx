@@ -49,8 +49,8 @@ export default function PerfilArquero() {
         <View style={{ borderRadius: 60, padding: 3, backgroundColor: t.band }}>
           <Avatar foto={a.foto} nombre={a.nombre} apellido={a.apellido} size={112} />
         </View>
-        <Titulo style={{ textAlign: 'center' }}>{a.nombreCompleto}</Titulo>
-        {a.alias ? <Txt muted>“{a.alias}”</Txt> : null}
+        <Titulo style={{ textAlign: 'center' }}>{a.alias || a.nombreCompleto}</Titulo>
+        {a.alias ? <Txt muted>{a.nombreCompleto}</Txt> : null}
         <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
           {a.esAdmin ? <Chip texto="Admin del club" relleno /> : null}
           <Chip texto={a.federado ? 'Federado' : 'No federado'} relleno={a.federado} />

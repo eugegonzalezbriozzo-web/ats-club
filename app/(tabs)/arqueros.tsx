@@ -53,11 +53,12 @@ export default function Arqueros() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Avatar foto={u.foto} nombre={u.nombre} apellido={u.apellido} size={48} />
                 <View style={{ flex: 1, gap: 2 }}>
+                  {/* El alias es como lo conocen en el club: va primero. */}
                   <Text style={{ color: t.text, fontSize: 16, fontWeight: '700' }}>
-                    {u.nombreCompleto}
+                    {u.alias || u.nombreCompleto}
                     {u.id === usuario?.id ? ' (vos)' : ''}
                   </Text>
-                  {u.alias ? <Txt muted style={{ fontSize: 13 }}>“{u.alias}”</Txt> : null}
+                  {u.alias ? <Txt muted style={{ fontSize: 13 }}>{u.nombreCompleto}</Txt> : null}
                   {u.esAdmin ? <Text style={{ color: t.accent, fontSize: 13, fontWeight: '700' }}>Admin del club</Text> : null}
                 </View>
                 {u.telefono && u.id !== usuario?.id ? <IconoWhatsApp tel={u.telefono} nombre={u.alias || u.nombre} /> : null}
@@ -65,10 +66,7 @@ export default function Arqueros() {
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                 <Chip texto={u.arco} relleno />
-                <Chip texto={u.division} />
-                <Chip texto={u.categoria} />
-                <Chip texto={u.lateralidad} />
-                <Chip texto={u.federado ? 'Federado' : 'No federado'} relleno={u.federado} />
+                {u.federado ? <Chip texto="Federado" relleno /> : null}
               </View>
               {u.sobreMi ? <Txt style={{ fontSize: 14, lineHeight: 20 }} numberOfLines={3}>{u.sobreMi}</Txt> : null}
               {esAdmin && u.email ? <Txt muted style={{ fontSize: 13 }}>{u.email}</Txt> : null}
