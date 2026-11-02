@@ -11,6 +11,7 @@ import { useTema } from '../../src/theme';
 import { Boton, CampoFederado, Chip, FilaDato, Pantalla, Pildoras, Tarjeta, Titulo, Txt, Vacio } from '../../src/ui';
 import { fechaCorta, plata, fechasTorneo } from '../../src/util';
 import { pedirBaja } from '../../src/baja';
+import { Redes } from '../../src/ContactoClub';
 import type { ConfigPagos, Pago } from '../../src/types';
 
 /** Perfil de un arquero del club. Socios: datos públicos. Admin: además contacto, DNI e inscripciones. */
@@ -56,6 +57,7 @@ export default function PerfilArquero() {
           <Chip texto={a.federado ? 'Federado' : 'No federado'} relleno={a.federado} />
         </View>
         {a.telefono && !yo ? <BotonWhatsApp tel={a.telefono} nombre={a.alias || a.nombre} /> : null}
+        <Redes de={a} centrado />
       </View>
 
       {a.sobreMi ? (

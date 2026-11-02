@@ -229,6 +229,7 @@ function aUsuario(p: FilaPerfil, m: FilaMembresia, tiposLocales?: Record<string,
     nombre: p.nombre ?? '', apellido: p.apellido ?? '', nombreCompleto: p.nombre_completo || armarNombreCompleto(p.nombre ?? '', p.apellido ?? ''),
     alias: p.alias ?? '', sobreMi: p.sobre_mi ?? '', foto: p.foto_url ?? '', dni: p.dni ?? '', telefono: p.telefono ?? '',
     ciudad: p.ciudad ?? '', localidad: p.localidad ?? '', direccion: p.direccion ?? '', federado: !!p.federado,
+    instagram: p.instagram ?? '', facebook: p.facebook ?? '', tiktok: p.tiktok ?? '',
     tipoCuota: tiposLocales?.[p.id] ?? m?.tipo_cuota_id ?? undefined,
     rol: m?.rol ?? 'usuario', estado: m?.estado ?? 'pendiente', creadoEl: m?.creado_el ?? p.creado_el,
     arco: p.arco, division: p.division, categoria: p.categoria, lateralidad: p.lateralidad,
@@ -337,11 +338,11 @@ export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario |
 
 /* ================= Perfil ================= */
 
-export type CambiosPerfil = Partial<Pick<Usuario, 'nombre' | 'apellido' | 'alias' | 'sobreMi' | 'foto' | 'dni' | 'telefono' | 'ciudad' | 'localidad' | 'direccion' | 'federado' | 'arco' | 'division' | 'categoria' | 'lateralidad'>>;
+export type CambiosPerfil = Partial<Pick<Usuario, 'nombre' | 'apellido' | 'alias' | 'sobreMi' | 'foto' | 'dni' | 'telefono' | 'ciudad' | 'localidad' | 'direccion' | 'federado' | 'instagram' | 'facebook' | 'tiktok' | 'arco' | 'division' | 'categoria' | 'lateralidad'>>;
 const COLUMNA: Record<keyof CambiosPerfil, string> = {
   nombre: 'nombre', apellido: 'apellido', alias: 'alias', sobreMi: 'sobre_mi', foto: 'foto_url', dni: 'dni', telefono: 'telefono',
   ciudad: 'ciudad', localidad: 'localidad', direccion: 'direccion', federado: 'federado', arco: 'arco', division: 'division',
-  categoria: 'categoria', lateralidad: 'lateralidad',
+  categoria: 'categoria', lateralidad: 'lateralidad', instagram: 'instagram', facebook: 'facebook', tiktok: 'tiktok',
 };
 
 /**
@@ -541,6 +542,9 @@ export interface ArqueroPublico extends DatosArquero {
   desde: string;
   /** WhatsApp: lo ven todos los socios del club ('' si no lo cargó). */
   telefono: string;
+  instagram: string;
+  facebook: string;
+  tiktok: string;
   /** Solo para el admin del club. */
   email?: string;
 }
@@ -562,6 +566,7 @@ const aPublico = (u: Usuario, conContacto: boolean): ArqueroPublico => ({
   id: u.id, nombre: u.nombre, apellido: u.apellido, nombreCompleto: u.nombreCompleto, alias: u.alias ?? '', sobreMi: u.sobreMi ?? '', foto: u.foto ?? '',
   esAdmin: u.rol === 'admin', arco: u.arco, division: u.division, categoria: u.categoria, lateralidad: u.lateralidad,
   federado: !!u.federado, ciudad: u.ciudad ?? '', localidad: u.localidad ?? '', desde: u.creadoEl, telefono: u.telefono ?? '',
+  instagram: u.instagram ?? '', facebook: u.facebook ?? '', tiktok: u.tiktok ?? '',
   ...(conContacto ? { email: u.email } : {}),
 });
 
@@ -602,6 +607,7 @@ export async function listarArqueros(clubId: string, conContacto: boolean): Prom
       id: a.id, nombre: a.nombre, apellido: a.apellido, nombreCompleto: a.nombre_completo, alias: a.alias ?? '', sobreMi: a.sobre_mi ?? '',
       foto: a.foto_url ?? '', esAdmin: !!a.es_admin, arco: a.arco, division: a.division, categoria: a.categoria, lateralidad: a.lateralidad,
       federado: !!a.federado, ciudad: a.ciudad ?? '', localidad: a.localidad ?? '', desde: a.desde, telefono: a.telefono ?? '',
+      instagram: a.instagram ?? '', facebook: a.facebook ?? '', tiktok: a.tiktok ?? '',
     };
   });
 }

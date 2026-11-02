@@ -73,6 +73,10 @@ export interface Usuario extends DatosArquero {
   direccion: string; // opcional
   /** ¿Es arquero federado? (Sí/No). Lo ven los socios del club. */
   federado?: boolean;
+  /** Redes del arquero (usuario o link, opcionales). Las ven los socios del club. */
+  instagram?: string;
+  facebook?: string;
+  tiktok?: string;
   /** Tipo de cuota asignado por el admin (id de TipoCuota); sin dato = el primero. */
   tipoCuota?: string;
   rol: Rol;

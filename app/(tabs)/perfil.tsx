@@ -14,6 +14,7 @@ export default function Perfil() {
   const [apellido, setApellido] = useState('');
   const [alias, setAlias] = useState('');
   const [sobreMi, setSobreMi] = useState('');
+  const [redes, setRedes] = useState({ instagram: '', facebook: '', tiktok: '' });
   const [dni, setDni] = useState('');
   const [telefono, setTelefono] = useState('');
   const [ciudad, setCiudad] = useState('');
@@ -34,6 +35,7 @@ export default function Perfil() {
     setApellido(usuario.apellido);
     setAlias(usuario.alias ?? '');
     setSobreMi(usuario.sobreMi ?? '');
+    setRedes({ instagram: usuario.instagram ?? '', facebook: usuario.facebook ?? '', tiktok: usuario.tiktok ?? '' });
     setDni(usuario.dni);
     setTelefono(usuario.telefono ?? '');
     setCiudad(usuario.ciudad ?? '');
@@ -54,7 +56,7 @@ export default function Perfil() {
     if (!nombre.trim() || !apellido.trim()) return setError('Nombre y apellido son obligatorios.');
     setEnviando(true);
     try {
-      await repo.actualizarPerfil(usuario.id, { nombre: nombre.trim(), apellido: apellido.trim(), alias: alias.trim(), dni: dni.trim(), telefono: telefono.trim(), ciudad: ciudad.trim(), localidad: localidad.trim(), direccion: direccion.trim(), sobreMi: sobreMi.trim(), federado, arco, division, categoria, lateralidad });
+      await repo.actualizarPerfil(usuario.id, { nombre: nombre.trim(), apellido: apellido.trim(), alias: alias.trim(), dni: dni.trim(), telefono: telefono.trim(), ciudad: ciudad.trim(), localidad: localidad.trim(), direccion: direccion.trim(), sobreMi: sobreMi.trim(), instagram: redes.instagram.trim(), facebook: redes.facebook.trim(), tiktok: redes.tiktok.trim(), federado, arco, division, categoria, lateralidad });
       await refrescar();
       setGuardado(true);
     } catch (e) {
@@ -97,6 +99,10 @@ export default function Perfil() {
         placeholder="Contale al club quién sos: desde cuándo tirás, qué te gusta, tus logros…"
       />
       <Txt muted style={{ fontSize: 12 }}>Lo ven los socios de tu club en la pestaña Arqueros.</Txt>
+      <Campo label="Instagram (opcional)" value={redes.instagram} onChangeText={(v) => setRedes((r) => ({ ...r, instagram: v }))} placeholder="@usuario o el link" autoCapitalize="none" />
+      <Campo label="Facebook (opcional)" value={redes.facebook} onChangeText={(v) => setRedes((r) => ({ ...r, facebook: v }))} placeholder="Usuario o el link" autoCapitalize="none" />
+      <Campo label="TikTok (opcional)" value={redes.tiktok} onChangeText={(v) => setRedes((r) => ({ ...r, tiktok: v }))} placeholder="@usuario o el link" autoCapitalize="none" />
+      <Txt muted style={{ fontSize: 12 }}>Tus redes las ven los socios de tu club en tu perfil.</Txt>
 
       <Titulo style={{ marginTop: 8 }}>Datos de arquero</Titulo>
       <Txt muted>Se cargan por defecto cada vez que te inscribís a un torneo.</Txt>

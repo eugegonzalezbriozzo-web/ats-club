@@ -21,6 +21,28 @@ export function linkRed(tipo: 'instagram' | 'facebook' | 'tiktok', v?: string) {
   return tipo === 'instagram' ? `https://instagram.com/${u}` : tipo === 'tiktok' ? `https://www.tiktok.com/@${u}` : `https://facebook.com/${u}`;
 }
 
+/** Íconos de redes (de un club o de un arquero): solo los que tengan algo cargado. */
+export function Redes({ de, centrado }: { de: { instagram?: string; facebook?: string; tiktok?: string }; centrado?: boolean }) {
+  const { t } = useTema();
+  const redes = REDES.filter((r) => de[r.k]);
+  if (!redes.length) return null;
+  return (
+    <View style={{ flexDirection: 'row', gap: 10, justifyContent: centrado ? 'center' : 'flex-start' }}>
+      {redes.map((r) => (
+        <Pressable
+          key={r.k}
+          accessibilityRole="link"
+          accessibilityLabel={r.nombre}
+          onPress={() => Linking.openURL(linkRed(r.k, de[r.k]))}
+          style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.chip, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ionicons name={r.icono} size={20} color={t.accent} />
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 /** Email y redes del club (lo que haya cargado). */
 export function ContactoClub({ club }: { club: Club }) {
   const { t } = useTema();
