@@ -207,7 +207,7 @@ const copia = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 
 /* ================= Sesión (Supabase) ================= */
 // Desde acá hasta "Torneos", todo es real: cuentas, clubes, socios y perfiles viven en Supabase.
-// Torneos, noticias y pagos todavía son locales (se conectan en los próximos pasos).
+// Torneos, inscripciones, noticias y encuestas también están en Supabase; los pagos todavía son locales.
 
 /** Usuarios ya cargados desde Supabase: las partes locales los usan para mostrar nombres. */
 const usuariosConocidos = new Map<string, Usuario>();
@@ -802,7 +802,8 @@ async function inscripcionesFuturasDe(clubId: string, usuarioId: string): Promis
   return (data ?? []).filter((r: any) => r.torneo && (r.torneo.fecha_fin || r.torneo.fecha) >= hoy).map((r: any) => r.id);
 }
 
-/* ================= Noticias y encuestas ================= */
+/* ================= Noticias y encuestas (Supabase) ================= */
+// Qué publicación ve cada uno lo decide la base (puede_ver_noticia); veNoticia replica el criterio.
 
 /** Quién está leyendo: define qué publicaciones ve. */
 export interface Lector {
@@ -823,18 +824,41 @@ export function veNoticia(l: Lector, n: Noticia) {
 export const encuestaCerrada = (e: Encuesta) => !!e.cierra && hoyISO() > e.cierra;
 export const opcionesDe = (e: Encuesta) => (e.tipo === 'asistencia' ? OPC_ASISTENCIA : e.opciones);
 
+function aEncuesta(e: any): Encuesta | null {
+  if (!e) return null;
+  return {
+    tipo: e.tipo === 'asistencia' ? 'asistencia' : 'opciones', pregunta: e.pregunta ?? '', opciones: Array.isArray(e.opciones) ? e.opciones : [],
+    multiple: !!e.multiple, acompanantes: !!e.acompanantes, cupo: e.cupo == null || e.cupo === '' ? null : Number(e.cupo), cierra: e.cierra ?? '',
+  };
+}
+function aNoticia(r: Record<string, any>): Noticia {
+  return {
+    id: r.id, clubId: r.club_id, autorId: r.autor_id ?? '', titulo: r.titulo, texto: r.texto ?? '', audiencia: r.audiencia ?? 'todos',
+    encuesta: aEncuesta(r.encuesta), destacada: !!r.destacada, creadoEl: r.creado_el, editadoEl: r.editado_el ?? null,
+  };
+}
+function aVoto(r: Record<string, any>): Voto {
+  return {
+    id: r.id, clubId: r.club_id, noticiaId: r.noticia_id, usuarioId: r.usuario_id, opciones: (r.opciones ?? []).map(Number),
+    acompanantes: Number(r.acompanantes ?? 0), creadoEl: r.creado_el,
+  };
+}
+
 /** Publicaciones que este lector puede ver. Destacadas primero; después, las más nuevas. */
 export async function listarNoticias(clubId: string, lector: Lector): Promise<Noticia[]> {
-  const db = await cargar();
-  return copia(db.noticias.filter((n) => n.clubId === clubId && veNoticia(lector, n))).sort(
-    (a, b) => Number(b.destacada) - Number(a.destacada) || b.creadoEl.localeCompare(a.creadoEl),
-  );
+  const { data, error } = await supabase
+    .from('noticias')
+    .select('*')
+    .eq('club_id', clubId)
+    .order('destacada', { ascending: false })
+    .order('creado_el', { ascending: false });
+  if (error) fallo(error);
+  return (data ?? []).map(aNoticia).filter((n) => veNoticia(lector, n));
 }
 
 export async function obtenerNoticia(clubId: string, noticiaId: string): Promise<Noticia | null> {
-  const db = await cargar();
-  const n = db.noticias.find((x) => x.id === noticiaId && x.clubId === clubId);
-  return n ? copia(n) : null;
+  const { data } = await supabase.from('noticias').select('*').eq('club_id', clubId).eq('id', noticiaId).maybeSingle();
+  return data ? aNoticia(data) : null;
 }
 
 export interface DatosNoticia {
@@ -847,8 +871,6 @@ export interface DatosNoticia {
 
 /** Admin del club: crea o edita una publicación (noticia, encuesta o ambas). */
 export async function guardarNoticia(clubId: string, autorId: string, datos: DatosNoticia, noticiaId?: string): Promise<Noticia> {
-  const db = await cargar();
-  if (!db.votos) db.votos = [];
   let encuesta: Encuesta | null = null;
   if (datos.encuesta) {
     const e = datos.encuesta;
@@ -864,40 +886,43 @@ export async function guardarNoticia(clubId: string, autorId: string, datos: Dat
       cupo: e.tipo === 'asistencia' ? e.cupo : null, cierra: e.cierra,
     };
   }
-  const limpio = {
+  const fila = {
     titulo: datos.titulo.trim().slice(0, MAX_TIT_NOTICIA), texto: datos.texto.trim().slice(0, MAX_TXT_NOTICIA),
     destacada: datos.destacada, audiencia: datos.audiencia, encuesta,
   };
-  if (!limpio.titulo) throw new ErrorApp('Escribí un título.');
-  if (!limpio.texto && !encuesta) throw new ErrorApp('Escribí un texto o agregá una encuesta.');
+  if (!fila.titulo) throw new ErrorApp('Escribí un título.');
+  if (!fila.texto && !encuesta) throw new ErrorApp('Escribí un texto o agregá una encuesta.');
   if (noticiaId) {
-    const n = db.noticias.find((x) => x.id === noticiaId && x.clubId === clubId);
-    if (!n) throw new ErrorApp('Publicación no encontrada.');
-    const tieneVotos = db.votos.some((v) => v.noticiaId === n.id);
-    if (tieneVotos && encuesta && n.encuesta) {
-      // Con respuestas no se cambian tipo ni opciones (se romperían los votos).
-      encuesta.tipo = n.encuesta.tipo;
-      encuesta.opciones = n.encuesta.opciones;
-      encuesta.multiple = n.encuesta.multiple;
-      encuesta.acompanantes = n.encuesta.acompanantes;
+    const ant = await obtenerNoticia(clubId, noticiaId);
+    if (!ant) throw new ErrorApp('Publicación no encontrada.');
+    if (encuesta && ant.encuesta) {
+      const { count } = await supabase.from('votos').select('id', { count: 'exact', head: true }).eq('noticia_id', noticiaId);
+      if (count) {
+        // Con respuestas no se cambian tipo ni opciones (se romperían los votos).
+        encuesta.tipo = ant.encuesta.tipo;
+        encuesta.opciones = ant.encuesta.opciones;
+        encuesta.multiple = ant.encuesta.multiple;
+        encuesta.acompanantes = ant.encuesta.acompanantes;
+      }
     }
-    Object.assign(n, limpio, { encuesta, editadoEl: ahora() });
-    if (!encuesta) db.votos = db.votos.filter((v) => v.noticiaId !== n.id);
-    await guardar(db);
-    return copia(n);
+    const { data, error } = await supabase
+      .from('noticias')
+      .update({ ...fila, editado_el: new Date().toISOString() })
+      .eq('id', noticiaId)
+      .eq('club_id', clubId)
+      .select('*')
+      .single();
+    if (error) fallo(error, 'No se pudo guardar la publicación.');
+    return aNoticia(data);
   }
-  const n: Noticia = { ...limpio, id: nuevoId(), clubId, autorId, creadoEl: ahora(), editadoEl: null };
-  db.noticias.push(n);
-  await guardar(db);
-  return copia(n);
+  const { data, error } = await supabase.from('noticias').insert({ ...fila, club_id: clubId, autor_id: autorId }).select('*').single();
+  if (error) fallo(error, 'No se pudo publicar.');
+  return aNoticia(data);
 }
 
 export async function eliminarNoticia(clubId: string, noticiaId: string) {
-  const db = await cargar();
-  db.noticias = db.noticias.filter((n) => !(n.id === noticiaId && n.clubId === clubId));
-  db.votos = (db.votos ?? []).filter((v) => v.noticiaId !== noticiaId);
-  db.lecturas = (db.lecturas ?? []).filter((l) => l.noticiaId !== noticiaId);
-  await guardar(db);
+  const { error } = await supabase.from('noticias').delete().eq('id', noticiaId).eq('club_id', clubId);
+  if (error) fallo(error, 'No se pudo borrar la publicación.');
 }
 
 /** Respuesta con el nombre de quien votó (los resultados los ven todos los que ven la encuesta). */
@@ -906,16 +931,17 @@ export interface VotoConPersona extends Voto {
 }
 
 export async function votosDeNoticia(clubId: string, noticiaId: string): Promise<VotoConPersona[]> {
-  const db = await cargar();
-  return (db.votos ?? [])
-    .filter((v) => v.clubId === clubId && v.noticiaId === noticiaId)
-    .map((v) => {
-      const u = usuarioDe(db, v.usuarioId);
-      return u
-        ? { ...copia(v), persona: { nombre: u.nombre, apellido: u.apellido, alias: u.alias ?? '', nombreCompleto: u.nombreCompleto, federado: !!u.federado, telefono: u.telefono ?? '' } }
-        : null;
-    })
-    .filter((x): x is VotoConPersona => !!x);
+  const { data, error } = await supabase.rpc('votos_de_noticia', { p_noticia: noticiaId });
+  if (error) fallo(error);
+  return ((data ?? []) as any[])
+    .filter((r) => r.club_id === clubId)
+    .map((r) => ({
+      ...aVoto(r),
+      persona: {
+        nombre: r.nombre ?? '', apellido: r.apellido ?? '', alias: r.alias ?? '',
+        nombreCompleto: r.nombre_completo || armarNombreCompleto(r.nombre ?? '', r.apellido ?? ''), federado: !!r.federado, telefono: r.telefono ?? '',
+      },
+    }));
 }
 
 /** Estado de "Visto" y "Me gusta" de una publicación para este socio, y quiénes dieron me gusta. */
@@ -925,53 +951,53 @@ export interface EstadoLectura {
   meGustan: { usuarioId: string; nombre: string }[];
 }
 export async function lecturaDeNoticia(clubId: string, noticiaId: string, usuarioId: string): Promise<EstadoLectura> {
-  const db = await cargar();
-  const ls = (db.lecturas ?? []).filter((l) => l.clubId === clubId && l.noticiaId === noticiaId);
-  const mia = ls.find((l) => l.usuarioId === usuarioId);
-  const meGustan = ls
-    .filter((l) => l.meGusta)
-    .map((l) => {
-      const u = usuarioDe(db, l.usuarioId);
-      return u ? { usuarioId: u.id, nombre: u.alias || u.nombre } : null;
-    })
-    .filter((x): x is { usuarioId: string; nombre: string } => !!x);
-  return { oculta: !!mia?.oculta, meGusta: !!mia?.meGusta, meGustan };
+  const [{ data: mia }, { data: gustan }] = await Promise.all([
+    supabase.from('lecturas').select('oculta, me_gusta').eq('noticia_id', noticiaId).eq('usuario_id', usuarioId).maybeSingle(),
+    supabase.rpc('me_gusta_de_noticia', { p_noticia: noticiaId }),
+  ]);
+  return {
+    oculta: !!mia?.oculta, meGusta: !!mia?.me_gusta,
+    meGustan: ((gustan ?? []) as any[]).map((r) => ({ usuarioId: r.usuario_id, nombre: r.nombre ?? '' })),
+  };
 }
 /** IDs de las publicaciones que este socio ocultó de su Inicio. */
 export async function ocultasDe(clubId: string, usuarioId: string): Promise<string[]> {
-  const db = await cargar();
-  return (db.lecturas ?? []).filter((l) => l.clubId === clubId && l.usuarioId === usuarioId && l.oculta).map((l) => l.noticiaId);
+  const { data } = await supabase.from('lecturas').select('noticia_id').eq('club_id', clubId).eq('usuario_id', usuarioId).eq('oculta', true);
+  return (data ?? []).map((r) => r.noticia_id as string);
 }
 /** El socio marca "Visto" (oculta del Inicio) o "Me gusta". Solo socios del club. */
 export async function cambiarLectura(clubId: string, noticiaId: string, usuario: Usuario, cambios: Partial<Pick<Lectura, 'oculta' | 'meGusta'>>) {
   if (usuario.clubId !== clubId) throw new ErrorApp('Solo los socios del club.');
-  const db = await cargar();
-  if (!db.lecturas) db.lecturas = [];
-  let l = db.lecturas.find((x) => x.noticiaId === noticiaId && x.usuarioId === usuario.id);
-  if (!l) {
-    l = { clubId, noticiaId, usuarioId: usuario.id, oculta: false, meGusta: false };
-    db.lecturas.push(l);
-  }
-  Object.assign(l, cambios);
-  if (!l.oculta && !l.meGusta) db.lecturas = db.lecturas.filter((x) => x !== l);
-  await guardar(db);
+  const { data: ant } = await supabase.from('lecturas').select('oculta, me_gusta').eq('noticia_id', noticiaId).eq('usuario_id', usuario.id).maybeSingle();
+  const oculta = cambios.oculta ?? !!ant?.oculta;
+  const meGusta = cambios.meGusta ?? !!ant?.me_gusta;
+  const r = !oculta && !meGusta
+    ? await supabase.from('lecturas').delete().eq('noticia_id', noticiaId).eq('usuario_id', usuario.id)
+    : await supabase.from('lecturas').upsert({ noticia_id: noticiaId, usuario_id: usuario.id, club_id: clubId, oculta, me_gusta: meGusta });
+  if (r.error) fallo(r.error, 'No se pudo guardar.');
 }
 
 /** IDs de las encuestas abiertas que este socio puede ver y todavía no respondió. */
 export async function encuestasSinResponder(clubId: string, usuario: Usuario): Promise<string[]> {
   if (usuario.clubId !== clubId) return []; // la plataforma solo mira
-  const db = await cargar();
+  const [{ data: ns }, { data: vs }] = await Promise.all([
+    supabase.from('noticias').select('id, audiencia, encuesta').eq('club_id', clubId).not('encuesta', 'is', null),
+    supabase.from('votos').select('noticia_id').eq('club_id', clubId).eq('usuario_id', usuario.id),
+  ]);
+  const votadas = new Set((vs ?? []).map((v) => v.noticia_id));
   const lector = { esAdmin: usuario.rol === 'admin', federado: usuario.federado };
-  return db.noticias
-    .filter((n) => n.clubId === clubId && n.encuesta && !encuestaCerrada(n.encuesta) && veNoticia(lector, n))
-    .filter((n) => !(db.votos ?? []).some((v) => v.noticiaId === n.id && v.usuarioId === usuario.id))
-    .map((n) => n.id);
+  return (ns ?? [])
+    .filter((n: any) => {
+      const e = aEncuesta(n.encuesta);
+      return e && !encuestaCerrada(e) && !votadas.has(n.id) && veNoticia(lector, { audiencia: n.audiencia } as Noticia);
+    })
+    .map((n: any) => n.id as string);
 }
 
 export async function contarVotos(clubId: string): Promise<Record<string, number>> {
-  const db = await cargar();
+  const { data } = await supabase.from('votos').select('noticia_id').eq('club_id', clubId);
   const r: Record<string, number> = {};
-  for (const v of db.votos ?? []) if (v.clubId === clubId) r[v.noticiaId] = (r[v.noticiaId] ?? 0) + 1;
+  for (const v of data ?? []) r[v.noticia_id] = (r[v.noticia_id] ?? 0) + 1;
   return r;
 }
 
@@ -982,45 +1008,43 @@ export function totalesAsistencia(votos: Voto[]) {
   return { van: van.length, acomp, personas: van.length + acomp };
 }
 
-/** El socio toca una opción: la marca o la desmarca. Solo socios del club, encuesta abierta. */
+async function miVoto(noticiaId: string, usuarioId: string): Promise<Voto | null> {
+  const { data } = await supabase.from('votos').select('*').eq('noticia_id', noticiaId).eq('usuario_id', usuarioId).maybeSingle();
+  return data ? aVoto(data) : null;
+}
+function falloVoto(error: { message?: string; code?: string }): never {
+  if (error.code === '42501') throw new ErrorApp('No podés responder: la encuesta cerró o no es para vos.');
+  fallo(error, 'No se pudo guardar tu respuesta.');
+}
+
+/** El socio toca una opción: la marca o la desmarca. Solo socios del club, encuesta abierta. El cupo lo controla la base. */
 export async function votar(clubId: string, noticiaId: string, usuario: Usuario, opcion: number) {
-  const db = await cargar();
-  if (!db.votos) db.votos = [];
-  const n = db.noticias.find((x) => x.id === noticiaId && x.clubId === clubId);
+  const n = await obtenerNoticia(clubId, noticiaId);
   if (!n?.encuesta) throw new ErrorApp('Encuesta no encontrada.');
   if (usuario.clubId !== clubId) throw new ErrorApp('Solo los socios del club pueden responder.');
-  if (!veNoticia({ esAdmin: usuario.rol === 'admin', federado: usuario.federado }, n)) throw new ErrorApp('Esta encuesta no es para vos.');
   const e = n.encuesta;
   if (encuestaCerrada(e)) throw new ErrorApp('La encuesta ya cerró.');
   if (opcion < 0 || opcion >= opcionesDe(e).length) throw new ErrorApp('Opción inválida.');
-  let v = db.votos.find((x) => x.noticiaId === noticiaId && x.usuarioId === usuario.id);
-  const marcaVoy = e.tipo === 'asistencia' && opcion === 0 && !v?.opciones.includes(0);
-  if (marcaVoy && e.cupo && totalesAsistencia(db.votos.filter((x) => x.noticiaId === noticiaId)).personas >= e.cupo) throw new ErrorApp('El cupo está completo.');
-  if (!v) {
-    v = { id: nuevoId(), clubId, noticiaId, usuarioId: usuario.id, opciones: [opcion], acompanantes: 0, creadoEl: ahora() };
-    db.votos.push(v);
-  } else if (e.multiple) {
-    v.opciones = v.opciones.includes(opcion) ? v.opciones.filter((x) => x !== opcion) : [...v.opciones, opcion].sort((a, b) => a - b);
-  } else {
-    v.opciones = v.opciones.includes(opcion) ? [] : [opcion];
-  }
-  if (e.tipo !== 'asistencia' || !v.opciones.includes(0)) v.acompanantes = 0;
-  if (!v.opciones.length) db.votos = db.votos.filter((x) => x.id !== v!.id);
-  await guardar(db);
+  const v = await miVoto(noticiaId, usuario.id);
+  let opciones: number[];
+  if (!v) opciones = [opcion];
+  else if (e.multiple) opciones = v.opciones.includes(opcion) ? v.opciones.filter((x) => x !== opcion) : [...v.opciones, opcion].sort((a, b) => a - b);
+  else opciones = v.opciones.includes(opcion) ? [] : [opcion];
+  const acompanantes = e.tipo === 'asistencia' && opciones.includes(0) ? v?.acompanantes ?? 0 : 0;
+  const r = !opciones.length
+    ? await supabase.from('votos').delete().eq('id', v!.id)
+    : v
+      ? await supabase.from('votos').update({ opciones, acompanantes }).eq('id', v.id)
+      : await supabase.from('votos').insert({ club_id: clubId, noticia_id: noticiaId, usuario_id: usuario.id, opciones, acompanantes });
+  if (r.error) falloVoto(r.error);
 }
 
 export async function cambiarAcompanantes(clubId: string, noticiaId: string, usuarioId: string, cantidad: number) {
-  const db = await cargar();
-  const n = db.noticias.find((x) => x.id === noticiaId && x.clubId === clubId);
-  const v = (db.votos ?? []).find((x) => x.noticiaId === noticiaId && x.usuarioId === usuarioId);
-  if (!n?.encuesta || !v || !v.opciones.includes(0) || encuestaCerrada(n.encuesta)) return;
+  const v = await miVoto(noticiaId, usuarioId);
+  if (!v || v.clubId !== clubId || !v.opciones.includes(0)) return;
   const k = Math.max(0, Math.min(MAX_ACOMP, cantidad));
-  if (n.encuesta.cupo && k > v.acompanantes) {
-    const tot = totalesAsistencia(db.votos.filter((x) => x.noticiaId === noticiaId));
-    if (tot.personas + (k - v.acompanantes) > n.encuesta.cupo) throw new ErrorApp('No hay más lugar en el cupo.');
-  }
-  v.acompanantes = k;
-  await guardar(db);
+  const { error } = await supabase.from('votos').update({ acompanantes: k }).eq('id', v.id);
+  if (error) falloVoto(error);
 }
 
 /* ================= Pagos por transferencia ================= */
