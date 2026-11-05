@@ -7,6 +7,9 @@
  *  - { accion: 'cambiar_email', token, email }: Mi perfil → Cambiar email. Manda un código al email nuevo.
  *  - { accion: 'confirmar_email', token, codigo }: con ese código, cambia el email de la cuenta en Supabase
  *    (y avisa al email anterior).
+ *  - { accion: 'eliminar_cuenta', token, confirmar }: Mi perfil → Eliminar mi cuenta. Sin "confirmar" solo verifica
+ *    que se pueda (por ejemplo, que no sea el único admin del club); con "confirmar": true Borra la foto, los comprobantes
+ *    y la cuenta (la base borra en cascada el perfil, membresías, inscripciones, votos y pagos).
  *  - { accion: 'bienvenida', token }: al registrarse. Con el token de la sesión nueva, el script
  *    comprueba en Supabase quién es (cuenta creada hace menos de 15 minutos) y le manda la bienvenida
  *    una sola vez. Así nadie puede usarlo para mandar mails a cualquier dirección.
@@ -26,6 +29,7 @@ function doPost(e) {
     if (datos.accion === 'bienvenida') return responder(bienvenida(datos));
     if (datos.accion === 'cambiar_email') return responder(cambiarEmail(datos));
     if (datos.accion === 'confirmar_email') return responder(confirmarEmail(datos));
+    if (datos.accion === 'eliminar_cuenta') return responder(eliminarCuenta(datos));
     if (datos.accion !== 'recuperar') return responder({ ok: false, error: 'accion' });
     var email = String(datos.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return responder({ ok: false, error: 'email' });
@@ -160,6 +164,75 @@ function confirmarEmail(datos) {
         subject: 'Cambiaste el email de tu cuenta de ATS Club',
         body: 'Tu cuenta de ATS Club ahora usa el email ' + p.email + '. Desde ahora ingresá con ese email.' +
           '\n\nSi no fuiste vos, escribile al admin de tu club o a ats.archery@gmail.com.',
+      });
+    }
+  } catch (err) { console.warn(err); }
+  return { ok: true };
+}
+
+/* ---------- Eliminar la cuenta ---------- */
+
+function getJson(c, ruta) {
+  return JSON.parse(UrlFetchApp.fetch(c.url + ruta, { headers: c.h }).getContentText());
+}
+
+function eliminarCuenta(datos) {
+  var c = config();
+  var u = usuarioDeToken(c, String(datos.token || ''));
+  if (!u) return { ok: false, error: 'token' };
+
+  var perfil = getJson(c, '/rest/v1/perfiles?select=es_superadmin,nombre,alias&id=eq.' + u.id)[0];
+  if (perfil && perfil.es_superadmin) return { ok: false, error: 'plataforma' };
+
+  // Si es el único admin de su club, no se puede (el club quedaría sin admin).
+  var ms = getJson(c, '/rest/v1/membresias?select=club_id,rol,estado,clubes(nombre)&usuario_id=eq.' + u.id);
+  for (var i = 0; i < ms.length; i++) {
+    var m = ms[i];
+    if (m.rol === 'admin' && m.estado === 'aprobado') {
+      var otros = getJson(c, '/rest/v1/membresias?select=id&rol=eq.admin&estado=eq.aprobado&club_id=eq.' + m.club_id + '&usuario_id=neq.' + u.id);
+      if (!otros.length) return { ok: false, error: 'unico_admin', club: m.clubes ? m.clubes.nombre : '' };
+    }
+  }
+  if (!datos.confirmar) return { ok: true, puede: true }; // primer paso: solo se verifica
+
+  // Archivos: foto de perfil y comprobantes de pago.
+  try {
+    var borrar = function (bucket, rutas) {
+      if (!rutas.length) return;
+      UrlFetchApp.fetch(c.url + '/storage/v1/object/' + bucket, {
+        method: 'delete', contentType: 'application/json', headers: c.h, payload: JSON.stringify({ prefixes: rutas }), muteHttpExceptions: true,
+      });
+    };
+    borrar('avatars', [u.id + '.jpg']);
+    for (var j = 0; j < ms.length; j++) {
+      var prefijo = ms[j].club_id + '/' + u.id + '/';
+      var r = UrlFetchApp.fetch(c.url + '/storage/v1/object/list/comprobantes', {
+        method: 'post', contentType: 'application/json', headers: c.h,
+        payload: JSON.stringify({ prefix: prefijo, limit: 1000 }), muteHttpExceptions: true,
+      });
+      if (r.getResponseCode() === 200) {
+        borrar('comprobantes', JSON.parse(r.getContentText()).map(function (o) { return prefijo + o.name; }));
+      }
+    }
+  } catch (err) { console.warn(err); }
+
+  // La cuenta (y en cascada todo lo demás).
+  var d = UrlFetchApp.fetch(c.url + '/auth/v1/admin/users/' + u.id, { method: 'delete', headers: c.h, muteHttpExceptions: true });
+  if (d.getResponseCode() >= 400) {
+    console.warn('delete user ' + d.getResponseCode() + ': ' + d.getContentText().slice(0, 300));
+    return { ok: false, error: /al menos un Admin/i.test(d.getContentText()) ? 'unico_admin' : 'error' };
+  }
+
+  try {
+    if (u.email && MailApp.getRemainingDailyQuota() > 0) {
+      MailApp.sendEmail({
+        to: u.email,
+        name: 'ATS Club',
+        subject: 'Eliminamos tu cuenta de ATS Club',
+        body: 'Hola' + (perfil && (perfil.alias || perfil.nombre) ? ' ' + (perfil.alias || perfil.nombre) : '') + ',\n\n' +
+          'Tal como pediste, eliminamos tu cuenta de ATS Club con el email ' + u.email + ', junto con tu perfil, tu foto, tus inscripciones, respuestas y pagos informados.' +
+          '\n\nSi querés volver, pedile a tu club el link de registro y creá una cuenta nueva.' +
+          '\nSi no fuiste vos, escribinos a ats.archery@gmail.com.',
       });
     }
   } catch (err) { console.warn(err); }

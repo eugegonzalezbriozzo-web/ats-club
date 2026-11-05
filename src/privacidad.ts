@@ -52,13 +52,13 @@ export const PRIVACIDAD: { titulo: string; parrafos: string[] }[] = [
     titulo: 'Cuánto tiempo',
     parrafos: [
       'Guardamos tus datos mientras tengas cuenta. Si el club te da de baja, tus datos quedan guardados por si te reactivan; podés pedir que se borren.',
-      'Si pedís borrar tu cuenta, borramos tu perfil, tu foto y tu cuenta. Los registros que el club necesita llevar (por ejemplo, pagos ya aprobados) pueden conservarse sin mostrar tus datos personales.',
+      'Podés eliminar tu cuenta cuando quieras desde Mi perfil → Eliminar mi cuenta. Se borran tu cuenta, tu perfil, tu foto, tu lugar en el club, tus inscripciones, respuestas, "me gusta", los pagos que informaste y sus comprobantes. Las noticias que hayas publicado como admin quedan en el club sin tu nombre.',
     ],
   },
   {
     titulo: 'Tus derechos',
     parrafos: [
-      'Podés ver y corregir tus datos cuando quieras desde Mi perfil, y cambiar tu email o tu contraseña.',
+      'Podés ver y corregir tus datos cuando quieras desde Mi perfil, cambiar tu email o tu contraseña, y eliminar tu cuenta.',
       'Podés pedirnos acceso a todos tus datos, que los corrijamos, actualicemos o borremos escribiendo a ' + CONTACTO_PRIVACIDAD + '. El acceso es gratuito en intervalos no menores a seis meses, salvo que tengas un interés legítimo para pedirlo antes (Ley 25.326, art. 14).',
       'La AGENCIA DE ACCESO A LA INFORMACIÓN PÚBLICA, en su carácter de Órgano de Control de la Ley N° 25.326, tiene la atribución de atender las denuncias y reclamos que interpongan quienes resulten afectados en sus derechos por incumplimiento de las normas vigentes en materia de protección de datos personales.',
     ],

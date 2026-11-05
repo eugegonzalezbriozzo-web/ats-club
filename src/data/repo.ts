@@ -407,6 +407,45 @@ export async function confirmarCambioEmail(codigo: string) {
   await supabase.auth.refreshSession(); // la sesión pasa a tener el email nuevo
 }
 
+/* ---------- Eliminar mi cuenta ---------- */
+
+/**
+ * Borra la cuenta y todo lo de la persona (perfil, foto, membresías, inscripciones, votos, pagos y comprobantes).
+ * Pide la contraseña. No se puede si es el único admin de su club, ni para la plataforma.
+ */
+export async function eliminarCuenta(usuario: Usuario, password: string) {
+  if (!password) throw new ErrorApp('Escribí tu contraseña.');
+  const v = await supabase.auth.signInWithPassword({ email: usuario.email.trim().toLowerCase(), password });
+  if (v.error) {
+    if (/Invalid login credentials/i.test(v.error.message)) throw new ErrorApp('La contraseña no es correcta.');
+    fallo(v.error, 'No se pudo comprobar tu contraseña.');
+  }
+  const token = await tokenActual();
+  const errores: Record<string, string> = {
+    unico_admin: 'Sos el único admin de tu club: antes de eliminar tu cuenta, hacé admin a otra persona en Más → Socios y roles.',
+    plataforma: 'La cuenta de la plataforma no se puede eliminar desde la app.',
+  };
+  // 1) ¿Se puede?
+  const chequeo = await llamarScript({ accion: 'eliminar_cuenta', token });
+  if (!chequeo.ok) throw new ErrorApp(errores[chequeo.error ?? ''] ?? 'No se pudo eliminar la cuenta. Probá de nuevo en un rato.');
+  // 2) Mis archivos (con mi sesión): foto y comprobantes.
+  try {
+    await supabase.storage.from('avatars').remove([`${usuario.id}.jpg`]);
+    if (usuario.clubId) {
+      const carpeta = `${usuario.clubId}/${usuario.id}`;
+      const { data } = await supabase.storage.from('comprobantes').list(carpeta, { limit: 1000 });
+      if (data?.length) await supabase.storage.from('comprobantes').remove(data.map((o) => `${carpeta}/${o.name}`));
+    }
+  } catch {
+    /* el script también intenta borrarlos */
+  }
+  // 3) La cuenta.
+  const r = await llamarScript({ accion: 'eliminar_cuenta', token, confirmar: true });
+  if (!r.ok) throw new ErrorApp(errores[r.error ?? ''] ?? 'No se pudo eliminar la cuenta. Probá de nuevo en un rato.');
+  usuariosConocidos.clear();
+  await supabase.auth.signOut({ scope: 'local' }); // la cuenta ya no existe: se cierra la sesión en este dispositivo
+}
+
 export async function logout() {
   usuariosConocidos.clear();
   await supabase.auth.signOut();
