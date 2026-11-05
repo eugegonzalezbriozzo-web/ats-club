@@ -13,9 +13,9 @@ const KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY || 'sb_publishable_Her99JRs0OUa
 
 /**
  * "Olvidé mi contraseña": aplicación web de Apps Script en la cuenta de Gmail de ATS (apps-script/recuperar.gs).
- * Manda por mail el código de recuperación. Vacío = todavía no está publicado.
+ * Manda por mail el código de recuperación. Se puede cambiar con EXPO_PUBLIC_RECUPERAR_URL en .env.
  */
-export const RECUPERAR_URL = process.env.EXPO_PUBLIC_RECUPERAR_URL || '';
+export const RECUPERAR_URL = process.env.EXPO_PUBLIC_RECUPERAR_URL || 'https://script.google.com/macros/s/AKfycbzI_7ehSBy-9346E_x_CMjlOtpoAHPhecN7cOd1kAQlPOXjh70bu2p5GKIvhQSdgdxu7Q/exec';
 
 export const supabase = createClient(URL, KEY, {
   auth: {
