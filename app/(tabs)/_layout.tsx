@@ -8,7 +8,7 @@ import { View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ANCHO_COMPU, BotonIcono, LogoClub } from '../../src/ui';
 import { FUENTES } from '../../src/texto';
-import { MenuLateral } from '../../src/MenuLateral';
+import { MenuInferior, MenuLateral } from '../../src/MenuLateral';
 
 export default function TabsLayout() {
   const { t, alternar } = useTema();
@@ -32,8 +32,11 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      // En compu, menú lateral propio (alineado a la izquierda); en celular, la barra de abajo de siempre.
-      tabBar={lateral ? (props: any) => <MenuLateral {...props} visibles={['index', 'arqueros', ...(esSuperadmin ? [] : ['inscripciones']), 'mas']} /> : undefined}
+      // Menús propios: lateral en compu, barra de abajo en celular (así los textos no se cortan).
+      tabBar={(props: any) => {
+        const visibles = ['index', 'arqueros', ...(esSuperadmin ? [] : ['inscripciones']), 'mas'];
+        return lateral ? <MenuLateral {...props} visibles={visibles} /> : <MenuInferior {...props} visibles={visibles} abajo={insets.bottom} />;
+      }}
       screenOptions={{
         headerStyle: { backgroundColor: t.header, borderBottomWidth: 4, borderBottomColor: t.band },
         headerTintColor: t.onHeader,
