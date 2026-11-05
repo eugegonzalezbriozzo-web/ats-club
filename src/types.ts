@@ -231,6 +231,8 @@ export interface Comprobante {
   nombre: string;
   tam: number;
   uri: string;
+  /** Con Supabase: ruta en el bucket privado "comprobantes" (se abre con un link temporal). */
+  ruta?: string;
 }
 /** Pago informado por un socio (o registrado por el admin). Lo ven solo quien pagó y los admins. */
 export interface Pago {

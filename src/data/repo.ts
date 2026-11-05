@@ -207,7 +207,7 @@ const copia = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 
 /* ================= Sesión (Supabase) ================= */
 // Desde acá hasta "Torneos", todo es real: cuentas, clubes, socios y perfiles viven en Supabase.
-// Torneos, inscripciones, noticias y encuestas también están en Supabase; los pagos todavía son locales.
+// Torneos, inscripciones, noticias, encuestas y pagos también están en Supabase.
 
 /** Usuarios ya cargados desde Supabase: las partes locales los usan para mostrar nombres. */
 const usuariosConocidos = new Map<string, Usuario>();
@@ -223,14 +223,14 @@ type FilaPerfil = Record<string, any>;
 type FilaMembresia = { club_id: string; rol: Rol; estado: Usuario['estado']; creado_el: string; tipo_cuota_id?: string | null } | null;
 
 /** Fila de Supabase (perfil + membresía) → Usuario de la app. */
-function aUsuario(p: FilaPerfil, m: FilaMembresia, tiposLocales?: Record<string, string>): Usuario {
+function aUsuario(p: FilaPerfil, m: FilaMembresia): Usuario {
   return recordar({
     id: p.id, clubId: m?.club_id ?? null, esSuperadmin: !!p.es_superadmin, email: p.email,
     nombre: p.nombre ?? '', apellido: p.apellido ?? '', nombreCompleto: p.nombre_completo || armarNombreCompleto(p.nombre ?? '', p.apellido ?? ''),
     alias: p.alias ?? '', sobreMi: p.sobre_mi ?? '', foto: p.foto_url ?? '', dni: p.dni ?? '', telefono: p.telefono ?? '',
     ciudad: p.ciudad ?? '', localidad: p.localidad ?? '', direccion: p.direccion ?? '', federado: !!p.federado,
     instagram: p.instagram ?? '', facebook: p.facebook ?? '', tiktok: p.tiktok ?? '',
-    tipoCuota: tiposLocales?.[p.id] ?? m?.tipo_cuota_id ?? undefined,
+    tipoCuota: m?.tipo_cuota_id ?? undefined,
     rol: m?.rol ?? 'usuario', estado: m?.estado ?? 'pendiente', creadoEl: m?.creado_el ?? p.creado_el,
     arco: p.arco, division: p.division, categoria: p.categoria, lateralidad: p.lateralidad,
   });
@@ -257,11 +257,6 @@ function fallo(error: { message?: string; code?: string } | null, porDefecto = '
   throw new ErrorApp(porDefecto);
 }
 
-/** Tipo de cuota asignado localmente (los pagos todavía son locales). */
-async function tiposLocales(): Promise<Record<string, string>> {
-  const db = await cargar();
-  return db.tipoCuotaDe ?? {};
-}
 
 async function perfilYMembresia(uid: string): Promise<Usuario | null> {
   const [{ data: p, error }, { data: ms }] = await Promise.all([
@@ -272,7 +267,7 @@ async function perfilYMembresia(uid: string): Promise<Usuario | null> {
   if (!p) return null;
   // Club vigente (pendiente/aprobado); si no, la última (rechazado o baja) para mostrar el aviso.
   const m = (ms ?? []).find((x) => x.estado === 'aprobado' || x.estado === 'pendiente') ?? (ms ?? [])[0] ?? null;
-  return aUsuario(p, m as FilaMembresia, await tiposLocales());
+  return aUsuario(p, m as FilaMembresia);
 }
 
 export async function usuarioActual(): Promise<Usuario | null> {
@@ -462,10 +457,9 @@ async function sociosRemotos(clubId: string): Promise<Usuario[]> {
     .select('club_id, rol, estado, creado_el, tipo_cuota_id, perfil:perfiles!membresias_usuario_id_fkey(*)')
     .eq('club_id', clubId);
   if (error) fallo(error);
-  const tipos = await tiposLocales();
   return (data ?? [])
     .filter((m: any) => m.perfil)
-    .map((m: any) => aUsuario(m.perfil, m, tipos))
+    .map((m: any) => aUsuario(m.perfil, m))
     .sort((a, b) => a.apellido.localeCompare(b.apellido) || a.nombre.localeCompare(b.nombre));
 }
 
@@ -1137,16 +1131,44 @@ function pagosDemo(): Pago[] {
   ];
 }
 
+const esUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
 export async function obtenerConfigPagos(clubId: string): Promise<ConfigPagos> {
-  const db = await cargar();
-  const c = (db.configPagos ?? []).find((x) => x.clubId === clubId);
-  return c ? copia(c) : { clubId, cuentas: [], tipos: [], cuotaDesde: mesActual() };
+  const [{ data: c }, { data: cuentas }, { data: tipos }] = await Promise.all([
+    supabase.from('clubes').select('cuota_desde').eq('id', clubId).maybeSingle(),
+    supabase.from('cuentas_club').select('*').eq('club_id', clubId).order('orden'),
+    supabase.from('tipos_cuota').select('*').eq('club_id', clubId).order('orden'),
+  ]);
+  return {
+    clubId, cuotaDesde: c?.cuota_desde || mesActual(),
+    cuentas: (cuentas ?? []).map((x: any) => ({ id: x.id, titular: x.titular, banco: x.banco ?? '', alias: x.alias ?? '', cbu: x.cbu ?? '' })),
+    tipos: (tipos ?? []).map((x: any) => ({
+      id: x.id, nombre: x.nombre, monto: Number(x.monto),
+      cambios: (Array.isArray(x.cambios) ? x.cambios : []).map((k: any) => ({ desde: String(k.desde), monto: Number(k.monto) })),
+    })),
+  };
 }
+
+/** Reemplaza las filas de una tabla del club: actualiza las que ya existen (mantiene el id), crea las nuevas y borra las que se quitaron. */
+async function sincronizar(tabla: 'cuentas_club' | 'tipos_cuota', clubId: string, filas: (Record<string, any> & { id: string })[]) {
+  const quedan = filas.filter((f) => esUuid(f.id)).map((f) => f.id);
+  let borrar = supabase.from(tabla).delete().eq('club_id', clubId);
+  if (quedan.length) borrar = borrar.not('id', 'in', `(${quedan.join(',')})`);
+  const b = await borrar;
+  if (b.error) fallo(b.error, 'No se pudo guardar la configuración de pagos.');
+  for (const [orden, { id, ...f }] of filas.entries()) {
+    const r = esUuid(id)
+      ? await supabase.from(tabla).update({ ...f, orden }).eq('id', id).eq('club_id', clubId)
+      : await supabase.from(tabla).insert({ ...f, orden, club_id: clubId });
+    if (r.error) fallo(r.error, 'No se pudo guardar la configuración de pagos.');
+  }
+}
+
 /** Admin: cuentas para transferir, tipos de cuota (con cambios de precio) y desde qué mes se cobra. */
 export async function guardarConfigPagos(clubId: string, cfg: Omit<ConfigPagos, 'clubId'>) {
   for (const c of cfg.cuentas) {
     if (!c.titular.trim() || (!c.alias.trim() && !c.cbu.trim())) throw new ErrorApp('Cada cuenta necesita titular y alias o CBU.');
-    if (c.cbu && !/^\d{22}$/.test(c.cbu)) throw new ErrorApp('El CBU/CVU tiene que tener 22 números.');
+    if (c.cbu && !/^\d{22}$/.test(c.cbu.replace(/\s/g, ''))) throw new ErrorApp('El CBU/CVU tiene que tener 22 números.');
   }
   for (const t of cfg.tipos) {
     if (!t.nombre.trim() || !(t.monto > 0)) throw new ErrorApp('Cada tipo de cuota necesita nombre y monto.');
@@ -1154,23 +1176,52 @@ export async function guardarConfigPagos(clubId: string, cfg: Omit<ConfigPagos, 
     if (new Set(t.cambios.map((c) => c.desde)).size !== t.cambios.length) throw new ErrorApp('Hay dos cambios de precio para el mismo mes.');
   }
   if (!/^\d{4}-\d{2}$/.test(cfg.cuotaDesde)) throw new ErrorApp('Elegí desde qué mes se cobra la cuota.');
-  const db = await cargar();
-  if (!db.configPagos) db.configPagos = [];
-  const datos: ConfigPagos = {
-    clubId, cuotaDesde: cfg.cuotaDesde,
-    cuentas: cfg.cuentas.map((c) => ({ ...c, titular: c.titular.trim(), banco: c.banco.trim(), alias: c.alias.trim(), cbu: c.cbu.replace(/\s/g, '') })),
-    tipos: cfg.tipos.map((t) => ({ ...t, nombre: t.nombre.trim(), cambios: [...t.cambios].sort((a, b) => a.desde.localeCompare(b.desde)) })),
-  };
-  const i = db.configPagos.findIndex((c) => c.clubId === clubId);
-  if (i >= 0) db.configPagos[i] = datos;
-  else db.configPagos.push(datos);
-  await guardar(db);
+  await sincronizar('cuentas_club', clubId, cfg.cuentas.map((c) => ({
+    id: c.id, titular: c.titular.trim(), banco: c.banco.trim(), alias: c.alias.trim(), cbu: c.cbu.replace(/\s/g, ''),
+  })));
+  await sincronizar('tipos_cuota', clubId, cfg.tipos.map((t) => ({
+    id: t.id, nombre: t.nombre.trim(), monto: t.monto, cambios: [...t.cambios].sort((a, b) => a.desde.localeCompare(b.desde)),
+  })));
+  const { error } = await supabase.rpc('cambiar_cuota_desde', { p_club: clubId, p_desde: cfg.cuotaDesde });
+  if (error) fallo(error, 'No se pudo guardar desde qué mes se cobra.');
 }
 
-/** Pagos del club. Admin: todos. Socio: solo los suyos (con Supabase lo garantiza RLS). */
+function aPago(r: Record<string, any>): Pago {
+  const ruta: string | null = r.comprobante_path ?? null;
+  return {
+    id: r.id, clubId: r.club_id, usuarioId: r.usuario_id, concepto: r.concepto, periodos: r.periodos ?? [], torneoId: r.torneo_id ?? null,
+    descripcion: r.descripcion ?? '', monto: Number(r.monto), fecha: r.fecha, cuentaId: r.cuenta_id ?? null,
+    comprobante: ruta ? { tipo: r.comprobante_tipo === 'pdf' ? 'pdf' : 'imagen', nombre: ruta.split('/').pop() ?? 'comprobante', tam: 0, uri: '', ruta } : null,
+    nota: r.nota ?? '', estado: r.estado, motivo: r.motivo ?? '', cargadoPorAdmin: !!r.cargado_por_admin, creadoEl: r.creado_el,
+    resueltoPor: r.resuelto_por ?? null, resueltoEl: r.resuelto_el ?? null,
+  };
+}
+
+/** Pagos del club. Admin: todos. Socio: solo los suyos (lo garantiza RLS). */
 export async function listarPagos(clubId: string, lector: { id: string; esAdmin: boolean }): Promise<Pago[]> {
-  const db = await cargar();
-  return copia((db.pagos ?? []).filter((p) => p.clubId === clubId && (lector.esAdmin || p.usuarioId === lector.id))).sort((a, b) => b.creadoEl.localeCompare(a.creadoEl));
+  let q = supabase.from('pagos').select('*').eq('club_id', clubId).order('creado_el', { ascending: false });
+  if (!lector.esAdmin) q = q.eq('usuario_id', lector.id);
+  const { data, error } = await q;
+  if (error) fallo(error);
+  return (data ?? []).map(aPago);
+}
+
+/** Link temporal (1 hora) para ver un comprobante (bucket privado). */
+export async function linkComprobante(ruta: string): Promise<string> {
+  const { data, error } = await supabase.storage.from('comprobantes').createSignedUrl(ruta, 3600);
+  if (error || !data) throw new ErrorApp('No se pudo abrir el comprobante.');
+  return data.signedUrl;
+}
+
+/** data URI (web) o archivo local (celular) → bytes para subir a Storage. */
+async function bytesDe(uri: string): Promise<Uint8Array> {
+  if (uri.startsWith('data:')) {
+    const bin = atob(uri.split(',')[1] ?? '');
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  return new Uint8Array(await (await fetch(uri)).arrayBuffer());
 }
 
 export interface DatosPago {
@@ -1187,59 +1238,74 @@ export interface DatosPago {
 }
 /**
  * Socio: informa un pago (queda "en revisión", con comprobante).
- * Admin (porAdmin): lo registra ya aprobado (efectivo, etc.); si es inscripción, la confirma.
+ * Admin (porAdmin): lo registra ya aprobado (efectivo, etc.); si es inscripción, la base la confirma.
  */
 export async function informarPago(clubId: string, quien: Usuario, d: DatosPago, porAdmin = false): Promise<Pago> {
-  const db = await cargar();
-  if (!db.pagos) db.pagos = [];
   const esAdmin = porAdmin && (quien.rol === 'admin' || quien.esSuperadmin);
   if (!esAdmin && d.usuarioId !== quien.id) throw new ErrorApp('Solo podés informar tus propios pagos.');
-  const u = usuarioDe(db, d.usuarioId) ?? (d.usuarioId ? ({ id: d.usuarioId } as Usuario) : undefined);
-  if (!u) throw new ErrorApp('Elegí el socio.');
+  if (!d.usuarioId) throw new ErrorApp('Elegí el socio.');
   if (d.concepto === 'cuota' && !d.periodos.length) throw new ErrorApp('Elegí qué mes o meses pagás.');
-  if (d.concepto === 'inscripcion' && !(d.torneoId && (await inscripcionDe(u.id, d.torneoId)))) throw new ErrorApp('Elegí el torneo.');
+  if (d.concepto === 'inscripcion' && !(d.torneoId && (await inscripcionDe(d.usuarioId, d.torneoId)))) throw new ErrorApp('Elegí el torneo.');
   if (d.concepto === 'otros' && !d.descripcion.trim()) throw new ErrorApp('Contá qué estás pagando (por ejemplo: remera del club).');
   if (!(d.monto > 0)) throw new ErrorApp('Escribí el monto transferido.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fecha) || d.fecha > hoyISO()) throw new ErrorApp('Revisá la fecha de la transferencia.');
   if (!esAdmin && !d.comprobante) throw new ErrorApp('Adjuntá el comprobante (captura de pantalla o PDF).');
-  const t = ahora();
-  const p: Pago = {
-    id: nuevoId(), clubId, usuarioId: u.id, concepto: d.concepto,
-    periodos: d.concepto === 'cuota' ? [...d.periodos].sort() : [], torneoId: d.concepto === 'inscripcion' ? d.torneoId : null,
-    descripcion: d.concepto === 'otros' ? d.descripcion.trim().slice(0, 80) : '', monto: d.monto, fecha: d.fecha, cuentaId: d.cuentaId,
-    comprobante: d.comprobante, nota: d.nota.trim().slice(0, 140), estado: esAdmin ? 'aprobado' : 'revision', motivo: '',
-    cargadoPorAdmin: esAdmin, creadoEl: t, resueltoPor: esAdmin ? quien.id : null, resueltoEl: esAdmin ? t : null,
+
+  // 1) Comprobante a Storage: comprobantes/{club}/{socio}/{archivo}
+  let ruta: string | null = null;
+  const c = d.comprobante;
+  if (c) {
+    const pdf = c.tipo === 'pdf';
+    ruta = `${clubId}/${d.usuarioId}/${Date.now()}-${nuevoId()}.${pdf ? 'pdf' : 'jpg'}`;
+    let bytes: Uint8Array;
+    try {
+      bytes = await bytesDe(c.uri);
+    } catch {
+      throw new ErrorApp('No se pudo leer el comprobante. Probá elegirlo de nuevo.');
+    }
+    if (bytes.length > 5 * 1024 * 1024) throw new ErrorApp('El comprobante pesa más de 5 MB. Probá con una captura de pantalla.');
+    const up = await supabase.storage.from('comprobantes').upload(ruta, bytes, { contentType: pdf ? 'application/pdf' : 'image/jpeg' });
+    if (up.error) throw new ErrorApp('No se pudo subir el comprobante. Probá de nuevo.');
+  }
+
+  // 2) El pago
+  const fila = {
+    club_id: clubId, usuario_id: d.usuarioId, concepto: d.concepto,
+    periodos: d.concepto === 'cuota' ? [...d.periodos].sort() : [], torneo_id: d.concepto === 'inscripcion' ? d.torneoId : null,
+    descripcion: d.concepto === 'otros' ? d.descripcion.trim().slice(0, 80) : '', monto: d.monto, fecha: d.fecha,
+    cuenta_id: d.cuentaId && esUuid(d.cuentaId) ? d.cuentaId : null,
+    comprobante_path: ruta, comprobante_tipo: c ? c.tipo : null, nota: d.nota.trim().slice(0, 140),
+    estado: esAdmin ? 'aprobado' : 'revision', cargado_por_admin: esAdmin,
+    ...(esAdmin ? { resuelto_por: quien.id, resuelto_el: new Date().toISOString() } : {}),
   };
-  db.pagos.push(p);
-  if (esAdmin && p.concepto === 'inscripcion') {
-    // La inscripción ya está en Supabase: se confirma allá.
-    await supabase.from('inscripciones').update({ estado: 'confirmada' }).eq('torneo_id', p.torneoId!).eq('usuario_id', p.usuarioId).eq('club_id', clubId);
+  const { data, error } = await supabase.from('pagos').insert(fila).select('*').single();
+  if (error) {
+    if (ruta) await supabase.storage.from('comprobantes').remove([ruta]);
+    if (error.code === '42501') throw new ErrorApp('No podés informar pagos: tu cuenta tiene que estar aprobada en el club.');
+    fallo(error, 'No se pudo informar el pago.');
   }
-  await guardar(db);
-  return copia(p);
+  return aPago(data);
 }
 
-/** Admin: aprueba o rechaza (con motivo). Aprobar el pago de una inscripción la confirma. */
+/** Admin: aprueba o rechaza (con motivo). Aprobar el pago de una inscripción la confirma (lo hace la base). */
 export async function resolverPago(clubId: string, adminId: string, pagoId: string, estado: 'aprobado' | 'rechazado', motivo = '') {
-  const db = await cargar();
-  const p = (db.pagos ?? []).find((x) => x.id === pagoId && x.clubId === clubId);
-  if (!p) throw new ErrorApp('Pago no encontrado.');
   if (estado === 'rechazado' && !motivo.trim()) throw new ErrorApp('Escribí el motivo así el socio sabe qué corregir.');
-  Object.assign(p, { estado, motivo: motivo.trim().slice(0, 140), resueltoPor: adminId, resueltoEl: ahora() });
-  if (estado === 'aprobado' && p.concepto === 'inscripcion') {
-    // La inscripción ya está en Supabase: se confirma allá.
-    await supabase.from('inscripciones').update({ estado: 'confirmada' }).eq('torneo_id', p.torneoId!).eq('usuario_id', p.usuarioId).eq('club_id', clubId);
-  }
-  await guardar(db);
+  const { data, error } = await supabase
+    .from('pagos')
+    .update({ estado, motivo: estado === 'rechazado' ? motivo.trim().slice(0, 140) : '' })
+    .eq('id', pagoId)
+    .eq('club_id', clubId)
+    .select('id');
+  if (error) fallo(error, 'No se pudo actualizar el pago.');
+  if (!data?.length) throw new ErrorApp('Pago no encontrado.');
 }
 
-/** Admin: asigna el tipo de cuota de un socio. */
+/** Admin: asigna el tipo de cuota de un socio (queda en su membresía). */
 export async function cambiarTipoCuota(clubId: string, usuarioId: string, tipoId: string) {
-  const db = await cargar();
-  db.tipoCuotaDe = { ...(db.tipoCuotaDe ?? {}), [usuarioId]: tipoId };
+  const { error } = await supabase.from('membresias').update({ tipo_cuota_id: tipoId }).eq('club_id', clubId).eq('usuario_id', usuarioId);
+  if (error) fallo(error, 'No se pudo cambiar el tipo de cuota.');
   const u = usuariosConocidos.get(usuarioId);
   if (u) u.tipoCuota = tipoId;
-  await guardar(db);
 }
 
 /** Borra todo y vuelve a los datos de ejemplo (útil para probar). */
