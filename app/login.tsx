@@ -4,8 +4,8 @@ import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Text } from '../src/texto';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
-import { LogoATS, PieATS } from '../src/LogoATS';
-import { FUENTE_TITULO, PLATAFORMA, useTema } from '../src/theme';
+import { LogoATSClub, PieATS } from '../src/LogoATS';
+import { FUENTE_TITULO, useTema } from '../src/theme';
 import { Aviso, Boton, BotonIcono, Campo, LogoClub, MensajeError, Txt } from '../src/ui';
 
 /**
@@ -43,9 +43,17 @@ export default function Login() {
           <View style={{ position: 'absolute', top: 8, right: 8 }}>
             <BotonIcono icono={t.oscuro ? 'sunny-outline' : 'moon-outline'} label="Cambiar modo claro u oscuro" onPress={alternar} />
           </View>
-          {club ? <LogoClub club={club} size={72} /> : <LogoATS size={64} />}
-          <Text style={{ color: t.onHeader, fontSize: 38, lineHeight: 40, ...FUENTE_TITULO }}>{club ? club.nombre : PLATAFORMA}</Text>
-          <Text style={{ color: t.onHeaderMuted, fontSize: 15 }}>{club ? 'Ingresá para ver torneos e inscribirte' : 'La app de tu club de arquería · Ingresá con tu cuenta'}</Text>
+          {club ? (
+            <>
+              <LogoClub club={club} size={72} />
+              <Text style={{ color: t.onHeader, fontSize: 38, lineHeight: 40, ...FUENTE_TITULO }}>{club.nombre}</Text>
+            </>
+          ) : (
+            <View style={{ alignItems: 'center' }}>
+              <LogoATSClub alto={150} />
+            </View>
+          )}
+          <Text style={{ color: t.onHeaderMuted, fontSize: 15, textAlign: club ? 'left' : 'center' }}>{club ? 'Ingresá para ver torneos e inscribirte' : 'La app de tu club de arquería · Ingresá con tu cuenta'}</Text>
         </View>
       </SafeAreaView>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

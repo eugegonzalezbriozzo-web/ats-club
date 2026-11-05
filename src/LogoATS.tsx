@@ -1,4 +1,5 @@
 import React from 'react';
+import { Image } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { Text } from './texto';
 import { useTema } from './theme';
@@ -10,6 +11,12 @@ const XML = `<svg viewBox="0 0 5392 4266" xmlns="http://www.w3.org/2000/svg"><pa
 export function LogoATS({ size = 40, color }: { size?: number; color?: string }) {
   const { t } = useTema();
   return <SvgXml xml={XML} width={Math.round((size * 5392) / 4266)} height={size} color={color ?? t.onHeader} accessibilityLabel="ATS" />;
+}
+
+/** Logo completo "ATS CLUB" (fondo transparente, para fondos oscuros). */
+const LOGO_ATS_CLUB = require('../assets/logo/ats-club-transparente.png');
+export function LogoATSClub({ alto = 140 }: { alto?: number }) {
+  return <Image source={LOGO_ATS_CLUB} style={{ height: alto, width: Math.round((alto * 1024) / 856) }} resizeMode="contain" accessibilityLabel="ATS Club" />;
 }
 
 /** Firma al pie: ATS Club · parte de las herramientas ATS. */
