@@ -90,7 +90,12 @@ export interface Usuario extends DatosArquero {
 export interface ArchivoPdf {
   nombre: string;
   tam: number; // bytes
+  /** data URI recién elegido, o link (externo). '' si está en Storage y todavía no se pidió el link. */
   uri: string;
+  /** Ruta en el bucket de Storage (PDF subido). */
+  ruta?: string;
+  /** true = link externo (Drive, web de la federación…), no un PDF subido. */
+  externo?: boolean;
 }
 
 export interface Torneo {

@@ -99,5 +99,5 @@ Cuando conectemos Supabase, las claves públicas van en Netlify → Site configu
 
 La app usa el proyecto Supabase **ats-club**. La URL y la clave publicable están en `.env` (son públicas por diseño; la seguridad la dan las reglas RLS).
 
-Qué ya es real (Supabase): ingreso, registro con el link del club, aprobación de socios, roles, bajas, perfil, Arqueros, clubes (panel de plataforma), contacto y redes.
-Qué sigue local por ahora (en cada dispositivo): torneos e inscripciones, noticias y encuestas, pagos. Se conectan en los próximos pasos.
+Qué ya es real (Supabase): ingreso, registro con el link del club, aprobación de socios, roles, bajas, perfil, Arqueros, clubes (panel de plataforma), contacto y redes, **torneos, inscripciones e invitaciones (PDF en Storage o link)**.
+Qué sigue local por ahora (en cada dispositivo): noticias y encuestas, pagos. Se conectan en los próximos pasos.

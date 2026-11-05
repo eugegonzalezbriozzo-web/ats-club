@@ -7,6 +7,7 @@ import { Linking, Platform, View } from 'react-native';
 import { Text, TextInput } from './texto';
 import { useTema } from './theme';
 import type { ArchivoPdf } from './types';
+import * as repo from './data/repo';
 import { Boton, MensajeError, Tarjeta, Txt } from './ui';
 
 /**
@@ -45,11 +46,13 @@ export async function elegirPdf(): Promise<ArchivoPdf | null> {
     const b64 = await FileSystem.readAsStringAsync(a.uri, { encoding: FileSystem.EncodingType.Base64 });
     uri = `data:application/pdf;base64,${b64}`;
   }
-  return { nombre: a.name, tam, uri };
+  return { nombre: a.name, tam, uri, externo: false };
 }
 
 /** Abre el PDF: en web, en una pestaña nueva; en el celular, con el visor de PDF del teléfono. */
 export async function abrirPdf(pdf: ArchivoPdf) {
+  // PDF guardado en Supabase Storage: se pide un link temporal y se abre.
+  if (pdf.ruta && !pdf.uri.startsWith('data:')) return Linking.openURL(await repo.linkInvitacion(pdf.ruta));
   if (/^https?:/.test(pdf.uri)) return Linking.openURL(pdf.uri);
   const b64 = pdf.uri.split(',')[1] ?? '';
   if (Platform.OS === 'web') {
@@ -81,7 +84,7 @@ export function CampoPdf({ valor, onChange }: { valor: ArchivoPdf | null; onChan
           <Ionicons name={esLink(valor) ? 'link-outline' : 'document-text-outline'} size={26} color={t.accent} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: t.text, fontWeight: '700' }} numberOfLines={1}>{esLink(valor) ? valor.uri : valor.nombre}</Text>
-            <Txt muted style={{ fontSize: 13 }}>{esLink(valor) ? 'Link a la invitación' : tamTexto(valor.tam)}</Txt>
+            <Txt muted style={{ fontSize: 13 }}>{esLink(valor) ? 'Link a la invitación' : valor.tam ? tamTexto(valor.tam) : 'PDF guardado'}</Txt>
           </View>
           <Text accessibilityRole="button" onPress={() => onChange(null)} style={{ color: t.accent, fontWeight: '700', padding: 6 }}>
             Quitar
@@ -128,7 +131,7 @@ export function CampoPdf({ valor, onChange }: { valor: ArchivoPdf | null; onChan
                 const u = link.trim();
                 if (!/^https?:\/\/\S+\.\S+/i.test(u)) return setError('El link tiene que empezar con http:// o https://');
                 setError(null);
-                onChange({ nombre: 'Invitación (link)', tam: 0, uri: u });
+                onChange({ nombre: 'Invitación (link)', tam: 0, uri: u, externo: true });
                 setLink('');
               }}
             />
@@ -142,7 +145,7 @@ export function CampoPdf({ valor, onChange }: { valor: ArchivoPdf | null; onChan
 }
 
 /** La invitación es un link externo (Drive, web de la federación…) y no un PDF adjunto. */
-export const esLink = (p: ArchivoPdf) => /^https?:/i.test(p.uri);
+export const esLink = (p: ArchivoPdf) => p.externo ?? (!p.ruta && /^https?:/i.test(p.uri));
 
 /** Tarjeta "Ver invitación" para el detalle del torneo. */
 export function TarjetaInvitacion({ pdf }: { pdf: ArchivoPdf }) {

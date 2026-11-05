@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import { armarNombreCompleto } from '../util';
 import { MAX_SOBRE_MI } from '../types';
-import type { Audiencia, Club, DatosArquero, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
+import type { ArchivoPdf, Audiencia, Club, DatosArquero, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
 import { hoyISO } from '../util';
 import { MAX_TIT_NOTICIA, MAX_TXT_NOTICIA } from '../types';
@@ -385,12 +385,12 @@ export interface ResumenClub extends Club {
 
 /** Solo plataforma. */
 export async function listarClubes(): Promise<ResumenClub[]> {
-  const [{ data: cs, error }, { data: ms }] = await Promise.all([
+  const [{ data: cs, error }, { data: ms }, { data: ts }] = await Promise.all([
     supabase.from('clubes').select('*').order('nombre'),
     supabase.from('membresias').select('club_id, rol, estado'),
+    supabase.from('torneos').select('club_id'),
   ]);
   if (error) fallo(error);
-  const db = await cargar();
   return (cs ?? []).map((c) => {
     const s = (ms ?? []).filter((m) => m.club_id === c.id);
     return {
@@ -398,7 +398,7 @@ export async function listarClubes(): Promise<ResumenClub[]> {
       socios: s.filter((m) => m.estado === 'aprobado').length,
       pendientes: s.filter((m) => m.estado === 'pendiente').length,
       admins: s.filter((m) => m.rol === 'admin' && m.estado === 'aprobado').length,
-      torneos: db.torneos.filter((t) => t.clubId === c.id).length,
+      torneos: (ts ?? []).filter((t) => t.club_id === c.id).length,
     };
   });
 }
@@ -496,22 +496,15 @@ export async function cambiarEstadoCuenta(clubId: string, usuarioId: string, est
  */
 export async function darDeBaja(clubId: string, adminId: string, usuarioId: string): Promise<number> {
   if (usuarioId === adminId) throw new ErrorApp('No podés darte de baja a vos mismo.');
+  const futuras = await inscripcionesFuturasDe(clubId, usuarioId);
   await actualizarMembresia(clubId, usuarioId, { estado: 'baja', rol: 'usuario' }, 'No se pudo dar de baja.');
-  // Inscripciones (todavía locales) a torneos que vienen.
-  const db = await cargar();
-  const hoy = hoyISO();
-  const esFutura = (i: Inscripcion) => i.usuarioId === usuarioId && i.clubId === clubId && (db.torneos.find((t) => t.id === i.torneoId)?.fechaFin || db.torneos.find((t) => t.id === i.torneoId)?.fecha || '') >= hoy;
-  const n = db.inscripciones.filter(esFutura).length;
-  db.inscripciones = db.inscripciones.filter((i) => !esFutura(i));
-  await guardar(db);
-  return n;
+  if (futuras.length) await supabase.from('inscripciones').delete().in('id', futuras).eq('club_id', clubId);
+  return futuras.length;
 }
 
 /** Cuántas inscripciones a torneos que vienen se cancelarían con la baja (para avisar antes). */
 export async function inscripcionesFuturas(clubId: string, usuarioId: string): Promise<number> {
-  const db = await cargar();
-  const hoy = hoyISO();
-  return db.inscripciones.filter((i) => i.usuarioId === usuarioId && i.clubId === clubId && (db.torneos.find((t) => t.id === i.torneoId)?.fechaFin || db.torneos.find((t) => t.id === i.torneoId)?.fecha || '') >= hoy).length;
+  return (await inscripcionesFuturasDe(clubId, usuarioId)).length;
 }
 
 export async function reactivarSocio(clubId: string, usuarioId: string) {
@@ -578,11 +571,9 @@ export async function perfilArquero(clubId: string, id: string, esAdmin: boolean
   }
   const u = (await sociosRemotos(clubId)).find((x) => x.id === id && x.estado === 'aprobado');
   if (!u) return null;
-  const db = await cargar();
-  const inscripciones = db.inscripciones
-    .filter((i) => i.usuarioId === id && i.clubId === clubId)
-    .map((i) => ({ inscripcion: copia(i), torneo: copia(db.torneos.find((t) => t.id === i.torneoId && t.clubId === clubId)!) }))
-    .filter((x) => x.torneo)
+  const inscripciones = (await inscripcionesDeUsuario(id))
+    .filter((i) => i.clubId === clubId)
+    .map(({ torneo, ...inscripcion }) => ({ inscripcion, torneo }))
     .sort((a, b) => b.torneo.fecha.localeCompare(a.torneo.fecha));
   return { arquero: aPublico(u, true), privado: { email: u.email, telefono: u.telefono ?? '', dni: u.dni ?? '', direccion: u.direccion ?? '', tipoCuota: u.tipoCuota }, inscripciones };
 }
@@ -612,46 +603,103 @@ export async function listarArqueros(clubId: string, conContacto: boolean): Prom
   });
 }
 
-/* ================= Torneos ================= */
+/* ================= Torneos (Supabase) ================= */
+
+const STORAGE = 'storage:'; // prefijo de invitacion_url cuando el PDF está en el bucket "invitaciones"
+
+function aTorneo(r: Record<string, any>): Torneo {
+  const url: string | null = r.invitacion_url ?? null;
+  let invitacion: ArchivoPdf | null = null;
+  if (url?.startsWith(STORAGE)) invitacion = { nombre: r.invitacion_nombre || 'invitacion.pdf', tam: 0, uri: '', ruta: url.slice(STORAGE.length), externo: false };
+  else if (url) invitacion = { nombre: r.invitacion_nombre || 'Invitación (link)', tam: 0, uri: url, externo: true };
+  return {
+    id: r.id, clubId: r.club_id, nombre: r.nombre, clubOrganizador: r.club_organizador ?? '', tipo: r.tipo, jerarquia: r.jerarquia,
+    valor: Number(r.valor ?? 0), fecha: r.fecha, fechaFin: r.fecha_fin ?? '', inscripcionAbre: r.inscripcion_abre,
+    inscripcionCierra: r.inscripcion_cierra, invitacion, creadoEl: r.creado_el,
+  };
+}
+function aInscripcion(r: Record<string, any>): Inscripcion {
+  return {
+    id: r.id, clubId: r.club_id, torneoId: r.torneo_id, usuarioId: r.usuario_id, arco: r.arco, division: r.division,
+    categoria: r.categoria, lateralidad: r.lateralidad, estado: r.estado, creadoEl: r.creado_el,
+  };
+}
 
 export async function listarTorneos(clubId: string): Promise<Torneo[]> {
-  const db = await cargar();
-  return copia(db.torneos.filter((t) => t.clubId === clubId)).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const { data, error } = await supabase.from('torneos').select('*').eq('club_id', clubId).order('fecha');
+  if (error) fallo(error);
+  return (data ?? []).map(aTorneo);
 }
 
 export async function obtenerTorneo(clubId: string, torneoId: string): Promise<Torneo | null> {
-  const db = await cargar();
-  const t = db.torneos.find((x) => x.id === torneoId && x.clubId === clubId);
-  return t ? copia(t) : null;
+  const { data } = await supabase.from('torneos').select('*').eq('club_id', clubId).eq('id', torneoId).maybeSingle();
+  return data ? aTorneo(data) : null;
 }
 
 export type DatosTorneo = Omit<Torneo, 'id' | 'creadoEl' | 'clubId'>;
 
+/** data URI (base64) → bytes, para subir el PDF a Storage. */
+function bytesDeDataUri(uri: string): Uint8Array {
+  const bin = atob(uri.split(',')[1] ?? '');
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/** Admin del club: crea o edita un torneo. La invitación puede ser un PDF (va a Storage) o un link. */
 export async function guardarTorneo(clubId: string, datos: DatosTorneo, torneoId?: string): Promise<Torneo> {
-  const db = await cargar();
   if (datos.inscripcionAbre > datos.inscripcionCierra) throw new ErrorApp('La inscripción no puede cerrar antes de abrir.');
   if (datos.fechaFin && datos.fechaFin < datos.fecha) throw new ErrorApp('El torneo no puede terminar antes de empezar.');
-  if (torneoId) {
-    const t = db.torneos.find((x) => x.id === torneoId && x.clubId === clubId);
-    if (!t) throw new ErrorApp('Torneo no encontrado.');
-    Object.assign(t, datos);
-    await guardar(db);
-    return copia(t);
+  const fila = {
+    club_id: clubId, nombre: datos.nombre.trim(), club_organizador: datos.clubOrganizador.trim(), tipo: datos.tipo, jerarquia: datos.jerarquia,
+    valor: datos.valor, fecha: datos.fecha, fecha_fin: datos.fechaFin && datos.fechaFin > datos.fecha ? datos.fechaFin : null,
+    inscripcion_abre: datos.inscripcionAbre, inscripcion_cierra: datos.inscripcionCierra,
+  };
+  const r = torneoId
+    ? await supabase.from('torneos').update(fila).eq('id', torneoId).eq('club_id', clubId).select('*').single()
+    : await supabase.from('torneos').insert(fila).select('*').single();
+  if (r.error) fallo(r.error, 'No se pudo guardar el torneo.');
+  const id = r.data.id as string;
+  const anterior = aTorneo(r.data).invitacion;
+
+  // Invitación
+  const inv = datos.invitacion ?? null;
+  let invitacion_url: string | null = null;
+  let invitacion_nombre: string | null = null;
+  if (inv && (inv.externo || /^https?:/i.test(inv.uri))) {
+    invitacion_url = inv.uri;
+    invitacion_nombre = inv.nombre;
+  } else if (inv?.ruta && !inv.uri.startsWith('data:')) {
+    invitacion_url = STORAGE + inv.ruta; // ya estaba subida: no se toca
+    invitacion_nombre = inv.nombre;
+  } else if (inv?.uri.startsWith('data:')) {
+    const ruta = `${clubId}/${id}.pdf`;
+    const up = await supabase.storage.from('invitaciones').upload(ruta, bytesDeDataUri(inv.uri), { contentType: 'application/pdf', upsert: true });
+    if (up.error) throw new ErrorApp('El torneo se guardó, pero no se pudo subir el PDF. Probá de nuevo desde Editar.');
+    invitacion_url = STORAGE + ruta;
+    invitacion_nombre = inv.nombre;
   }
-  const t: Torneo = { ...datos, id: nuevoId(), clubId, creadoEl: ahora() };
-  db.torneos.push(t);
-  await guardar(db);
-  return copia(t);
+  if (!invitacion_url && anterior?.ruta) await supabase.storage.from('invitaciones').remove([anterior.ruta]);
+  const r2 = await supabase.from('torneos').update({ invitacion_url, invitacion_nombre }).eq('id', id).select('*').single();
+  if (r2.error) fallo(r2.error, 'No se pudo guardar la invitación.');
+  return aTorneo(r2.data);
 }
 
 export async function eliminarTorneo(clubId: string, torneoId: string) {
-  const db = await cargar();
-  db.torneos = db.torneos.filter((t) => !(t.id === torneoId && t.clubId === clubId));
-  db.inscripciones = db.inscripciones.filter((i) => !(i.torneoId === torneoId && i.clubId === clubId));
-  await guardar(db);
+  const t = await obtenerTorneo(clubId, torneoId);
+  const { error } = await supabase.from('torneos').delete().eq('id', torneoId).eq('club_id', clubId);
+  if (error) fallo(error, 'No se pudo eliminar el torneo.');
+  if (t?.invitacion?.ruta) await supabase.storage.from('invitaciones').remove([t.invitacion.ruta]);
 }
 
-/* ================= Inscripciones ================= */
+/** Link temporal (1 hora) para abrir el PDF de invitación guardado en Storage. */
+export async function linkInvitacion(ruta: string): Promise<string> {
+  const { data, error } = await supabase.storage.from('invitaciones').createSignedUrl(ruta, 3600);
+  if (error || !data) throw new ErrorApp('No se pudo abrir la invitación.');
+  return data.signedUrl;
+}
+
+/* ================= Inscripciones (Supabase) ================= */
 
 export function estadoInscripcionTorneo(t: Torneo, hoy?: string) {
   const d = new Date();
@@ -663,81 +711,94 @@ export function estadoInscripcionTorneo(t: Torneo, hoy?: string) {
 }
 
 export async function inscripcionDe(usuarioId: string, torneoId: string): Promise<Inscripcion | null> {
-  const db = await cargar();
-  const i = db.inscripciones.find((x) => x.usuarioId === usuarioId && x.torneoId === torneoId);
-  return i ? copia(i) : null;
+  const { data } = await supabase.from('inscripciones').select('*').eq('usuario_id', usuarioId).eq('torneo_id', torneoId).maybeSingle();
+  return data ? aInscripcion(data) : null;
 }
 
-/** Solo socios aprobados del MISMO club del torneo. */
+/** Solo socios aprobados del MISMO club del torneo, con la inscripción abierta (lo controla la base). */
 export async function inscribirse(usuarioId: string, torneoId: string, datos: DatosArquero, actualizarPerfilTambien: boolean): Promise<Inscripcion> {
-  const db = await cargar();
-  const u = usuarioDe(db, usuarioId);
-  const t = db.torneos.find((x) => x.id === torneoId);
-  if (!u || !t || u.clubId !== t.clubId) throw new ErrorApp('Torneo no encontrado.');
-  if (u.estado !== 'aprobado') throw new ErrorApp('Tu cuenta todavía no fue aprobada.');
-  if (estadoInscripcionTorneo(t) !== 'abierta') throw new ErrorApp('La inscripción no está abierta.');
-  if (db.inscripciones.some((i) => i.usuarioId === usuarioId && i.torneoId === torneoId)) throw new ErrorApp('Ya estás inscripto en este torneo.');
-  const ins: Inscripcion = { ...datos, id: nuevoId(), clubId: t.clubId, torneoId, usuarioId, estado: 'pendiente', creadoEl: ahora() };
-  db.inscripciones.push(ins);
-  await guardar(db);
+  const { data: t } = await supabase.from('torneos').select('*').eq('id', torneoId).maybeSingle();
+  if (!t) throw new ErrorApp('Torneo no encontrado.');
+  if (estadoInscripcionTorneo(aTorneo(t)) !== 'abierta') throw new ErrorApp('La inscripción no está abierta.');
+  const { data, error } = await supabase
+    .from('inscripciones')
+    .insert({ club_id: t.club_id, torneo_id: torneoId, usuario_id: usuarioId, arco: datos.arco, division: datos.division, categoria: datos.categoria, lateralidad: datos.lateralidad })
+    .select('*')
+    .single();
+  if (error) {
+    if (error.code === '23505') throw new ErrorApp('Ya estás inscripto en este torneo.');
+    if (error.code === '42501') throw new ErrorApp('No podés inscribirte: tu cuenta tiene que estar aprobada y la inscripción abierta.');
+    fallo(error, 'No se pudo hacer la inscripción.');
+  }
   if (actualizarPerfilTambien) await actualizarPerfil(usuarioId, datos);
-  return copia(ins);
+  return aInscripcion(data);
 }
 
 export async function cancelarInscripcion(clubId: string, inscripcionId: string) {
-  const db = await cargar();
-  db.inscripciones = db.inscripciones.filter((i) => !(i.id === inscripcionId && i.clubId === clubId));
-  await guardar(db);
+  const { error } = await supabase.from('inscripciones').delete().eq('id', inscripcionId).eq('club_id', clubId);
+  if (error) fallo(error, 'No se pudo cancelar la inscripción.');
 }
 
 export async function confirmarInscripcion(clubId: string, inscripcionId: string, confirmada: boolean) {
-  const db = await cargar();
-  const i = db.inscripciones.find((x) => x.id === inscripcionId && x.clubId === clubId);
-  if (!i) throw new ErrorApp('Inscripción no encontrada.');
-  i.estado = confirmada ? 'confirmada' : 'pendiente';
-  await guardar(db);
+  const { error } = await supabase.from('inscripciones').update({ estado: confirmada ? 'confirmada' : 'pendiente' }).eq('id', inscripcionId).eq('club_id', clubId);
+  if (error) fallo(error, 'No se pudo actualizar la inscripción.');
 }
 
 /** Admin: confirma varias inscripciones de su club de una vez. */
 export async function confirmarInscripciones(clubId: string, ids: string[]) {
-  const db = await cargar();
-  for (const i of db.inscripciones) if (ids.includes(i.id) && i.clubId === clubId) i.estado = 'confirmada';
-  await guardar(db);
+  if (!ids.length) return;
+  const { error } = await supabase.from('inscripciones').update({ estado: 'confirmada' }).in('id', ids).eq('club_id', clubId);
+  if (error) fallo(error, 'No se pudieron confirmar las inscripciones.');
 }
 
 /** Admin: da de baja varias inscripciones de su club de una vez. */
 export async function cancelarInscripciones(clubId: string, ids: string[]) {
-  const db = await cargar();
-  db.inscripciones = db.inscripciones.filter((i) => !(ids.includes(i.id) && i.clubId === clubId));
-  await guardar(db);
+  if (!ids.length) return;
+  const { error } = await supabase.from('inscripciones').delete().in('id', ids).eq('club_id', clubId);
+  if (error) fallo(error, 'No se pudieron dar de baja las inscripciones.');
 }
 
 export async function inscripcionesDeUsuario(usuarioId: string): Promise<(Inscripcion & { torneo: Torneo })[]> {
-  const db = await cargar();
-  return copia(
-    db.inscripciones
-      .filter((i) => i.usuarioId === usuarioId)
-      .map((i) => ({ ...i, torneo: db.torneos.find((t) => t.id === i.torneoId && t.clubId === i.clubId)! }))
-      .filter((i) => i.torneo)
-      .sort((a, b) => a.torneo.fecha.localeCompare(b.torneo.fecha)),
-  );
+  const { data, error } = await supabase
+    .from('inscripciones')
+    .select('*, torneo:torneos!inscripciones_torneo_id_club_id_fkey(*)')
+    .eq('usuario_id', usuarioId);
+  if (error) fallo(error);
+  return (data ?? [])
+    .filter((r: any) => r.torneo)
+    .map((r: any) => ({ ...aInscripcion(r), torneo: aTorneo(r.torneo) }))
+    .sort((a, b) => a.torneo.fecha.localeCompare(b.torneo.fecha));
 }
 
+/** Admin: inscriptos de un torneo con los datos de cada arquero. */
 export async function inscriptosDeTorneo(clubId: string, torneoId: string): Promise<(Inscripcion & { usuario: Usuario })[]> {
-  const db = await cargar();
-  return copia(
-    db.inscripciones
-      .filter((i) => i.torneoId === torneoId && i.clubId === clubId)
-      .map((i) => ({ ...i, usuario: usuarioDe(db, i.usuarioId)! }))
-      .filter((i) => i.usuario),
-  );
+  const { data, error } = await supabase
+    .from('inscripciones')
+    .select('*, perfil:perfiles!inscripciones_usuario_id_fkey(*)')
+    .eq('club_id', clubId)
+    .eq('torneo_id', torneoId);
+  if (error) fallo(error);
+  return (data ?? [])
+    .filter((r: any) => r.perfil)
+    .map((r: any) => ({ ...aInscripcion(r), usuario: usuariosConocidos.get(r.usuario_id) ?? aUsuario(r.perfil, { club_id: clubId, rol: 'usuario', estado: 'aprobado', creado_el: r.perfil.creado_el }) }));
 }
 
 export async function contarInscriptos(clubId: string): Promise<Record<string, number>> {
-  const db = await cargar();
+  const { data } = await supabase.from('inscripciones').select('torneo_id').eq('club_id', clubId);
   const r: Record<string, number> = {};
-  for (const i of db.inscripciones) if (i.clubId === clubId) r[i.torneoId] = (r[i.torneoId] ?? 0) + 1;
+  for (const i of data ?? []) r[i.torneo_id] = (r[i.torneo_id] ?? 0) + 1;
   return r;
+}
+
+/** Inscripciones de un socio a torneos que todavía no terminaron (para la baja). */
+async function inscripcionesFuturasDe(clubId: string, usuarioId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('inscripciones')
+    .select('id, torneo:torneos!inscripciones_torneo_id_club_id_fkey(fecha, fecha_fin)')
+    .eq('club_id', clubId)
+    .eq('usuario_id', usuarioId);
+  const hoy = hoyISO();
+  return (data ?? []).filter((r: any) => r.torneo && (r.torneo.fecha_fin || r.torneo.fecha) >= hoy).map((r: any) => r.id);
 }
 
 /* ================= Noticias y encuestas ================= */
@@ -1111,7 +1172,7 @@ export async function informarPago(clubId: string, quien: Usuario, d: DatosPago,
   const u = usuarioDe(db, d.usuarioId) ?? (d.usuarioId ? ({ id: d.usuarioId } as Usuario) : undefined);
   if (!u) throw new ErrorApp('Elegí el socio.');
   if (d.concepto === 'cuota' && !d.periodos.length) throw new ErrorApp('Elegí qué mes o meses pagás.');
-  if (d.concepto === 'inscripcion' && !db.inscripciones.some((i) => i.torneoId === d.torneoId && i.usuarioId === u.id && i.clubId === clubId)) throw new ErrorApp('Elegí el torneo.');
+  if (d.concepto === 'inscripcion' && !(d.torneoId && (await inscripcionDe(u.id, d.torneoId)))) throw new ErrorApp('Elegí el torneo.');
   if (d.concepto === 'otros' && !d.descripcion.trim()) throw new ErrorApp('Contá qué estás pagando (por ejemplo: remera del club).');
   if (!(d.monto > 0)) throw new ErrorApp('Escribí el monto transferido.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fecha) || d.fecha > hoyISO()) throw new ErrorApp('Revisá la fecha de la transferencia.');
@@ -1126,8 +1187,8 @@ export async function informarPago(clubId: string, quien: Usuario, d: DatosPago,
   };
   db.pagos.push(p);
   if (esAdmin && p.concepto === 'inscripcion') {
-    const ins = db.inscripciones.find((i) => i.torneoId === p.torneoId && i.usuarioId === p.usuarioId && i.clubId === clubId);
-    if (ins) ins.estado = 'confirmada';
+    // La inscripción ya está en Supabase: se confirma allá.
+    await supabase.from('inscripciones').update({ estado: 'confirmada' }).eq('torneo_id', p.torneoId!).eq('usuario_id', p.usuarioId).eq('club_id', clubId);
   }
   await guardar(db);
   return copia(p);
@@ -1141,8 +1202,8 @@ export async function resolverPago(clubId: string, adminId: string, pagoId: stri
   if (estado === 'rechazado' && !motivo.trim()) throw new ErrorApp('Escribí el motivo así el socio sabe qué corregir.');
   Object.assign(p, { estado, motivo: motivo.trim().slice(0, 140), resueltoPor: adminId, resueltoEl: ahora() });
   if (estado === 'aprobado' && p.concepto === 'inscripcion') {
-    const ins = db.inscripciones.find((i) => i.torneoId === p.torneoId && i.usuarioId === p.usuarioId && i.clubId === clubId);
-    if (ins) ins.estado = 'confirmada';
+    // La inscripción ya está en Supabase: se confirma allá.
+    await supabase.from('inscripciones').update({ estado: 'confirmada' }).eq('torneo_id', p.torneoId!).eq('usuario_id', p.usuarioId).eq('club_id', clubId);
   }
   await guardar(db);
 }
