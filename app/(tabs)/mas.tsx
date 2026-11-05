@@ -146,6 +146,7 @@ export default function Mas() {
         />
       ) : null}
       <Boton titulo="Cerrar sesión" variante="secundario" icono="log-out-outline" onPress={logout} />
+      <FilaMenu icono="shield-checkmark-outline" titulo="Privacidad" detalle="Qué datos guarda la app y quién los ve" onPress={() => router.push('/privacidad')} />
       <PieATS />
     </Pantalla>
   );

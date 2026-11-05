@@ -81,6 +81,9 @@ export default function Login() {
               Ingresar sin el link del club
             </Text>
           ) : null}
+          <Link href="/privacidad" style={{ color: t.muted, fontSize: 13, textAlign: 'center', textDecorationLine: 'underline' }}>
+            Política de privacidad
+          </Link>
           <PieATS />
         </ScrollView>
       </KeyboardAvoidingView>

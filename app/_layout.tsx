@@ -20,6 +20,7 @@ import {
 /**
  * Decide a dónde puede ir cada usuario:
  *  - sin sesión: login, registro (solo con link de club), recuperar contraseña y /c/<slug>
+ *  - siempre: /privacidad
  *  - socio no aprobado o club inactivo: pantalla "pendiente"
  *  - plataforma sin club elegido: panel /plataforma
  *  - dentro de un club: pestañas; /gestion solo para admins
@@ -32,6 +33,7 @@ function Guardia() {
   useEffect(() => {
     if (cargando) return;
     const raiz = seg[0] as string | undefined;
+    if (raiz === 'privacidad') return; // pública: con o sin sesión
     const enAcceso = raiz === 'login' || raiz === 'registro' || raiz === 'recuperar' || raiz === 'c';
 
     if (!usuario) {
@@ -88,6 +90,7 @@ function Navegacion() {
         <Stack.Screen name="recuperar" options={{ title: 'Olvidé mi contraseña' }} />
         <Stack.Screen name="cuenta/contrasena" options={{ title: 'Cambiar contraseña' }} />
         <Stack.Screen name="cuenta/email" options={{ title: 'Cambiar email' }} />
+        <Stack.Screen name="privacidad" options={{ title: 'Privacidad' }} />
         <Stack.Screen name="pendiente" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="torneo/[id]" options={{ title: 'Torneo' }} />

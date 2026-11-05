@@ -98,6 +98,10 @@ export default function Registro() {
       <Pildoras label="Categoría" opciones={CATEGORIAS} valor={categoria} onChange={setCategoria} />
       <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={lateralidad} onChange={setLateralidad} />
       <CampoFederado valor={federado} onChange={setFederado} />
+      <Txt muted style={{ fontSize: 13 }}>
+        Al enviar la solicitud aceptás la{' '}
+        <Link href="/privacidad" style={{ color: t.accent, fontWeight: '700' }}>Política de privacidad</Link>: tus datos los ven los socios y los admins de tu club.
+      </Txt>
       <MensajeError texto={error} />
     </Pantalla>
   );
