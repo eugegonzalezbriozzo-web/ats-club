@@ -352,6 +352,61 @@ export async function cambiarContrasena(email: string, actual: string, nueva: st
   }
 }
 
+/* ---------- Cambiar el email (código al email nuevo, por el Apps Script) ---------- */
+
+async function llamarScript(cuerpo: Record<string, unknown>): Promise<{ ok?: boolean; error?: string }> {
+  if (!RECUPERAR_URL) throw new ErrorApp('Esta opción todavía no está disponible.');
+  try {
+    const res = await fetch(RECUPERAR_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(cuerpo) });
+    return await res.json().catch(() => ({}));
+  } catch {
+    throw new ErrorApp('Sin conexión. Revisá internet y probá de nuevo.');
+  }
+}
+async function tokenActual() {
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) throw new ErrorApp('Tu sesión venció. Ingresá de nuevo.');
+  return data.session.access_token;
+}
+
+/** Paso 1: comprueba la contraseña y manda un código al email nuevo. */
+export async function pedirCambioEmail(emailActual: string, password: string, nuevo: string) {
+  const e = nuevo.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(e)) throw new ErrorApp('Escribí el email nuevo.');
+  if (e === emailActual.trim().toLowerCase()) throw new ErrorApp('Ese ya es tu email.');
+  if (!password) throw new ErrorApp('Escribí tu contraseña.');
+  const v = await supabase.auth.signInWithPassword({ email: emailActual.trim().toLowerCase(), password });
+  if (v.error) {
+    if (/Invalid login credentials/i.test(v.error.message)) throw new ErrorApp('La contraseña no es correcta.');
+    fallo(v.error, 'No se pudo comprobar tu contraseña.');
+  }
+  const r = await llamarScript({ accion: 'cambiar_email', token: await tokenActual(), email: e });
+  if (r.ok) return;
+  const m: Record<string, string> = {
+    existe: 'Ya hay una cuenta con ese email.',
+    igual: 'Ese ya es tu email.',
+    esperar: 'Ya te mandamos un código hace menos de un minuto. Revisá tu mail (y el spam).',
+    limite_diario: 'Hoy se mandaron demasiados mails. Probá mañana.',
+    email: 'Revisá el email nuevo.',
+  };
+  throw new ErrorApp(m[r.error ?? ''] ?? 'No se pudo mandar el código. Probá de nuevo en un rato.');
+}
+
+/** Paso 2: con el código del mail, cambia el email de la cuenta. */
+export async function confirmarCambioEmail(codigo: string) {
+  if (codigo.replace(/\D/g, '').length !== 6) throw new ErrorApp('Escribí el código de 6 números que te llegó.');
+  const r = await llamarScript({ accion: 'confirmar_email', token: await tokenActual(), codigo });
+  if (!r.ok) {
+    const m: Record<string, string> = {
+      codigo: 'El código no es correcto.',
+      vencido: 'El código venció o se intentó demasiadas veces. Pedí uno nuevo.',
+      existe: 'Ya hay una cuenta con ese email.',
+    };
+    throw new ErrorApp(m[r.error ?? ''] ?? 'No se pudo cambiar el email. Probá de nuevo.');
+  }
+  await supabase.auth.refreshSession(); // la sesión pasa a tener el email nuevo
+}
+
 export async function logout() {
   usuariosConocidos.clear();
   await supabase.auth.signOut();

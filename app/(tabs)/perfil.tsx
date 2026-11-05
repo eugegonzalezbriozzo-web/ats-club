@@ -119,6 +119,7 @@ export default function Perfil() {
       <Boton titulo="Guardar cambios" onPress={guardar} cargando={enviando} />
       <Titulo style={{ marginTop: 8 }}>Cuenta</Titulo>
       <Txt muted style={{ fontSize: 13 }}>Ingresás con {usuario.email}</Txt>
+      <Boton titulo="Cambiar email" variante="secundario" icono="mail-outline" onPress={() => router.push('/cuenta/email')} />
       <Boton titulo="Cambiar contraseña" variante="secundario" icono="key-outline" onPress={() => router.push('/cuenta/contrasena')} />
       <Boton titulo="Cerrar sesión" variante="secundario" icono="log-out-outline" onPress={logout} />
     </Pantalla>

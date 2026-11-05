@@ -4,6 +4,9 @@
  *
  *  - { accion: 'recuperar', email }: "Olvidé mi contraseña". Pide a Supabase un código de
  *    recuperación para ese email y lo manda. La persona lo escribe en la app y elige otra contraseña.
+ *  - { accion: 'cambiar_email', token, email }: Mi perfil → Cambiar email. Manda un código al email nuevo.
+ *  - { accion: 'confirmar_email', token, codigo }: con ese código, cambia el email de la cuenta en Supabase
+ *    (y avisa al email anterior).
  *  - { accion: 'bienvenida', token }: al registrarse. Con el token de la sesión nueva, el script
  *    comprueba en Supabase quién es (cuenta creada hace menos de 15 minutos) y le manda la bienvenida
  *    una sola vez. Así nadie puede usarlo para mandar mails a cualquier dirección.
@@ -21,6 +24,8 @@ function doPost(e) {
   try {
     var datos = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     if (datos.accion === 'bienvenida') return responder(bienvenida(datos));
+    if (datos.accion === 'cambiar_email') return responder(cambiarEmail(datos));
+    if (datos.accion === 'confirmar_email') return responder(confirmarEmail(datos));
     if (datos.accion !== 'recuperar') return responder({ ok: false, error: 'accion' });
     var email = String(datos.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return responder({ ok: false, error: 'email' });
@@ -55,6 +60,110 @@ function doPost(e) {
     console.error(err);
     return responder({ ok: false, error: 'error' });
   }
+}
+
+/* ---------- Cambiar el email de la cuenta ---------- */
+
+function config() {
+  var props = PropertiesService.getScriptProperties();
+  var url = (props.getProperty('SUPABASE_URL') || '').replace(/\/$/, '');
+  var key = props.getProperty('SUPABASE_SECRET_KEY');
+  if (!url || !key) throw new Error('Faltan SUPABASE_URL o SUPABASE_SECRET_KEY en las propiedades del script.');
+  var h = { apikey: key };
+  if (key.indexOf('sb_') !== 0) h.Authorization = 'Bearer ' + key;
+  return { props: props, url: url, key: key, h: h };
+}
+
+/** ¿De quién es esta sesión? (Supabase valida el token) */
+function usuarioDeToken(c, token) {
+  if (!token || token.length > 4000) return null;
+  var r = UrlFetchApp.fetch(c.url + '/auth/v1/user', { headers: { apikey: c.key, Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
+  return r.getResponseCode() === 200 ? JSON.parse(r.getContentText()) : null;
+}
+
+function cuotaDiaria(c) {
+  var hoy = Utilities.formatDate(new Date(), 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd');
+  var n = c.props.getProperty('dia') === hoy ? Number(c.props.getProperty('enviados') || 0) : 0;
+  return { hoy: hoy, n: n, hay: n < LIMITE_DIARIO && MailApp.getRemainingDailyQuota() > 0 };
+}
+function contarEnvio(c, q) {
+  c.props.setProperties({ dia: q.hoy, enviados: String(q.n + 1) });
+}
+
+function cambiarEmail(datos) {
+  var c = config();
+  var u = usuarioDeToken(c, String(datos.token || ''));
+  if (!u) return { ok: false, error: 'token' };
+  var nuevo = String(datos.email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nuevo) || nuevo.length > 200) return { ok: false, error: 'email' };
+  if (nuevo === String(u.email || '').toLowerCase()) return { ok: false, error: 'igual' };
+
+  var cache = CacheService.getScriptCache();
+  if (cache.get('cr:' + u.id)) return { ok: false, error: 'esperar' };
+  var q = cuotaDiaria(c);
+  if (!q.hay) return { ok: false, error: 'limite_diario' };
+
+  // ¿Ya hay una cuenta con ese email?
+  var ya = JSON.parse(UrlFetchApp.fetch(c.url + '/rest/v1/perfiles?select=id&email=eq.' + encodeURIComponent(nuevo), { headers: c.h }).getContentText());
+  if (ya.length) return { ok: false, error: 'existe' };
+
+  var codigo = String(Math.floor(100000 + Math.random() * 900000));
+  cache.put('ce:' + u.id, JSON.stringify({ email: nuevo, codigo: codigo, intentos: 0 }), 15 * 60);
+  cache.put('cr:' + u.id, '1', ESPERA_SEGUNDOS);
+  MailApp.sendEmail({
+    to: nuevo,
+    name: 'ATS Club',
+    subject: 'Tu código para cambiar el email: ' + codigo,
+    htmlBody: '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;padding:24px;color:#222">' +
+      '<h2 style="margin:0 0 12px">Cambiar email</h2>' +
+      '<p>Para usar <b>' + escapar(nuevo) + '</b> en tu cuenta de ATS Club, escribí este código en la app:</p>' +
+      '<p style="font-size:32px;font-weight:bold;letter-spacing:6px;background:#f2f2f5;padding:14px;text-align:center;border-radius:10px">' + codigo + '</p>' +
+      '<p>Vence en 15 minutos.</p><p style="color:#888;font-size:13px">Si no lo pediste, ignorá este mail.</p></div>',
+    body: 'Tu código para cambiar el email de tu cuenta de ATS Club es: ' + codigo + '\nVence en 15 minutos. Si no lo pediste, ignorá este mail.',
+  });
+  contarEnvio(c, q);
+  return { ok: true };
+}
+
+function confirmarEmail(datos) {
+  var c = config();
+  var u = usuarioDeToken(c, String(datos.token || ''));
+  if (!u) return { ok: false, error: 'token' };
+  var cache = CacheService.getScriptCache();
+  var guardado = cache.get('ce:' + u.id);
+  if (!guardado) return { ok: false, error: 'vencido' };
+  var p = JSON.parse(guardado);
+  if (String(datos.codigo || '').replace(/\D/g, '') !== p.codigo) {
+    p.intentos++;
+    if (p.intentos >= 5) cache.remove('ce:' + u.id);
+    else cache.put('ce:' + u.id, JSON.stringify(p), 15 * 60);
+    return { ok: false, error: p.intentos >= 5 ? 'vencido' : 'codigo' };
+  }
+  var r = UrlFetchApp.fetch(c.url + '/auth/v1/admin/users/' + u.id, {
+    method: 'put',
+    contentType: 'application/json',
+    headers: c.h,
+    payload: JSON.stringify({ email: p.email, email_confirm: true }),
+    muteHttpExceptions: true,
+  });
+  if (r.getResponseCode() >= 400) {
+    console.warn('admin/users ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 200));
+    return { ok: false, error: /already|exists|registered/i.test(r.getContentText()) ? 'existe' : 'error' };
+  }
+  cache.remove('ce:' + u.id);
+  // Aviso al email anterior (por si no fue la persona).
+  try {
+    if (u.email && MailApp.getRemainingDailyQuota() > 0) {
+      MailApp.sendEmail({
+        to: u.email,
+        name: 'ATS Club',
+        subject: 'Cambiaste el email de tu cuenta de ATS Club',
+        body: 'Tu cuenta de ATS Club ahora usa el email ' + p.email + '. Desde ahora ingresá con ese email.' +
+          '\n\nSi no fuiste vos, escribile al admin de tu club o a ats.archery@gmail.com.',
+      });
+    }
+  } catch (err) { console.warn(err); }
+  return { ok: true };
 }
 
 /** Mail de bienvenida al registrarse en un club. */

@@ -87,6 +87,7 @@ function Navegacion() {
         <Stack.Screen name="registro" options={{ title: 'Crear cuenta' }} />
         <Stack.Screen name="recuperar" options={{ title: 'Olvidé mi contraseña' }} />
         <Stack.Screen name="cuenta/contrasena" options={{ title: 'Cambiar contraseña' }} />
+        <Stack.Screen name="cuenta/email" options={{ title: 'Cambiar email' }} />
         <Stack.Screen name="pendiente" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="torneo/[id]" options={{ title: 'Torneo' }} />
