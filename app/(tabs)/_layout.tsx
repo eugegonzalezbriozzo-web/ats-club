@@ -24,7 +24,7 @@ export default function TabsLayout() {
   useEffect(() => {
     if (!club || !usuario) return setPendientes(0);
     Promise.all([
-      esAdmin ? repo.listarSocios(club.id).then((us) => us.filter((u) => u.estado === 'pendiente').length) : Promise.resolve(0),
+      esAdmin ? repo.listarSocios(club.id).then((us) => us.filter((u) => u.estado === 'pendiente' || (u.estado === 'aprobado' && !!u.bajaPedida)).length) : Promise.resolve(0),
       repo.encuestasSinResponder(club.id, usuario).then((l) => l.length),
       esAdmin ? repo.listarPagos(club.id, { id: usuario.id, esAdmin }).then((ps) => ps.filter((p) => p.estado === 'revision').length) : Promise.resolve(0),
     ]).then(([a, b, c]) => setPendientes(a + b + c));

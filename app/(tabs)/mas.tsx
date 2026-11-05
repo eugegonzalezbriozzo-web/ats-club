@@ -49,6 +49,7 @@ export default function Mas() {
   const { usuario, club, esAdmin, esSuperadmin, salirDeClub, logout } = useAuth();
   const router = useRouter();
   const [pendientes, setPendientes] = useState(0);
+  const [bajas, setBajas] = useState(0);
   const [sinResponder, setSinResponder] = useState(0);
   const [nNoticias, setNNoticias] = useState(0);
   const [cuota, setCuota] = useState<repo.EstadoCuota | null>(null);
@@ -56,7 +57,11 @@ export default function Mas() {
 
   useFocusEffect(
     useCallback(() => {
-      if (club && esAdmin) repo.listarSocios(club.id).then((us) => setPendientes(us.filter((u) => u.estado === 'pendiente').length));
+      if (club && esAdmin)
+        repo.listarSocios(club.id).then((us) => {
+          setPendientes(us.filter((u) => u.estado === 'pendiente').length);
+          setBajas(us.filter((u) => u.estado === 'aprobado' && u.bajaPedida).length);
+        });
       if (club && usuario) {
         repo.encuestasSinResponder(club.id, usuario).then((l) => setSinResponder(l.length));
         repo.listarNoticias(club.id, { esAdmin, federado: usuario.federado }).then((l) => setNNoticias(l.length));
@@ -114,9 +119,13 @@ export default function Mas() {
           ) : null}
           <FilaMenu
             icono="person-add-outline"
-            titulo="Solicitudes de cuenta"
-            detalle={pendientes ? `${pendientes} esperando aprobación` : 'No hay pendientes'}
-            badge={pendientes}
+            titulo="Solicitudes"
+            detalle={
+              pendientes || bajas
+                ? [pendientes ? `${pendientes} cuenta${pendientes === 1 ? '' : 's'} para aprobar` : '', bajas ? `${bajas} pedido${bajas === 1 ? '' : 's'} de baja` : ''].filter(Boolean).join(' · ')
+                : 'Cuentas nuevas y pedidos de baja'
+            }
+            badge={pendientes + bajas}
             onPress={() => router.push('/gestion/solicitudes')}
           />
           <FilaMenu

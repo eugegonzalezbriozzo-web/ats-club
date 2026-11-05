@@ -16,7 +16,7 @@ import { Aviso, Boton, BotonIcono, Campo, LogoClub, MensajeError, Txt } from '..
 export default function Login() {
   const { t, alternar } = useTema();
   const { login, clubDelLink, usarLink } = useAuth();
-  const { link, aviso } = useLocalSearchParams<{ link?: string; aviso?: string }>();
+  const { link } = useLocalSearchParams<{ link?: string }>();
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -50,9 +50,6 @@ export default function Login() {
       </SafeAreaView>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ padding: 28, gap: 18, width: '100%', maxWidth: 480, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
-          {aviso === 'cuenta_eliminada' ? (
-            <Aviso tipo="ok" icono="checkmark-circle-outline" texto="Eliminamos tu cuenta y tus datos. Te mandamos un mail de confirmación." />
-          ) : null}
           {link === 'invalido' && !club ? (
             <Aviso icono="alert-circle-outline" texto="Ese link de club no es válido o el club no está disponible. Podés ingresar igual con tu cuenta." />
           ) : null}

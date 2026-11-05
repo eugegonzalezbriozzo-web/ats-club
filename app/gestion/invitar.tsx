@@ -17,7 +17,7 @@ export default function InvitarSocios() {
       <Tarjeta style={{ gap: 12 }}>
         <LinkClub club={club} />
       </Tarjeta>
-      <Txt muted style={{ fontSize: 13 }}>Las cuentas nuevas aparecen en Más → Solicitudes de cuenta.</Txt>
+      <Txt muted style={{ fontSize: 13 }}>Las cuentas nuevas aparecen en Más → Solicitudes.</Txt>
     </Pantalla>
   );
 }

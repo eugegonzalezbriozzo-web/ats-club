@@ -84,6 +84,8 @@ export interface Usuario extends DatosArquero {
   rol: Rol;
   estado: EstadoCuenta;
   creadoEl: string; // ISO
+  /** El socio pidió la baja del club (la resuelve un admin). */
+  bajaPedida?: { el: string; motivo: string; borrar: boolean } | null;
 }
 
 /** Archivo PDF adjunto. Local: data URI. Con Supabase: URL de Storage. */

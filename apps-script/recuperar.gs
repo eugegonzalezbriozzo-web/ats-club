@@ -1,15 +1,15 @@
 /**
  * ATS Club — mails de la app, desde la cuenta de Gmail de ATS (ats.archery@gmail.com).
- * Corre como aplicación web. Dos acciones:
+ * Corre como aplicación web. Acciones:
  *
  *  - { accion: 'recuperar', email }: "Olvidé mi contraseña". Pide a Supabase un código de
  *    recuperación para ese email y lo manda. La persona lo escribe en la app y elige otra contraseña.
  *  - { accion: 'cambiar_email', token, email }: Mi perfil → Cambiar email. Manda un código al email nuevo.
  *  - { accion: 'confirmar_email', token, codigo }: con ese código, cambia el email de la cuenta en Supabase
  *    (y avisa al email anterior).
- *  - { accion: 'eliminar_cuenta', token, confirmar }: Mi perfil → Eliminar mi cuenta. Sin "confirmar" solo verifica
- *    que se pueda (por ejemplo, que no sea el único admin del club); con "confirmar": true Borra la foto, los comprobantes
- *    y la cuenta (la base borra en cascada el perfil, membresías, inscripciones, votos y pagos).
+ *  - { accion: 'eliminar_socio', token, usuario_id }: el admin del club procesa el pedido de baja de un socio
+ *    que pidió borrar sus datos. Borra la foto, los comprobantes y la cuenta (la base borra en cascada
+ *    perfil, membresía, inscripciones, votos y pagos) y le avisa por mail.
  *  - { accion: 'bienvenida', token }: al registrarse. Con el token de la sesión nueva, el script
  *    comprueba en Supabase quién es (cuenta creada hace menos de 15 minutos) y le manda la bienvenida
  *    una sola vez. Así nadie puede usarlo para mandar mails a cualquier dirección.
@@ -29,7 +29,7 @@ function doPost(e) {
     if (datos.accion === 'bienvenida') return responder(bienvenida(datos));
     if (datos.accion === 'cambiar_email') return responder(cambiarEmail(datos));
     if (datos.accion === 'confirmar_email') return responder(confirmarEmail(datos));
-    if (datos.accion === 'eliminar_cuenta') return responder(eliminarCuenta(datos));
+    if (datos.accion === 'eliminar_socio') return responder(eliminarSocio(datos));
     if (datos.accion !== 'recuperar') return responder({ ok: false, error: 'accion' });
     var email = String(datos.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return responder({ ok: false, error: 'email' });
@@ -170,30 +170,32 @@ function confirmarEmail(datos) {
   return { ok: true };
 }
 
-/* ---------- Eliminar la cuenta ---------- */
+/* ---------- Eliminar la cuenta de un socio (lo hace el admin, cuando el socio lo pidió) ---------- */
 
 function getJson(c, ruta) {
   return JSON.parse(UrlFetchApp.fetch(c.url + ruta, { headers: c.h }).getContentText());
 }
 
-function eliminarCuenta(datos) {
+function eliminarSocio(datos) {
   var c = config();
-  var u = usuarioDeToken(c, String(datos.token || ''));
-  if (!u) return { ok: false, error: 'token' };
+  var admin = usuarioDeToken(c, String(datos.token || ''));
+  if (!admin) return { ok: false, error: 'token' };
+  var id = String(datos.usuario_id || '');
+  if (!/^[0-9a-f-]{36}$/.test(id)) return { ok: false, error: 'socio' };
+  if (id === admin.id) return { ok: false, error: 'vos' };
 
-  var perfil = getJson(c, '/rest/v1/perfiles?select=es_superadmin,nombre,alias&id=eq.' + u.id)[0];
-  if (perfil && perfil.es_superadmin) return { ok: false, error: 'plataforma' };
+  var socio = getJson(c, '/rest/v1/perfiles?select=email,nombre,alias,es_superadmin&id=eq.' + id)[0];
+  if (!socio) return { ok: false, error: 'socio' };
+  if (socio.es_superadmin) return { ok: false, error: 'plataforma' };
+  var m = getJson(c, '/rest/v1/membresias?select=club_id,baja_pedida_el,baja_borrar,clubes(nombre)&order=creado_el.desc&limit=1&usuario_id=eq.' + id)[0];
+  if (!m) return { ok: false, error: 'socio' };
 
-  // Si es el único admin de su club, no se puede (el club quedaría sin admin).
-  var ms = getJson(c, '/rest/v1/membresias?select=club_id,rol,estado,clubes(nombre)&usuario_id=eq.' + u.id);
-  for (var i = 0; i < ms.length; i++) {
-    var m = ms[i];
-    if (m.rol === 'admin' && m.estado === 'aprobado') {
-      var otros = getJson(c, '/rest/v1/membresias?select=id&rol=eq.admin&estado=eq.aprobado&club_id=eq.' + m.club_id + '&usuario_id=neq.' + u.id);
-      if (!otros.length) return { ok: false, error: 'unico_admin', club: m.clubes ? m.clubes.nombre : '' };
-    }
-  }
-  if (!datos.confirmar) return { ok: true, puede: true }; // primer paso: solo se verifica
+  // ¿Quien lo pide es admin aprobado de ese club (o la plataforma)?
+  var yo = getJson(c, '/rest/v1/perfiles?select=es_superadmin&id=eq.' + admin.id)[0];
+  var esAdmin = getJson(c, '/rest/v1/membresias?select=id&rol=eq.admin&estado=eq.aprobado&usuario_id=eq.' + admin.id + '&club_id=eq.' + m.club_id).length > 0;
+  if (!esAdmin && !(yo && yo.es_superadmin)) return { ok: false, error: 'permiso' };
+  // Solo si el socio pidió que se borren sus datos.
+  if (!m.baja_pedida_el || !m.baja_borrar) return { ok: false, error: 'no_pedido' };
 
   // Archivos: foto de perfil y comprobantes de pago.
   try {
@@ -203,36 +205,33 @@ function eliminarCuenta(datos) {
         method: 'delete', contentType: 'application/json', headers: c.h, payload: JSON.stringify({ prefixes: rutas }), muteHttpExceptions: true,
       });
     };
-    borrar('avatars', [u.id + '.jpg']);
-    for (var j = 0; j < ms.length; j++) {
-      var prefijo = ms[j].club_id + '/' + u.id + '/';
-      var r = UrlFetchApp.fetch(c.url + '/storage/v1/object/list/comprobantes', {
-        method: 'post', contentType: 'application/json', headers: c.h,
-        payload: JSON.stringify({ prefix: prefijo, limit: 1000 }), muteHttpExceptions: true,
-      });
-      if (r.getResponseCode() === 200) {
-        borrar('comprobantes', JSON.parse(r.getContentText()).map(function (o) { return prefijo + o.name; }));
-      }
-    }
+    borrar('avatars', [id + '.jpg']);
+    var prefijo = m.club_id + '/' + id + '/';
+    var r = UrlFetchApp.fetch(c.url + '/storage/v1/object/list/comprobantes', {
+      method: 'post', contentType: 'application/json', headers: c.h,
+      payload: JSON.stringify({ prefix: prefijo, limit: 1000 }), muteHttpExceptions: true,
+    });
+    if (r.getResponseCode() === 200) borrar('comprobantes', JSON.parse(r.getContentText()).map(function (o) { return prefijo + o.name; }));
   } catch (err) { console.warn(err); }
 
-  // La cuenta (y en cascada todo lo demás).
-  var d = UrlFetchApp.fetch(c.url + '/auth/v1/admin/users/' + u.id, { method: 'delete', headers: c.h, muteHttpExceptions: true });
+  // La cuenta (y en cascada perfil, membresía, inscripciones, votos, lecturas y pagos).
+  var d = UrlFetchApp.fetch(c.url + '/auth/v1/admin/users/' + id, { method: 'delete', headers: c.h, muteHttpExceptions: true });
   if (d.getResponseCode() >= 400) {
     console.warn('delete user ' + d.getResponseCode() + ': ' + d.getContentText().slice(0, 300));
     return { ok: false, error: /al menos un Admin/i.test(d.getContentText()) ? 'unico_admin' : 'error' };
   }
 
   try {
-    if (u.email && MailApp.getRemainingDailyQuota() > 0) {
+    if (socio.email && MailApp.getRemainingDailyQuota() > 0) {
+      var club = m.clubes ? m.clubes.nombre : 'tu club';
       MailApp.sendEmail({
-        to: u.email,
+        to: socio.email,
         name: 'ATS Club',
         subject: 'Eliminamos tu cuenta de ATS Club',
-        body: 'Hola' + (perfil && (perfil.alias || perfil.nombre) ? ' ' + (perfil.alias || perfil.nombre) : '') + ',\n\n' +
-          'Tal como pediste, eliminamos tu cuenta de ATS Club con el email ' + u.email + ', junto con tu perfil, tu foto, tus inscripciones, respuestas y pagos informados.' +
-          '\n\nSi querés volver, pedile a tu club el link de registro y creá una cuenta nueva.' +
-          '\nSi no fuiste vos, escribinos a ats.archery@gmail.com.',
+        body: 'Hola' + ((socio.alias || socio.nombre) ? ' ' + (socio.alias || socio.nombre) : '') + ',\n\n' +
+          club + ' procesó tu pedido de baja: eliminamos tu cuenta de ATS Club (' + socio.email + ') junto con tu perfil, tu foto, tus inscripciones, respuestas y pagos informados.' +
+          '\n\nSi querés volver, pedile al club el link de registro y creá una cuenta nueva.' +
+          '\nSi no lo pediste vos, escribinos a ats.archery@gmail.com.',
       });
     }
   } catch (err) { console.warn(err); }

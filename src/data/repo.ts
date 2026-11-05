@@ -220,7 +220,7 @@ function usuarioDe(db: Db, id: string): Usuario | undefined {
 }
 
 type FilaPerfil = Record<string, any>;
-type FilaMembresia = { club_id: string; rol: Rol; estado: Usuario['estado']; creado_el: string; tipo_cuota_id?: string | null } | null;
+type FilaMembresia = { club_id: string; rol: Rol; estado: Usuario['estado']; creado_el: string; tipo_cuota_id?: string | null; baja_pedida_el?: string | null; baja_motivo?: string; baja_borrar?: boolean } | null;
 
 /** Fila de Supabase (perfil + membresía) → Usuario de la app. */
 function aUsuario(p: FilaPerfil, m: FilaMembresia): Usuario {
@@ -232,6 +232,7 @@ function aUsuario(p: FilaPerfil, m: FilaMembresia): Usuario {
     instagram: p.instagram ?? '', facebook: p.facebook ?? '', tiktok: p.tiktok ?? '',
     tipoCuota: m?.tipo_cuota_id ?? undefined,
     rol: m?.rol ?? 'usuario', estado: m?.estado ?? 'pendiente', creadoEl: m?.creado_el ?? p.creado_el,
+    bajaPedida: m?.baja_pedida_el ? { el: m.baja_pedida_el, motivo: m.baja_motivo ?? '', borrar: !!m.baja_borrar } : null,
     arco: p.arco, division: p.division, categoria: p.categoria, lateralidad: p.lateralidad,
   });
 }
@@ -261,7 +262,7 @@ function fallo(error: { message?: string; code?: string } | null, porDefecto = '
 async function perfilYMembresia(uid: string): Promise<Usuario | null> {
   const [{ data: p, error }, { data: ms }] = await Promise.all([
     supabase.from('perfiles').select('*').eq('id', uid).maybeSingle(),
-    supabase.from('membresias').select('club_id, rol, estado, creado_el, tipo_cuota_id').eq('usuario_id', uid).order('creado_el', { ascending: false }),
+    supabase.from('membresias').select('club_id, rol, estado, creado_el, tipo_cuota_id, baja_pedida_el, baja_motivo, baja_borrar').eq('usuario_id', uid).order('creado_el', { ascending: false }),
   ]);
   if (error) fallo(error);
   if (!p) return null;
@@ -407,43 +408,54 @@ export async function confirmarCambioEmail(codigo: string) {
   await supabase.auth.refreshSession(); // la sesión pasa a tener el email nuevo
 }
 
-/* ---------- Eliminar mi cuenta ---------- */
+/* ---------- Pedido de baja (lo pide el socio, lo resuelve el admin) ---------- */
 
-/**
- * Borra la cuenta y todo lo de la persona (perfil, foto, membresías, inscripciones, votos, pagos y comprobantes).
- * Pide la contraseña. No se puede si es el único admin de su club, ni para la plataforma.
- */
-export async function eliminarCuenta(usuario: Usuario, password: string) {
+/** Socio: pide la baja de su club. Si `borrar`, pide además que se eliminen su cuenta y sus datos. */
+export async function pedirBajaDelClub(usuario: Usuario, password: string, motivo: string, borrar: boolean) {
   if (!password) throw new ErrorApp('Escribí tu contraseña.');
   const v = await supabase.auth.signInWithPassword({ email: usuario.email.trim().toLowerCase(), password });
   if (v.error) {
     if (/Invalid login credentials/i.test(v.error.message)) throw new ErrorApp('La contraseña no es correcta.');
     fallo(v.error, 'No se pudo comprobar tu contraseña.');
   }
-  const token = await tokenActual();
-  const errores: Record<string, string> = {
-    unico_admin: 'Sos el único admin de tu club: antes de eliminar tu cuenta, hacé admin a otra persona en Más → Socios y roles.',
-    plataforma: 'La cuenta de la plataforma no se puede eliminar desde la app.',
-  };
-  // 1) ¿Se puede?
-  const chequeo = await llamarScript({ accion: 'eliminar_cuenta', token });
-  if (!chequeo.ok) throw new ErrorApp(errores[chequeo.error ?? ''] ?? 'No se pudo eliminar la cuenta. Probá de nuevo en un rato.');
-  // 2) Mis archivos (con mi sesión): foto y comprobantes.
+  const { error } = await supabase.rpc('pedir_baja', { p_motivo: motivo.trim().slice(0, 300), p_borrar: borrar });
+  if (error) fallo(error, 'No se pudo enviar el pedido de baja.');
+}
+
+/** Socio: cancela su pedido de baja (mientras el admin no lo resolvió). */
+export async function cancelarPedidoBaja() {
+  const { error } = await supabase.rpc('cancelar_pedido_baja');
+  if (error) fallo(error, 'No se pudo cancelar el pedido.');
+}
+
+/** Admin: rechaza el pedido (por ejemplo, si primero tiene que regularizar cuotas). El socio sigue en el club. */
+export async function rechazarPedidoBaja(clubId: string, usuarioId: string) {
+  await actualizarMembresia(clubId, usuarioId, { baja_pedida_el: null, baja_motivo: '', baja_borrar: false }, 'No se pudo rechazar el pedido.');
+}
+
+/**
+ * Admin: elimina la cuenta y todos los datos de un socio que lo pidió (perfil, foto, inscripciones,
+ * votos, pagos y comprobantes). Lo hace el Apps Script con permisos de servidor.
+ */
+export async function eliminarSocio(clubId: string, usuarioId: string) {
+  // Comprobantes del socio (el admin puede borrarlos con su sesión); el script borra la foto y la cuenta.
   try {
-    await supabase.storage.from('avatars').remove([`${usuario.id}.jpg`]);
-    if (usuario.clubId) {
-      const carpeta = `${usuario.clubId}/${usuario.id}`;
-      const { data } = await supabase.storage.from('comprobantes').list(carpeta, { limit: 1000 });
-      if (data?.length) await supabase.storage.from('comprobantes').remove(data.map((o) => `${carpeta}/${o.name}`));
-    }
+    const carpeta = `${clubId}/${usuarioId}`;
+    const { data } = await supabase.storage.from('comprobantes').list(carpeta, { limit: 1000 });
+    if (data?.length) await supabase.storage.from('comprobantes').remove(data.map((o) => `${carpeta}/${o.name}`));
   } catch {
     /* el script también intenta borrarlos */
   }
-  // 3) La cuenta.
-  const r = await llamarScript({ accion: 'eliminar_cuenta', token, confirmar: true });
-  if (!r.ok) throw new ErrorApp(errores[r.error ?? ''] ?? 'No se pudo eliminar la cuenta. Probá de nuevo en un rato.');
-  usuariosConocidos.clear();
-  await supabase.auth.signOut({ scope: 'local' }); // la cuenta ya no existe: se cierra la sesión en este dispositivo
+  const r = await llamarScript({ accion: 'eliminar_socio', token: await tokenActual(), usuario_id: usuarioId });
+  if (r.ok) return;
+  const m: Record<string, string> = {
+    no_pedido: 'El socio no pidió que se borren sus datos. Podés darlo de baja.',
+    unico_admin: 'Es el único admin del club: primero hacé admin a otra persona.',
+    permiso: 'Solo un admin del club puede hacer esto.',
+    plataforma: 'La cuenta de la plataforma no se puede eliminar.',
+    vos: 'No podés eliminar tu propia cuenta desde acá.',
+  };
+  throw new ErrorApp(m[r.error ?? ''] ?? 'No se pudo eliminar la cuenta. Probá de nuevo en un rato.');
 }
 
 export async function logout() {
@@ -714,7 +726,7 @@ async function hacerAdminPorEmail(clubId: string, emailAdmin: string) {
 async function sociosRemotos(clubId: string): Promise<Usuario[]> {
   const { data, error } = await supabase
     .from('membresias')
-    .select('club_id, rol, estado, creado_el, tipo_cuota_id, perfil:perfiles!membresias_usuario_id_fkey(*)')
+    .select('club_id, rol, estado, creado_el, tipo_cuota_id, baja_pedida_el, baja_motivo, baja_borrar, perfil:perfiles!membresias_usuario_id_fkey(*)')
     .eq('club_id', clubId);
   if (error) fallo(error);
   return (data ?? [])
