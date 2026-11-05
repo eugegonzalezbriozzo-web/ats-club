@@ -10,10 +10,20 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {},
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#032845"
+      }
+    },
     "web": {
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "name": "ATS Club",
+      "shortName": "ATS Club",
+      "themeColor": "#032845",
+      "backgroundColor": "#032845",
+      "lang": "es-AR"
     },
     "plugins": [
       "expo-router",
@@ -23,6 +33,8 @@
           "photosPermission": "La app usa tus fotos para tu foto de perfil."
         }
       ]
-    ]
+    ],
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#032845"
   }
 }

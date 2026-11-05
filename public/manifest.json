@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "ATS Club",
+  "short_name": "ATS Club",
+  "description": "La app de tu club de arquería: torneos, inscripciones, noticias, encuestas y pagos.",
+  "lang": "es-AR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#032845",
+  "theme_color": "#032845",
+  "categories": ["sports", "social"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
