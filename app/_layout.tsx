@@ -39,7 +39,7 @@ function Guardia() {
       return;
     }
     if (esSuperadmin) {
-      if (!club && raiz !== 'plataforma') router.replace('/plataforma');
+      if (!club && raiz !== 'plataforma' && raiz !== 'cuenta') router.replace('/plataforma');
       else if (club && (enAcceso || raiz === 'pendiente')) router.replace('/');
       return;
     }
@@ -86,6 +86,7 @@ function Navegacion() {
         <Stack.Screen name="c/[slug]" options={{ headerShown: false }} />
         <Stack.Screen name="registro" options={{ title: 'Crear cuenta' }} />
         <Stack.Screen name="recuperar" options={{ title: 'Olvidé mi contraseña' }} />
+        <Stack.Screen name="cuenta/contrasena" options={{ title: 'Cambiar contraseña' }} />
         <Stack.Screen name="pendiente" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="torneo/[id]" options={{ title: 'Torneo' }} />

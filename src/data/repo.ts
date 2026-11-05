@@ -334,6 +334,24 @@ export async function cambiarContrasenaConCodigo(email: string, codigo: string, 
   }
 }
 
+/** Desde Mi perfil: pide la contraseña actual (se comprueba ingresando de nuevo) y pone la nueva. */
+export async function cambiarContrasena(email: string, actual: string, nueva: string) {
+  if (!actual) throw new ErrorApp('Escribí tu contraseña actual.');
+  if (nueva.length < 6) throw new ErrorApp('La contraseña nueva tiene que tener al menos 6 caracteres.');
+  if (nueva === actual) throw new ErrorApp('La contraseña nueva tiene que ser distinta de la actual.');
+  const v = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: actual });
+  if (v.error) {
+    if (/Invalid login credentials/i.test(v.error.message)) throw new ErrorApp('La contraseña actual no es correcta.');
+    fallo(v.error, 'No se pudo comprobar tu contraseña actual.');
+  }
+  const u = await supabase.auth.updateUser({ password: nueva });
+  if (u.error) {
+    if (/different from the old/i.test(u.error.message)) throw new ErrorApp('La contraseña nueva tiene que ser distinta de la actual.');
+    if (/weak|at least/i.test(u.error.message)) throw new ErrorApp('La contraseña nueva es muy débil. Probá con una más larga.');
+    fallo(u.error, 'No se pudo cambiar la contraseña.');
+  }
+}
+
 export async function logout() {
   usuariosConocidos.clear();
   await supabase.auth.signOut();

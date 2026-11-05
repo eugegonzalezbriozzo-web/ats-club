@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../src/auth';
 import * as repo from '../../src/data/repo';
@@ -10,6 +11,7 @@ const NOMBRE_ROL = { usuario: 'Usuario', admin: 'Admin' } as const;
 
 export default function Perfil() {
   const { usuario, club, esSuperadmin, refrescar, logout } = useAuth();
+  const router = useRouter();
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [alias, setAlias] = useState('');
@@ -115,6 +117,9 @@ export default function Perfil() {
       <MensajeError texto={error} />
       {guardado ? <Aviso tipo="ok" texto="Perfil actualizado." /> : null}
       <Boton titulo="Guardar cambios" onPress={guardar} cargando={enviando} />
+      <Titulo style={{ marginTop: 8 }}>Cuenta</Titulo>
+      <Txt muted style={{ fontSize: 13 }}>Ingresás con {usuario.email}</Txt>
+      <Boton titulo="Cambiar contraseña" variante="secundario" icono="key-outline" onPress={() => router.push('/cuenta/contrasena')} />
       <Boton titulo="Cerrar sesión" variante="secundario" icono="log-out-outline" onPress={logout} />
     </Pantalla>
   );
