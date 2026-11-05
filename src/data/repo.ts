@@ -378,8 +378,83 @@ export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario |
   if (data.user && (data.user.identities ?? []).length === 0) throw new ErrorApp('Ya existe una cuenta con ese email. Probá ingresar o usá otro email.');
   if (!data.session || !data.user) return null;
   mandarBienvenida(data.session.access_token);
-  if (d.foto) await supabase.from('perfiles').update({ foto_url: d.foto }).eq('id', data.user.id);
+  if (d.foto) {
+    try {
+      const foto = d.foto.startsWith('data:') ? await subirFoto(data.user.id, d.foto) : d.foto;
+      await supabase.from('perfiles').update({ foto_url: foto }).eq('id', data.user.id);
+    } catch {
+      /* la cuenta ya está creada: la foto se puede subir después desde Mi perfil */
+    }
+  }
   return perfilYMembresia(data.user.id);
+}
+
+/* ================= Fotos (Supabase Storage) ================= */
+// Foto de perfil: bucket privado "avatars", archivo {usuario}.jpg. En el perfil queda "storage:{usuario}.jpg?v=..."
+// y se muestra con un link temporal (la ven solo los del mismo club). Logo: bucket público "logos", {club}.png.
+// Las fotos viejas guardadas como data URI siguen funcionando tal cual.
+
+const FOTO = 'storage:';
+const fotosFirmadas = new Map<string, { url: string; vence: number }>();
+let loteFotos: Map<string, ((url: string) => void)[]> | null = null;
+
+/** Si ya tenemos el link de esta foto, lo devuelve al instante (para no mostrar las iniciales un momento). */
+export function fotoEnCache(foto?: string): string {
+  if (!foto) return '';
+  if (!foto.startsWith(FOTO)) return foto;
+  const c = fotosFirmadas.get(foto);
+  return c && c.vence > Date.now() ? c.url : '';
+}
+
+/** Link para mostrar una foto. Junta los pedidos de una pantalla (lista de arqueros) en una sola llamada. */
+export function urlDeFoto(foto?: string): Promise<string> {
+  const ya = fotoEnCache(foto);
+  if (ya || !foto) return Promise.resolve(ya);
+  return new Promise((res) => {
+    if (!loteFotos) {
+      loteFotos = new Map();
+      setTimeout(firmarFotos, 30);
+    }
+    const l = loteFotos.get(foto) ?? [];
+    l.push(res);
+    loteFotos.set(foto, l);
+  });
+}
+async function firmarFotos() {
+  const lote = loteFotos!;
+  loteFotos = null;
+  const fotos = [...lote.keys()];
+  let urls: (string | null)[] = [];
+  try {
+    const { data } = await supabase.storage.from('avatars').createSignedUrls(fotos.map((f) => f.slice(FOTO.length).split('?')[0]), 3600);
+    urls = (data ?? []).map((d) => d.signedUrl ?? null);
+  } catch {
+    /* sin conexión: se muestran las iniciales */
+  }
+  fotos.forEach((f, i) => {
+    const url = urls[i] ?? '';
+    if (url) fotosFirmadas.set(f, { url, vence: Date.now() + 50 * 60 * 1000 });
+    for (const r of lote.get(f) ?? []) r(url);
+  });
+}
+
+/** Sube la foto de perfil (JPEG, data URI) y devuelve lo que se guarda en el perfil. */
+async function subirFoto(usuarioId: string, dataUri: string): Promise<string> {
+  const ruta = `${usuarioId}.jpg`;
+  const { error } = await supabase.storage.from('avatars').upload(ruta, await bytesDe(dataUri), { contentType: 'image/jpeg', upsert: true });
+  if (error) throw new ErrorApp('No se pudo subir la foto. Probá de nuevo.');
+  return `${FOTO}${ruta}?v=${Date.now()}`;
+}
+async function borrarFoto(usuarioId: string) {
+  await supabase.storage.from('avatars').remove([`${usuarioId}.jpg`]);
+}
+
+/** Sube el logo del club (PNG, data URI) al bucket público y devuelve su dirección. */
+async function subirLogo(clubId: string, dataUri: string): Promise<string> {
+  const ruta = `${clubId}.png`;
+  const { error } = await supabase.storage.from('logos').upload(ruta, await bytesDe(dataUri), { contentType: 'image/png', upsert: true });
+  if (error) throw new ErrorApp('El club se guardó, pero no se pudo subir el logo. Probá de nuevo desde Editar.');
+  return `${supabase.storage.from('logos').getPublicUrl(ruta).data.publicUrl}?v=${Date.now()}`;
 }
 
 /* ================= Perfil ================= */
@@ -393,9 +468,11 @@ const COLUMNA: Record<keyof CambiosPerfil, string> = {
 
 /**
  * El propio usuario edita sus datos. Nunca rol, estado, club ni esSuperadmin.
- * La foto, por ahora, se guarda en el perfil (más adelante pasa a Storage).
+ * La foto nueva se sube a Storage; en el perfil queda la referencia.
  */
 export async function actualizarPerfil(usuarioId: string, cambios: CambiosPerfil): Promise<Usuario> {
+  if (cambios.foto?.startsWith('data:')) cambios = { ...cambios, foto: await subirFoto(usuarioId, cambios.foto) };
+  else if (cambios.foto === '') await borrarFoto(usuarioId);
   const fila: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(cambios)) {
     if (v === undefined) continue;
@@ -472,8 +549,10 @@ export async function guardarClub(datos: DatosClub, clubId?: string, emailAdmin?
   if (SLUGS_RESERVADOS.includes(slug)) throw new ErrorApp('Ese identificador está reservado. Elegí otro.');
   const email = (datos.email ?? '').trim().toLowerCase();
   if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new ErrorApp('El email del club no parece válido.');
+  const logoNuevo = datos.logo?.startsWith('data:') ? datos.logo : null;
   const fila = {
-    slug, nombre: datos.nombre.trim(), localidad: datos.localidad.trim(), email, telefono: (datos.telefono ?? '').trim().slice(0, 40), logo_url: datos.logo || null,
+    slug, nombre: datos.nombre.trim(), localidad: datos.localidad.trim(), email, telefono: (datos.telefono ?? '').trim().slice(0, 40),
+    ...(logoNuevo ? {} : { logo_url: datos.logo || null }),
     instagram: (datos.instagram ?? '').trim(), facebook: (datos.facebook ?? '').trim(), tiktok: (datos.tiktok ?? '').trim(),
     color_principal: datos.colorPrincipal, color_secundario: datos.colorSecundario, color_acento: datos.colorAcento, estado: datos.estado,
   };
@@ -484,7 +563,15 @@ export async function guardarClub(datos: DatosClub, clubId?: string, emailAdmin?
     if (r.error.code === '23505') throw new ErrorApp('Ya hay un club con ese identificador de link.');
     fallo(r.error, 'No se pudo guardar el club.');
   }
-  const club = aClub(r.data);
+  let club = aClub(r.data);
+  if (logoNuevo) {
+    const logo_url = await subirLogo(club.id, logoNuevo);
+    const r2 = await supabase.from('clubes').update({ logo_url }).eq('id', club.id).select('*').single();
+    if (r2.error) fallo(r2.error, 'El club se guardó, pero no se pudo guardar el logo.');
+    club = aClub(r2.data);
+  } else if (!datos.logo && clubId) {
+    await supabase.storage.from('logos').remove([`${clubId}.png`]);
+  }
   if (emailAdmin?.trim()) await hacerAdminPorEmail(club.id, emailAdmin);
   return club;
 }

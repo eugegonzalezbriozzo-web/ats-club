@@ -1,16 +1,31 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
+import * as repo from './data/repo';
 import { Text } from './texto';
 import { useTema } from './theme';
 import { Boton, MensajeError } from './ui';
 
-/** Círculo con la foto, o las iniciales si no tiene. */
+/** Círculo con la foto, o las iniciales si no tiene (o mientras carga, o si no se puede ver). */
 export function Avatar({ foto, nombre, apellido, size = 44 }: { foto?: string; nombre: string; apellido: string; size?: number }) {
   const { t } = useTema();
-  if (foto) {
-    return <Image source={{ uri: foto }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: t.sec }} accessibilityIgnoresInvertColors />;
+  // Fotos en Storage (privadas): se pide un link temporal; las viejas (data URI) se muestran directo.
+  const [uri, setUri] = useState(() => repo.fotoEnCache(foto));
+  const [falla, setFalla] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    setFalla(false);
+    setUri(repo.fotoEnCache(foto));
+    repo.urlDeFoto(foto).then((u) => vivo && setUri(u));
+    return () => {
+      vivo = false;
+    };
+  }, [foto]);
+  if (uri && !falla) {
+    return (
+      <Image source={{ uri }} onError={() => setFalla(true)} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: t.sec }} accessibilityIgnoresInvertColors />
+    );
   }
   const ini = ((nombre[0] ?? '') + (apellido[0] ?? '')).toUpperCase();
   return (
