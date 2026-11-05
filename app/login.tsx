@@ -57,6 +57,9 @@ export default function Login() {
           <Campo label="Contraseña" value={pass} onChangeText={setPass} placeholder="••••••••" secureTextEntry onSubmitEditing={() => ingresar()} />
           <MensajeError texto={error} />
           <Boton titulo="Ingresar" onPress={() => ingresar()} cargando={enviando} />
+          <Link href={{ pathname: '/recuperar', params: email ? { email } : {} }} style={{ color: t.accent, fontWeight: '600', fontSize: 14, textAlign: 'center', paddingVertical: 4 }}>
+            Olvidé mi contraseña
+          </Link>
           {club ? (
             <>
               <Txt muted style={{ textAlign: 'center', marginTop: 8 }}>

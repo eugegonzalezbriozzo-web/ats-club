@@ -19,7 +19,7 @@ import {
 
 /**
  * Decide a dónde puede ir cada usuario:
- *  - sin sesión: login, registro (solo con link de club) y /c/<slug>
+ *  - sin sesión: login, registro (solo con link de club), recuperar contraseña y /c/<slug>
  *  - socio no aprobado o club inactivo: pantalla "pendiente"
  *  - plataforma sin club elegido: panel /plataforma
  *  - dentro de un club: pestañas; /gestion solo para admins
@@ -32,7 +32,7 @@ function Guardia() {
   useEffect(() => {
     if (cargando) return;
     const raiz = seg[0] as string | undefined;
-    const enAcceso = raiz === 'login' || raiz === 'registro' || raiz === 'c';
+    const enAcceso = raiz === 'login' || raiz === 'registro' || raiz === 'recuperar' || raiz === 'c';
 
     if (!usuario) {
       if (!enAcceso) router.replace('/login');
@@ -85,6 +85,7 @@ function Navegacion() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="c/[slug]" options={{ headerShown: false }} />
         <Stack.Screen name="registro" options={{ title: 'Crear cuenta' }} />
+        <Stack.Screen name="recuperar" options={{ title: 'Olvidé mi contraseña' }} />
         <Stack.Screen name="pendiente" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="torneo/[id]" options={{ title: 'Torneo' }} />

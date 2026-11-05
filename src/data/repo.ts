@@ -15,7 +15,7 @@
  * locales. Supabase Auth se va a encargar de eso.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from './supabase';
+import { RECUPERAR_URL, supabase } from './supabase';
 import { armarNombreCompleto } from '../util';
 import { MAX_SOBRE_MI } from '../types';
 import type { ArchivoPdf, Audiencia, Club, DatosArquero, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
@@ -282,6 +282,46 @@ export async function login(email: string, password: string): Promise<Usuario> {
   const u = await perfilYMembresia(data.user.id);
   if (!u) throw new ErrorApp('Tu cuenta no tiene perfil. Escribile al club.');
   return u;
+}
+
+/* ---------- Olvidé mi contraseña (código por mail, como ATS Archery) ---------- */
+
+export const recuperacionDisponible = () => !!RECUPERAR_URL;
+
+/** Pide que llegue por mail un código para cambiar la contraseña. No revela si el email tiene cuenta. */
+export async function pedirCodigoRecuperacion(email: string) {
+  const e = email.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(e)) throw new ErrorApp('Escribí tu email.');
+  if (!RECUPERAR_URL) throw new ErrorApp('Esta opción todavía no está disponible. Escribile al admin de tu club.');
+  let r: any = {};
+  try {
+    const res = await fetch(RECUPERAR_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // así el navegador no hace preflight
+      body: JSON.stringify({ accion: 'recuperar', email: e }),
+    });
+    r = await res.json().catch(() => ({}));
+  } catch {
+    throw new ErrorApp('Sin conexión. Revisá internet y probá de nuevo.');
+  }
+  if (r?.ok) return;
+  if (r?.error === 'esperar') throw new ErrorApp('Ya te mandamos un código hace menos de un minuto. Revisá tu mail (y el spam).');
+  if (r?.error === 'limite_diario') throw new ErrorApp('Hoy se mandaron demasiados mails. Probá mañana o escribile al admin de tu club.');
+  throw new ErrorApp('No se pudo mandar el código. Probá de nuevo en un rato.');
+}
+
+/** Con el código del mail, elige una contraseña nueva. Queda con la sesión iniciada. */
+export async function cambiarContrasenaConCodigo(email: string, codigo: string, nueva: string) {
+  const token = codigo.replace(/\D/g, '');
+  if (token.length < 6) throw new ErrorApp('Escribí el código que te llegó por mail.');
+  if (nueva.length < 6) throw new ErrorApp('La contraseña tiene que tener al menos 6 caracteres.');
+  const v = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token, type: 'recovery' });
+  if (v.error || !v.data.session) throw new ErrorApp('El código no es válido o venció. Pedí uno nuevo.');
+  const u = await supabase.auth.updateUser({ password: nueva });
+  if (u.error) {
+    if (/different from the old/i.test(u.error.message)) throw new ErrorApp('La contraseña nueva tiene que ser distinta de la anterior.');
+    fallo(u.error, 'No se pudo cambiar la contraseña.');
+  }
 }
 
 export async function logout() {
