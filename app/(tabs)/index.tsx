@@ -17,7 +17,7 @@ import { hoyISO, finTorneo } from '../../src/util';
 export default function Inicio() {
   const { t } = useTema();
   const { usuario, club, esAdmin } = useAuth();
-  const [pendientes, setPendientes] = useState(0);
+  const [pendientes, setPendientes] = useState({ cuentas: 0, bajas: 0, pagos: 0 });
   const router = useRouter();
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [noticias, setNoticias] = useState<Noticia[]>([]);
@@ -28,7 +28,14 @@ export default function Inicio() {
       if (!club) return;
       repo.listarTorneos(club.id).then(setTorneos);
       repo.listarNoticias(club.id, { esAdmin, federado: usuario?.federado }).then(setNoticias);
-      if (esAdmin) repo.listarSocios(club.id).then((us) => setPendientes(us.filter((u) => u.estado === 'pendiente').length));
+      if (esAdmin && usuario)
+        Promise.all([repo.listarSocios(club.id), repo.listarPagos(club.id, { id: usuario.id, esAdmin: true })]).then(([us, ps]) =>
+          setPendientes({
+            cuentas: us.filter((u) => u.estado === 'pendiente').length,
+            bajas: us.filter((u) => u.estado === 'aprobado' && u.bajaPedida).length,
+            pagos: ps.filter((p) => p.estado === 'revision').length,
+          }),
+        );
     }, [club, esAdmin, usuario]),
   );
 
@@ -49,19 +56,29 @@ export default function Inicio() {
         </View>
       </View>
 
-      {esAdmin && pendientes > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push('/gestion/solicitudes')}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 12, backgroundColor: t.warnBg }}
-        >
-          <Ionicons name="person-add-outline" size={20} color={t.warn} />
-          <Text style={{ flex: 1, color: t.text, fontWeight: '700' }}>
-            Tenés {pendientes} solicitud{pendientes === 1 ? '' : 'es'} de cuenta para revisar.
-          </Text>
-          <Ionicons name="chevron-forward" size={18} color={t.muted} />
-        </Pressable>
-      ) : null}
+      {esAdmin
+        ? (
+            [
+              { n: pendientes.cuentas, icono: 'person-add-outline', texto: (n: number) => `${n} cuenta${n === 1 ? '' : 's'} nueva${n === 1 ? '' : 's'} para aprobar`, ir: '/gestion/solicitudes' },
+              { n: pendientes.bajas, icono: 'exit-outline', texto: (n: number) => `${n} pedido${n === 1 ? '' : 's'} de baja`, ir: '/gestion/solicitudes' },
+              { n: pendientes.pagos, icono: 'cash-outline', texto: (n: number) => `${n} comprobante${n === 1 ? '' : 's'} de pago para revisar`, ir: '/gestion/pagos' },
+            ] as const
+          )
+            .filter((a) => a.n > 0)
+            .map((a) => (
+              <Pressable
+                key={a.icono}
+                accessibilityRole="button"
+                accessibilityLabel={`Tenés ${a.texto(a.n)}`}
+                onPress={() => router.push(a.ir)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 12, backgroundColor: t.warnBg }}
+              >
+                <Ionicons name={a.icono} size={20} color={t.warn} />
+                <Text style={{ flex: 1, color: t.text, fontWeight: '700' }}>Tenés {a.texto(a.n)}.</Text>
+                <Ionicons name="chevron-forward" size={18} color={t.muted} />
+              </Pressable>
+            ))
+        : null}
       <SeccionNoticias noticias={noticias} />
       <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 8 }}>
         <Titulo>Torneos</Titulo>
