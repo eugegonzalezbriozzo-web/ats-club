@@ -126,7 +126,7 @@ export default function Mas() {
           <FilaMenu icono="locate-outline" titulo="Torneos e inscriptos" detalle="Crear y editar torneos, ver y confirmar inscriptos" onPress={() => router.push('/admin')} />
           <FilaMenu icono="megaphone-outline" titulo="Noticias y encuestas" detalle="Publicar para todos, federados, no federados o comisión" onPress={() => router.push('/gestion/noticias')} />
           <FilaMenu icono="key-outline" titulo="Socios y roles" detalle="Quién es usuario y quién es admin" onPress={() => router.push('/gestion/usuarios')} />
-          <FilaMenu icono="share-social-outline" titulo="Contacto y redes del club" detalle="Email, Instagram, Facebook y TikTok" onPress={() => router.push('/gestion/club')} />
+          <FilaMenu icono="share-social-outline" titulo="Contacto y redes del club" detalle="Teléfono, email, Instagram, Facebook y TikTok" onPress={() => router.push('/gestion/club')} />
         </>
       ) : null}
       <Seccion texto="Mi cuenta" />

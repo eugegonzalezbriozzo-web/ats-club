@@ -103,7 +103,7 @@ export default function FormClub() {
   const router = useRouter();
   const { t } = useTema();
   const [f, setF] = useState<repo.DatosClub>({
-    nombre: '', slug: '', localidad: '', email: '', instagram: '', facebook: '', tiktok: '', logo: '', colorPrincipal: '#1F4FA0', colorSecundario: '#111111', colorAcento: '#FFFFFF', estado: 'activo',
+    nombre: '', slug: '', localidad: '', email: '', telefono: '', instagram: '', facebook: '', tiktok: '', logo: '', colorPrincipal: '#1F4FA0', colorSecundario: '#111111', colorAcento: '#FFFFFF', estado: 'activo',
   });
   const [slugTocado, setSlugTocado] = useState(false);
   const [admins, setAdmins] = useState<{ id: string; nombreCompleto: string; email: string }[]>([]);
@@ -159,6 +159,7 @@ export default function FormClub() {
         keyboardType="email-address"
         autoCapitalize="none"
       />
+      <Campo label="Teléfono / WhatsApp del club (opcional)" value={f.telefono ?? ''} onChangeText={set('telefono')} placeholder="Ej.: 351 555 1234" keyboardType="phone-pad" />
       <Campo label="Instagram (opcional)" value={f.instagram ?? ''} onChangeText={set('instagram')} placeholder="@miclub o link" autoCapitalize="none" />
       <Campo label="Facebook (opcional)" value={f.facebook ?? ''} onChangeText={set('facebook')} placeholder="Página o link" autoCapitalize="none" />
       <Campo label="TikTok (opcional)" value={f.tiktok ?? ''} onChangeText={set('tiktok')} placeholder="@miclub o link" autoCapitalize="none" />

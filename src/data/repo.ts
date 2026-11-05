@@ -237,7 +237,7 @@ function aUsuario(p: FilaPerfil, m: FilaMembresia, tiposLocales?: Record<string,
 }
 function aClub(c: Record<string, any>): Club {
   return {
-    id: c.id, slug: c.slug, nombre: c.nombre, localidad: c.localidad ?? '', email: c.email ?? '',
+    id: c.id, slug: c.slug, nombre: c.nombre, localidad: c.localidad ?? '', email: c.email ?? '', telefono: c.telefono ?? '',
     instagram: c.instagram ?? '', facebook: c.facebook ?? '', tiktok: c.tiktok ?? '', logo: c.logo_url ?? '',
     colorPrincipal: c.color_principal, colorSecundario: c.color_secundario, colorAcento: c.color_acento,
     estado: c.estado ?? 'activo', creadoEl: c.creado_el ?? '',
@@ -406,11 +406,11 @@ export async function listarClubes(): Promise<ResumenClub[]> {
 export type DatosClub = Omit<Club, 'id' | 'creadoEl'>;
 
 /** Admin del club: solo email y redes. Nombre, colores, logo, link y estado siguen siendo de la plataforma. */
-export async function actualizarContactoClub(clubId: string, d: { email: string; instagram: string; facebook: string; tiktok: string }) {
+export async function actualizarContactoClub(clubId: string, d: { email: string; telefono: string; instagram: string; facebook: string; tiktok: string }) {
   const email = d.email.trim().toLowerCase();
   if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new ErrorApp('El email no parece válido.');
   const { error } = await supabase.rpc('actualizar_contacto_club', {
-    p_club: clubId, p_email: email, p_instagram: d.instagram.trim().slice(0, 200), p_facebook: d.facebook.trim().slice(0, 200), p_tiktok: d.tiktok.trim().slice(0, 200),
+    p_club: clubId, p_email: email, p_telefono: d.telefono.trim().slice(0, 40), p_instagram: d.instagram.trim().slice(0, 200), p_facebook: d.facebook.trim().slice(0, 200), p_tiktok: d.tiktok.trim().slice(0, 200),
   });
   if (error) fallo(error, 'No se pudieron guardar los datos del club.');
 }
@@ -427,7 +427,7 @@ export async function guardarClub(datos: DatosClub, clubId?: string, emailAdmin?
   const email = (datos.email ?? '').trim().toLowerCase();
   if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new ErrorApp('El email del club no parece válido.');
   const fila = {
-    slug, nombre: datos.nombre.trim(), localidad: datos.localidad.trim(), email, logo_url: datos.logo || null,
+    slug, nombre: datos.nombre.trim(), localidad: datos.localidad.trim(), email, telefono: (datos.telefono ?? '').trim().slice(0, 40), logo_url: datos.logo || null,
     instagram: (datos.instagram ?? '').trim(), facebook: (datos.facebook ?? '').trim(), tiktok: (datos.tiktok ?? '').trim(),
     color_principal: datos.colorPrincipal, color_secundario: datos.colorSecundario, color_acento: datos.colorAcento, estado: datos.estado,
   };

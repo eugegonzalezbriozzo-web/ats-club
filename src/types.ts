@@ -29,6 +29,8 @@ export interface Club {
   localidad: string;
   /** Email de contacto del club (opcional). Lo carga la plataforma; lo ven los socios. */
   email?: string;
+  /** Teléfono / WhatsApp del club (opcional). */
+  telefono?: string;
   /** Redes del club: usuario (@club) o link. Las carga el admin del club o la plataforma. */
   instagram?: string;
   facebook?: string;

@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Linking, Pressable, View } from 'react-native';
+import { IconoWhatsApp } from './BotonWhatsApp';
+import { numeroWhatsApp } from './util';
 import { Text } from './texto';
 import { useTema } from './theme';
 import type { Club } from './types';
@@ -47,9 +49,15 @@ export function Redes({ de, centrado }: { de: { instagram?: string; facebook?: s
 export function ContactoClub({ club }: { club: Club }) {
   const { t } = useTema();
   const redes = REDES.filter((r) => club[r.k]);
-  if (!club.email && !redes.length) return null;
+  if (!club.email && !club.telefono && !redes.length) return null;
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 4 }}>
+      {club.telefono ? (
+        <Text accessibilityRole="link" onPress={() => Linking.openURL(`tel:${club.telefono!.replace(/[^\d+]/g, '')}`)} style={{ color: t.accent, fontSize: 13, fontWeight: '700' }}>
+          {club.telefono}
+        </Text>
+      ) : null}
+      {club.telefono && numeroWhatsApp(club.telefono) ? <IconoWhatsApp chico tel={club.telefono} nombre={club.nombre} /> : null}
       {club.email ? (
         <Text accessibilityRole="link" onPress={() => Linking.openURL(`mailto:${club.email}`)} style={{ color: t.accent, fontSize: 13, fontWeight: '700' }}>
           {club.email}

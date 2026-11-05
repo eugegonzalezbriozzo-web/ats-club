@@ -90,7 +90,8 @@ quien consulta es admin del club.
 
 ## Contacto y redes del club
 
-- `clubes.email`, `instagram`, `facebook`, `tiktok` (opcionales; usuario o link). Los ven los socios en Más y quienes esperan aprobación.
+- `clubes.telefono`, `email`, `instagram`, `facebook`, `tiktok` (opcionales; usuario o link). Los ven los socios en Más y quienes esperan aprobación.
+- `perfiles.instagram`, `facebook`, `tiktok`: redes de cada arquero; las ven los socios de su club (vía `arqueros_del_club()`).
 - El admin del club los cambia con `actualizar_contacto_club()`; nombre, colores, logo, link y estado siguen siendo solo de la plataforma.
 
 ## Pagos por transferencia

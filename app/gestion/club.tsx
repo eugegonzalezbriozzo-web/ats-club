@@ -8,7 +8,7 @@ import { Boton, Campo, MensajeError, Pantalla, Txt } from '../../src/ui';
 export default function ContactoClubForm() {
   const { club, refrescar } = useAuth();
   const router = useRouter();
-  const [f, setF] = useState({ email: club?.email ?? '', instagram: club?.instagram ?? '', facebook: club?.facebook ?? '', tiktok: club?.tiktok ?? '' });
+  const [f, setF] = useState({ email: club?.email ?? '', telefono: club?.telefono ?? '', instagram: club?.instagram ?? '', facebook: club?.facebook ?? '', tiktok: club?.tiktok ?? '' });
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const set = (k: keyof typeof f) => (v: string) => setF((x) => ({ ...x, [k]: v }));
@@ -29,6 +29,7 @@ export default function ContactoClubForm() {
     <Pantalla pie={<Boton titulo="Guardar" onPress={guardar} cargando={enviando} />}>
       <Txt muted>Lo ven los socios del club en Más. Nombre, colores y logo los cambia la plataforma.</Txt>
       <Campo label="Email del club" value={f.email} onChangeText={set('email')} placeholder="comision@miclub.com" keyboardType="email-address" autoCapitalize="none" />
+      <Campo label="Teléfono / WhatsApp del club" value={f.telefono} onChangeText={set('telefono')} placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" keyboardType="phone-pad" />
       <Campo label="Instagram" value={f.instagram} onChangeText={set('instagram')} placeholder="@miclub o el link" autoCapitalize="none" />
       <Campo label="Facebook" value={f.facebook} onChangeText={set('facebook')} placeholder="Nombre de la página o el link" autoCapitalize="none" />
       <Campo label="TikTok" value={f.tiktok} onChangeText={set('tiktok')} placeholder="@miclub o el link" autoCapitalize="none" />
