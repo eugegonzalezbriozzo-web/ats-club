@@ -1,9 +1,9 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import * as Linking from 'expo-linking';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
+import { LinkClub } from '../../src/LinkClub';
 import { Text, TextInput } from '../../src/texto';
 import { BASE, avisosColores, hexValido, marcaClub, normalizarHex } from '../../src/color';
 import * as repo from '../../src/data/repo';
@@ -249,9 +249,7 @@ export default function FormClub() {
         <View style={{ gap: 6 }}>
           <Titulo style={{ marginTop: 8 }}>Link de registro</Titulo>
           <Txt muted style={{ fontSize: 13 }}>Pasáselo al club para que lo compartan con sus socios. Quien se registra por este link queda pendiente en este club.</Txt>
-          <Text selectable style={{ color: t.text, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 12, fontSize: 14 }}>
-            {Linking.createURL(`/c/${slug}`)}
-          </Text>
+          <LinkClub club={{ nombre: f.nombre, slug }} />
         </View>
       ) : null}
       <MensajeError texto={error} />

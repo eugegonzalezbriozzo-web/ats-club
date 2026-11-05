@@ -103,6 +103,7 @@ function Navegacion() {
         <Stack.Screen name="gestion/pagos" options={{ title: 'Pagos' }} />
         <Stack.Screen name="gestion/cuotas" options={{ title: 'Cuentas y cuotas' }} />
         <Stack.Screen name="gestion/club" options={{ title: 'Contacto y redes' }} />
+        <Stack.Screen name="gestion/invitar" options={{ title: 'Link del club' }} />
         <Stack.Screen name="plataforma/index" options={{ title: 'ATS Club', headerLeft: () => <View style={{ marginLeft: 12, marginRight: 8 }}><LogoATS size={28} /></View> }} />
         <Stack.Screen name="plataforma/club" options={{ title: 'Club' }} />
       </Stack>

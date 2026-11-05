@@ -109,6 +109,9 @@ export default function Mas() {
       {esAdmin ? (
         <>
           <Seccion texto="Administración" />
+          {club ? (
+            <FilaMenu icono="link-outline" titulo="Link del club" detalle="Compartilo para que los socios se registren o ingresen" onPress={() => router.push('/gestion/invitar')} />
+          ) : null}
           <FilaMenu
             icono="person-add-outline"
             titulo="Solicitudes de cuenta"
