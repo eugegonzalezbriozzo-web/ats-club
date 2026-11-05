@@ -1,28 +1,14 @@
-import * as ImageManipulator from 'expo-image-manipulator';
-import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { CampoLogo } from '../../src/CampoLogo';
 import { LinkClub } from '../../src/LinkClub';
 import { Text, TextInput } from '../../src/texto';
 import { BASE, avisosColores, hexValido, marcaClub, normalizarHex } from '../../src/color';
 import * as repo from '../../src/data/repo';
 import { FUENTE_TITULO, useTema } from '../../src/theme';
 import type { Club, EstadoClub } from '../../src/types';
-import { Aviso, Boton, Campo, Diana, LogoClub, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
-
-/** Logo: entra completo en 256 px y conserva transparencia (PNG). */
-async function elegirLogo(): Promise<string | null> {
-  const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permiso.granted) throw new Error('Necesitamos permiso para acceder a tus imágenes.');
-  const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
-  if (r.canceled || !r.assets?.[0]) return null;
-  const a = r.assets[0];
-  const k = a.width && a.height ? Math.min(256 / a.width, 256 / a.height, 1) : 1;
-  const acciones: ImageManipulator.Action[] = k < 1 ? [{ resize: { width: Math.round(a.width * k), height: Math.round(a.height * k) } }] : [];
-  const res = await ImageManipulator.manipulateAsync(a.uri, acciones, { format: ImageManipulator.SaveFormat.PNG, base64: true });
-  return `data:image/png;base64,${res.base64}`;
-}
+import { Aviso, Boton, Campo, LogoClub, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
 
 const SUGERIDOS = ['#C8102E', '#111111', '#FFFFFF', '#1B6E4A', '#0F2A3F', '#F2B33D', '#1F4FA0', '#6B2D8C', '#E86A10', '#2E7D32'];
 
@@ -109,7 +95,6 @@ export default function FormClub() {
   const [admins, setAdmins] = useState<{ id: string; nombreCompleto: string; email: string }[]>([]);
   const [emailAdmin, setEmailAdmin] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [errLogo, setErrLogo] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
@@ -175,37 +160,7 @@ export default function FormClub() {
       />
       <Txt muted style={{ fontSize: 12 }}>Solo minúsculas, números y guiones. El link de registro termina en /c/{slug || '…'}</Txt>
 
-      <View style={{ gap: 8 }}>
-        <Text style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>Logo</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <View style={{ width: 88, height: 88, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: t.border, backgroundColor: t.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            {f.logo ? <Image source={{ uri: f.logo }} style={{ width: 84, height: 84 }} resizeMode="contain" accessibilityLabel="Logo del club" /> : <Diana size={60} club={f} />}
-          </View>
-          <View style={{ flex: 1, gap: 8, alignItems: 'flex-start' }}>
-            <Boton
-              titulo={f.logo ? 'Cambiar logo' : 'Subir logo'}
-              variante="secundario"
-              icono="image-outline"
-              onPress={async () => {
-                setErrLogo(null);
-                try {
-                  const l = await elegirLogo();
-                  if (l) set('logo')(l);
-                } catch (e) {
-                  setErrLogo((e as Error).message || 'No se pudo cargar el logo.');
-                }
-              }}
-            />
-            {f.logo ? (
-              <Text accessibilityRole="button" onPress={() => set('logo')('')} style={{ color: t.accent, fontWeight: '700', textDecorationLine: 'underline' }}>
-                Quitar logo
-              </Text>
-            ) : null}
-            <Text style={{ color: t.muted, fontSize: 12 }}>PNG con fondo transparente queda mejor. Sin logo se usa una diana con los colores del club.</Text>
-          </View>
-        </View>
-        <MensajeError texto={errLogo} />
-      </View>
+      <CampoLogo logo={f.logo ?? ''} club={f} onChange={set('logo')} />
 
       <Titulo style={{ marginTop: 8 }}>Colores</Titulo>
       <CampoColor label="Principal" valor={f.colorPrincipal} onChange={set('colorPrincipal')} ayuda="Botones, selección, banda de la cabecera y links." />

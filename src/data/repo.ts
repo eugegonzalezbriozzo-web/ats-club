@@ -453,7 +453,7 @@ async function borrarFoto(usuarioId: string) {
 async function subirLogo(clubId: string, dataUri: string): Promise<string> {
   const ruta = `${clubId}.png`;
   const { error } = await supabase.storage.from('logos').upload(ruta, await bytesDe(dataUri), { contentType: 'image/png', upsert: true });
-  if (error) throw new ErrorApp('El club se guardó, pero no se pudo subir el logo. Probá de nuevo desde Editar.');
+  if (error) throw new ErrorApp('No se pudo subir el logo. Probá de nuevo.');
   return `${supabase.storage.from('logos').getPublicUrl(ruta).data.publicUrl}?v=${Date.now()}`;
 }
 
@@ -536,6 +536,16 @@ export async function actualizarContactoClub(clubId: string, d: { email: string;
     p_club: clubId, p_email: email, p_telefono: d.telefono.trim().slice(0, 40), p_instagram: d.instagram.trim().slice(0, 200), p_facebook: d.facebook.trim().slice(0, 200), p_tiktok: d.tiktok.trim().slice(0, 200),
   });
   if (error) fallo(error, 'No se pudieron guardar los datos del club.');
+}
+
+/** Admin del club (o plataforma): sube, cambia o quita el logo. Nombre y colores siguen siendo de la plataforma. */
+export async function cambiarLogoClub(clubId: string, logo: string) {
+  let url: string | null = null;
+  if (logo.startsWith('data:')) url = await subirLogo(clubId, logo);
+  else if (logo) return; // no cambió
+  else await supabase.storage.from('logos').remove([`${clubId}.png`]);
+  const { error } = await supabase.rpc('cambiar_logo_club', { p_club: clubId, p_logo: url });
+  if (error) fallo(error, 'No se pudo guardar el logo.');
 }
 
 /**
