@@ -310,6 +310,16 @@ export async function pedirCodigoRecuperacion(email: string) {
   throw new ErrorApp('No se pudo mandar el código. Probá de nuevo en un rato.');
 }
 
+/** Mail de bienvenida al registrarse (lo manda el Apps Script). Si falla, el registro sigue igual. */
+function mandarBienvenida(token: string) {
+  if (!RECUPERAR_URL) return;
+  fetch(RECUPERAR_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ accion: 'bienvenida', token }),
+  }).catch(() => {});
+}
+
 /** Con el código del mail, elige una contraseña nueva. Queda con la sesión iniciada. */
 export async function cambiarContrasenaConCodigo(email: string, codigo: string, nueva: string) {
   const token = codigo.replace(/\D/g, '');
@@ -367,6 +377,7 @@ export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario |
   // Supabase no avisa si el email ya existía (para no revelarlo): devuelve un usuario sin identidades.
   if (data.user && (data.user.identities ?? []).length === 0) throw new ErrorApp('Ya existe una cuenta con ese email. Probá ingresar o usá otro email.');
   if (!data.session || !data.user) return null;
+  mandarBienvenida(data.session.access_token);
   if (d.foto) await supabase.from('perfiles').update({ foto_url: d.foto }).eq('id', data.user.id);
   return perfilYMembresia(data.user.id);
 }
