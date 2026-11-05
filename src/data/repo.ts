@@ -615,7 +615,7 @@ function aTorneo(r: Record<string, any>): Torneo {
   return {
     id: r.id, clubId: r.club_id, nombre: r.nombre, clubOrganizador: r.club_organizador ?? '', tipo: r.tipo, jerarquia: r.jerarquia,
     valor: Number(r.valor ?? 0), fecha: r.fecha, fechaFin: r.fecha_fin ?? '', inscripcionAbre: r.inscripcion_abre,
-    inscripcionCierra: r.inscripcion_cierra, invitacion, creadoEl: r.creado_el,
+    inscripcionCierra: r.inscripcion_cierra, invitacion, notas: r.notas ?? '', creadoEl: r.creado_el,
   };
 }
 function aInscripcion(r: Record<string, any>): Inscripcion {
@@ -654,6 +654,7 @@ export async function guardarTorneo(clubId: string, datos: DatosTorneo, torneoId
     club_id: clubId, nombre: datos.nombre.trim(), club_organizador: datos.clubOrganizador.trim(), tipo: datos.tipo, jerarquia: datos.jerarquia,
     valor: datos.valor, fecha: datos.fecha, fecha_fin: datos.fechaFin && datos.fechaFin > datos.fecha ? datos.fechaFin : null,
     inscripcion_abre: datos.inscripcionAbre, inscripcion_cierra: datos.inscripcionCierra,
+    notas: (datos.notas ?? '').trim().slice(0, 1000),
   };
   const r = torneoId
     ? await supabase.from('torneos').update(fila).eq('id', torneoId).eq('club_id', clubId).select('*').single()

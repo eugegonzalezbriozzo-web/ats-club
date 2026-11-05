@@ -103,6 +103,8 @@ export interface Torneo {
   clubId: string;
   /** Invitación del torneo en PDF (opcional). */
   invitacion?: ArchivoPdf | null;
+  /** Notas opcionales: horarios, lugar, qué llevar… */
+  notas?: string;
   nombre: string;
   clubOrganizador: string;
   tipo: TipoTorneo;

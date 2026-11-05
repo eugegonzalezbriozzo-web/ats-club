@@ -87,6 +87,12 @@ export default function DetalleTorneo() {
         <FilaDato k="Inscripción cierra" v={fechaCorta(torneo.inscripcionCierra)} ultima />
       </Tarjeta>
       {torneo.invitacion ? <TarjetaInvitacion pdf={torneo.invitacion} /> : null}
+      {torneo.notas ? (
+        <Tarjeta style={{ gap: 6 }}>
+          <Text style={{ color: tema.muted, fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}>Notas</Text>
+          <Txt style={{ lineHeight: 22 }}>{torneo.notas}</Txt>
+        </Tarjeta>
+      ) : null}
 
       {insc ? (
         <Tarjeta style={{ gap: 10 }}>

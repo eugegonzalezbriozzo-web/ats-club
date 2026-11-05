@@ -26,6 +26,7 @@ export default function FormTorneo() {
   const [abre, setAbre] = useState('');
   const [cierra, setCierra] = useState('');
   const [invitacion, setInvitacion] = useState<ArchivoPdf | null>(null);
+  const [notas, setNotas] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -44,6 +45,7 @@ export default function FormTorneo() {
       setAbre(t.inscripcionAbre);
       setCierra(t.inscripcionCierra);
       setInvitacion(t.invitacion ?? null);
+      setNotas(t.notas ?? '');
     });
   }, [id, clubActual]);
 
@@ -62,7 +64,7 @@ export default function FormTorneo() {
       if (!clubActual) throw new Error('No hay club seleccionado.');
       await repo.guardarTorneo(
         clubActual.id,
-        { nombre: nombre.trim(), clubOrganizador: club.trim(), tipo, jerarquia, valor: v, fecha: f, fechaFin: variosDias ? fechaFin : '', inscripcionAbre: a, inscripcionCierra: c, invitacion },
+        { nombre: nombre.trim(), clubOrganizador: club.trim(), tipo, jerarquia, valor: v, fecha: f, fechaFin: variosDias ? fechaFin : '', inscripcionAbre: a, inscripcionCierra: c, invitacion, notas },
         id,
       );
       router.back();
@@ -99,6 +101,7 @@ export default function FormTorneo() {
         </View>
       </View>
       <CampoPdf valor={invitacion} onChange={setInvitacion} />
+      <Campo label="Notas (opcional)" value={notas} onChangeText={setNotas} multiline maxLength={1000} placeholder="Horarios, lugar, qué llevar, alojamiento…" />
       <MensajeError texto={error} />
       {id ? <Boton titulo="Eliminar torneo" variante="peligro" icono="trash-outline" onPress={eliminar} /> : null}
     </Pantalla>
