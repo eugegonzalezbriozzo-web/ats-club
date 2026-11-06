@@ -13,6 +13,7 @@ import { edad, fechaCorta, plata, fechasTorneo } from '../../src/util';
 import { pedirBaja } from '../../src/baja';
 import { Redes } from '../../src/ContactoClub';
 import type { ConfigPagos, Pago } from '../../src/types';
+import { claseSinDivision, resumenArquero } from '../../src/types';
 
 /** Perfil de un arquero del club. Socios: datos públicos. Admin: además contacto, DNI e inscripciones. */
 export default function PerfilArquero() {
@@ -72,9 +73,19 @@ export default function PerfilArquero() {
       {a.funciones.includes('arquero') ? (
         <Tarjeta>
           <Seccion>Datos de arquero</Seccion>
-          <FilaDato k="Arco" v={a.arco} />
-          <FilaDato k="División" v={a.division} />
-          <FilaDato k="Categoría" v={a.categoria} />
+          {a.modalidad === 'adaptado' ? (
+            <>
+              <FilaDato k="Modalidad" v="Adaptado" />
+              <FilaDato k="Clase" v={a.claseAdaptada ?? '—'} />
+              <FilaDato k="División" v={claseSinDivision(a.claseAdaptada) ? 'Sin distinción de sexo' : a.division} />
+            </>
+          ) : (
+            <>
+              <FilaDato k="Arco" v={a.arco} />
+              <FilaDato k="División" v={a.division} />
+              <FilaDato k="Categoría" v={a.categoria} />
+            </>
+          )}
           <FilaDato k="Lateralidad" v={a.lateralidad} />
           <FilaDato k="Federado" v={a.federado ? 'Sí' : 'No'} ultima />
         </Tarjeta>
@@ -164,7 +175,7 @@ export default function PerfilArquero() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: t.text, fontWeight: '700' }}>{tor.nombre}</Text>
-                  <Txt muted style={{ fontSize: 13 }}>{fechasTorneo(tor)} · {i.categoria} · {i.arco}</Txt>
+                  <Txt muted style={{ fontSize: 13 }}>{fechasTorneo(tor)} · {resumenArquero(i)}</Txt>
                 </View>
                 <Chip texto={i.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'} relleno={i.estado === 'confirmada'} />
               </Pressable>

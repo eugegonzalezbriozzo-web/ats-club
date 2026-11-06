@@ -6,7 +6,7 @@ import { Avatar } from '../../../src/FotoPerfil';
 import { useAuth } from '../../../src/auth';
 import { IconoWhatsApp } from '../../../src/BotonWhatsApp';
 import { Ionicons } from '@expo/vector-icons';
-import { CATEGORIAS } from '../../../src/types';
+import { CATEGORIAS, CLASES_ADAPTADAS, claseSinDivision } from '../../../src/types';
 import * as repo from '../../../src/data/repo';
 import { useTema } from '../../../src/theme';
 import type { Inscripcion, Pago, Torneo, Usuario } from '../../../src/types';
@@ -58,8 +58,12 @@ export default function Inscriptos() {
   }, [id, club]);
   useFocusEffect(cargar);
 
-  // Agrupados por categoría, en el orden de la lista de categorías.
-  const grupos = CATEGORIAS.map((c) => [c, filas.filter((f) => f.categoria === c)] as const).filter(([, l]) => l.length > 0);
+  // Convencional: agrupados por categoría. Adaptado: por clase, después.
+  const conv = filas.filter((f) => f.modalidad !== 'adaptado');
+  const grupos = [
+    ...CATEGORIAS.map((c) => [c as string, conv.filter((f) => f.categoria === c)] as const),
+    ...CLASES_ADAPTADAS.map((c) => [`Adaptado · ${c}`, filas.filter((f) => f.modalidad === 'adaptado' && f.claseAdaptada === c)] as const),
+  ].filter(([, l]) => l.length > 0);
 
   if (!torneo) return <Pantalla><Vacio texto="Cargando…" /></Pantalla>;
 
@@ -198,7 +202,10 @@ export default function Inscriptos() {
                       {f.usuario.alias ? ` (“${f.usuario.alias}”)` : ''}
                     </Text>
                     <Txt muted style={{ fontSize: 13 }}>
-                      {f.arco} · {f.division} · {f.lateralidad}{f.usuario.federado ? ' · Federado' : ''}
+                      {f.modalidad === 'adaptado'
+                        ? [claseSinDivision(f.claseAdaptada) ? null : f.division, f.lateralidad].filter(Boolean).join(' · ')
+                        : `${f.arco} · ${f.division} · ${f.lateralidad}`}
+                      {f.usuario.federado ? ' · Federado' : ''}
                       {torneo.valor > 0 ? ` · ${(() => { const e = repo.estadoPagoInscripcion(pagos, torneo.id, f.usuarioId); return e ? TEXTO_PAGO_INS[e] : 'Sin pago informado'; })()}` : ''}
                     </Txt>
                   </View>

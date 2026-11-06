@@ -36,13 +36,19 @@ export default function Arqueros() {
   const lista = todos.filter(
     (u) =>
       (funcion === 'Todas' || u.funciones.includes(FUNCIONES.find((f) => f.nombre === funcion)!.id)) &&
-      (arco === 'Todos' || (u.funciones.includes('arquero') && u.arco === arco)) &&
+      (arco === 'Todos' ||
+        (u.funciones.includes('arquero') && (arco === 'Adaptado' ? u.modalidad === 'adaptado' : u.modalidad !== 'adaptado' && u.arco === arco))) &&
       (fed === 'Todos' || (u.funciones.includes('arquero') && u.federado === (fed === 'Sí'))) &&
       (!texto || `${u.nombre} ${u.apellido} ${u.alias}`.toLowerCase().includes(texto)),
   );
   // Solo las funciones que alguien del club tiene (si son todos arqueros, no hace falta el filtro).
   const funcionesUsadas = FUNCIONES.filter((f) => todos.some((u) => u.funciones.includes(f.id))).map((f) => f.nombre);
-  const opciones = ['Todos', ...ARCOS.filter((a) => todos.some((u) => u.arco === a))];
+  const arqueros = todos.filter((u) => u.funciones.includes('arquero'));
+  const opciones = [
+    'Todos',
+    ...ARCOS.filter((a) => arqueros.some((u) => u.modalidad !== 'adaptado' && u.arco === a)),
+    ...(arqueros.some((u) => u.modalidad === 'adaptado') ? ['Adaptado'] : []),
+  ];
 
   return (
     <Pantalla amplia>
@@ -75,7 +81,7 @@ export default function Arqueros() {
                 <Ionicons name="chevron-forward" size={20} color={t.muted} />
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {u.funciones.includes('arquero') ? <Chip texto={u.arco} relleno /> : null}
+                {u.funciones.includes('arquero') ? <Chip texto={u.modalidad === 'adaptado' ? `Adaptado · ${u.claseAdaptada ?? ''}` : u.arco} relleno /> : null}
                 {etiquetasFunciones(u.funciones).map((f) => <Chip key={f} texto={f} relleno />)}
                 {u.funciones.includes('arquero') && u.federado ? <Chip texto="Federado" relleno /> : null}
               </View>

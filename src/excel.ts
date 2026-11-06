@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import * as XLSX from 'xlsx';
-import type { Inscripcion, Torneo, Usuario } from './types';
+import { claseSinDivision, type Inscripcion, type Torneo, type Usuario } from './types';
 
 type Fila = Inscripcion & { usuario: Usuario };
 
@@ -17,16 +17,19 @@ const fecha = (iso: string) => {
  * Web: descarga el archivo. Celular: abre el menú para compartir/guardar.
  */
 export async function exportarInscriptosExcel(torneo: Torneo, filas: Fila[]) {
-  const datos = filas.map((f) => ({
-    'Categoría': f.categoria,
+  const datos = filas.map((f) => {
+    const ad = f.modalidad === 'adaptado';
+    return {
+    Modalidad: ad ? 'Adaptado' : 'Convencional',
+    'Categoría / clase': ad ? f.claseAdaptada ?? '' : f.categoria,
     Apellido: f.usuario.apellido,
     Nombre: f.usuario.nombre,
     Alias: f.usuario.alias ?? '',
     DNI: f.usuario.dni ?? '',
     WhatsApp: f.usuario.telefono ?? '',
     Email: f.usuario.email,
-    Arco: f.arco,
-    'División': f.division,
+    Arco: ad ? (f.claseAdaptada === 'Recurve Open' || f.claseAdaptada === 'Compound Open' ? f.arco : '') : f.arco,
+    'División': ad && claseSinDivision(f.claseAdaptada) ? 'Sin distinción' : f.division,
     Lateralidad: f.lateralidad,
     Federado: f.usuario.federado ? 'Sí' : 'No',
     Estado: f.estado === 'confirmada' ? 'Confirmada' : 'Pendiente',
@@ -34,9 +37,10 @@ export async function exportarInscriptosExcel(torneo: Torneo, filas: Fila[]) {
     Ciudad: f.usuario.ciudad ?? '',
     Localidad: f.usuario.localidad ?? '',
     'Dirección': f.usuario.direccion ?? '',
-  }));
+  };
+  });
   const ws = XLSX.utils.json_to_sheet(datos);
-  ws['!cols'] = [11, 16, 16, 12, 12, 15, 28, 12, 10, 11, 9, 12, 12, 14, 14, 26].map((wch) => ({ wch }));
+  ws['!cols'] = [13, 18, 16, 16, 12, 12, 15, 28, 12, 10, 11, 9, 12, 12, 14, 14, 26].map((wch) => ({ wch }));
   if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Inscriptos');

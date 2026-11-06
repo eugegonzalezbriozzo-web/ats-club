@@ -4,9 +4,10 @@ import { View } from 'react-native';
 import { Avatar } from '../../src/FotoPerfil';
 import { useAuth } from '../../src/auth';
 import * as repo from '../../src/data/repo';
-import { ARCOS, Arco, CATEGORIAS, MAX_SOBRE_MI, Categoria, DIVISIONES, Division, Funcion, LATERALIDADES, Lateralidad, Usuario } from '../../src/types';
+import { ClaseAdaptada, DatosArquero, Modalidad, Arco, MAX_SOBRE_MI, Categoria, Division, Funcion, Lateralidad, Usuario } from '../../src/types';
 import { CampoFecha } from '../../src/CampoFecha';
-import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, Chip, MensajeError, Pantalla, Pildoras, Tarjeta, Titulo, Txt } from '../../src/ui';
+import { CamposArquero } from '../../src/CamposArquero';
+import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, Chip, MensajeError, Pantalla, Tarjeta, Titulo, Txt } from '../../src/ui';
 import { FotoPerfil } from '../../src/FotoPerfil';
 import { armarNombreCompleto, confirmar, edad, hoyISO } from '../../src/util';
 
@@ -29,6 +30,17 @@ export default function Perfil() {
   const [division, setDivision] = useState<Division>('Hombre');
   const [categoria, setCategoria] = useState<Categoria>('Senior');
   const [lateralidad, setLateralidad] = useState<Lateralidad>('Derecho');
+  const [modalidad, setModalidad] = useState<Modalidad>('convencional');
+  const [claseAdaptada, setClaseAdaptada] = useState<ClaseAdaptada | null>(null);
+  const datosArq: DatosArquero = { arco, division, categoria, lateralidad, modalidad, claseAdaptada };
+  const setDatosArq = (d: DatosArquero) => {
+    setArco(d.arco);
+    setDivision(d.division);
+    setCategoria(d.categoria);
+    setLateralidad(d.lateralidad);
+    setModalidad(d.modalidad ?? 'convencional');
+    setClaseAdaptada(d.claseAdaptada ?? null);
+  };
   const [federado, setFederado] = useState(false);
   const [funciones, setFunciones] = useState<Funcion[]>(['arquero']);
   const [nacimiento, setNacimiento] = useState('');
@@ -55,6 +67,8 @@ export default function Perfil() {
     setLocalidad(usuario.localidad ?? '');
     setDireccion(usuario.direccion ?? '');
     setArco(usuario.arco);
+    setModalidad(usuario.modalidad ?? 'convencional');
+    setClaseAdaptada(usuario.claseAdaptada ?? null);
     setDivision(usuario.division);
     setCategoria(usuario.categoria);
     setLateralidad(usuario.lateralidad);
@@ -71,7 +85,7 @@ export default function Perfil() {
     if (!nombre.trim() || !apellido.trim()) return setError('Nombre y apellido son obligatorios.');
     setEnviando(true);
     try {
-      await repo.actualizarPerfil(usuario.id, { nombre: nombre.trim(), apellido: apellido.trim(), alias: alias.trim(), dni: dni.trim(), telefono: telefono.trim(), ciudad: ciudad.trim(), localidad: localidad.trim(), direccion: direccion.trim(), sobreMi: sobreMi.trim(), instagram: redes.instagram.trim(), facebook: redes.facebook.trim(), tiktok: redes.tiktok.trim(), federado, arco, division, categoria, lateralidad, funciones, nacimiento });
+      await repo.actualizarPerfil(usuario.id, { nombre: nombre.trim(), apellido: apellido.trim(), alias: alias.trim(), dni: dni.trim(), telefono: telefono.trim(), ciudad: ciudad.trim(), localidad: localidad.trim(), direccion: direccion.trim(), sobreMi: sobreMi.trim(), instagram: redes.instagram.trim(), facebook: redes.facebook.trim(), tiktok: redes.tiktok.trim(), federado, arco, division, categoria, lateralidad, modalidad, claseAdaptada, funciones, nacimiento });
       await refrescar();
       setGuardado(true);
     } catch (e) {
@@ -127,10 +141,7 @@ export default function Perfil() {
         <>
           <Titulo style={{ marginTop: 8 }}>Datos de arquero</Titulo>
           <Txt muted>Se cargan por defecto cada vez que te inscribís a un torneo.</Txt>
-          <Pildoras label="Arco" opciones={ARCOS} valor={arco} onChange={setArco} />
-          <Pildoras label="División" opciones={DIVISIONES} valor={division} onChange={setDivision} />
-          <Pildoras label="Categoría" opciones={CATEGORIAS} valor={categoria} onChange={setCategoria} />
-          <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={lateralidad} onChange={setLateralidad} />
+          <CamposArquero d={datosArq} onChange={setDatosArq} />
           <CampoFederado valor={federado} onChange={setFederado} />
         </>
       ) : null}
@@ -151,7 +162,7 @@ export default function Perfil() {
                 <Txt style={{ fontWeight: '700', fontSize: 16 }}>{m.alias || m.nombreCompleto}</Txt>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {edad(m.nacimiento) !== null ? <Chip texto={`${edad(m.nacimiento)} años`} /> : null}
-                  <Chip texto={m.arco} relleno />
+                  <Chip texto={m.modalidad === 'adaptado' ? `Adaptado · ${m.claseAdaptada ?? ''}` : m.arco} relleno />
                   {m.estado === 'pendiente' ? <Chip texto="Esperando aprobación" /> : null}
                   {m.estado === 'baja' ? <Chip texto="Dado de baja" /> : null}
                   {m.estado === 'rechazado' ? <Chip texto="Rechazado" /> : null}

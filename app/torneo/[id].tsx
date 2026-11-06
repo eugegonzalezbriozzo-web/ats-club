@@ -7,6 +7,7 @@ import { TarjetaInvitacion } from '../../src/Pdf';
 import * as repo from '../../src/data/repo';
 import { FUENTE_TITULO, useTema } from '../../src/theme';
 import type { Inscripcion, Torneo, Usuario } from '../../src/types';
+import { claseSinDivision, resumenArquero } from '../../src/types';
 import { Avatar } from '../../src/FotoPerfil';
 import { Aviso, Boton, Cargando, Chip, FilaDato, MensajeError, Pantalla, Tarjeta, Txt, Vacio } from '../../src/ui';
 import { TEXTO_PAGO_INS } from '../../src/Pagos';
@@ -130,9 +131,19 @@ export default function DetalleTorneo() {
         <Tarjeta style={{ gap: 10 }}>
           <Aviso tipo="ok" texto={insc.estado === 'confirmada' ? 'Inscripción confirmada por el club.' : 'Inscripción enviada. El club la confirmará cuando registre el pago.'} />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            <Chip texto={insc.arco} relleno />
-            <Chip texto={insc.division} />
-            <Chip texto={insc.categoria} />
+            {insc.modalidad === 'adaptado' ? (
+              <>
+                <Chip texto="Adaptado" relleno />
+                <Chip texto={insc.claseAdaptada ?? ''} relleno />
+                {claseSinDivision(insc.claseAdaptada) ? null : <Chip texto={insc.division} />}
+              </>
+            ) : (
+              <>
+                <Chip texto={insc.arco} relleno />
+                <Chip texto={insc.division} />
+                <Chip texto={insc.categoria} />
+              </>
+            )}
             <Chip texto={insc.lateralidad} />
           </View>
           {torneo.valor > 0 && esSocio ? (
@@ -166,7 +177,7 @@ export default function DetalleTorneo() {
               </View>
               {mi ? (
                 <>
-                  <Txt muted style={{ fontSize: 13 }}>{mi.arco} · {mi.division} · {mi.categoria}{torneo.valor > 0 ? ` · ${pago ? TEXTO_PAGO_INS[pago] : 'Pago sin informar'}` : ''}</Txt>
+                  <Txt muted style={{ fontSize: 13 }}>{resumenArquero(mi)}{torneo.valor > 0 ? ` · ${pago ? TEXTO_PAGO_INS[pago] : 'Pago sin informar'}` : ''}</Txt>
                   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                     {torneo.valor > 0 && (pago === null || pago === 'rechazado') ? (
                       <Boton titulo="Informar pago" variante="secundario" icono="cash-outline" onPress={() => router.push(`/pagos/informar?concepto=inscripcion&torneoId=${torneo.id}&para=${m.id}`)} />

@@ -4,6 +4,7 @@ import * as repo from '../../src/data/repo';
 import { TarjetaTorneo } from '../../src/TarjetaTorneo';
 import { useAuth } from '../../src/auth';
 import type { Inscripcion, Torneo } from '../../src/types';
+import { resumenArquero } from '../../src/types';
 import { Pantalla, Vacio } from '../../src/ui';
 
 export default function MisInscripciones() {
@@ -36,7 +37,7 @@ export default function MisInscripciones() {
             key={i.id}
             torneo={i.torneo}
             onPress={() => router.push(`/torneo/${i.torneoId}`)}
-            extra={`${i.quien ? `${i.quien} · ` : ''}${i.estado === 'confirmada' ? 'Confirmada' : 'Pendiente de confirmación'} · ${i.arco} · ${i.categoria}`}
+            extra={`${i.quien ? `${i.quien} · ` : ''}${i.estado === 'confirmada' ? 'Confirmada' : 'Pendiente de confirmación'} · ${resumenArquero(i)}`}
           />
         ))
       )}

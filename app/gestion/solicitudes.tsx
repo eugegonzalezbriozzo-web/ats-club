@@ -9,7 +9,7 @@ import { pedirBaja } from '../../src/baja';
 import * as repo from '../../src/data/repo';
 import { Etiqueta } from '../../src/Pagos';
 import { useTema } from '../../src/theme';
-import { FUNCIONES } from '../../src/types';
+import { FUNCIONES, resumenArquero } from '../../src/types';
 import type { ConfigPagos, Pago, Usuario } from '../../src/types';
 import { Grilla, Aviso, Boton, MensajeError, Pantalla, Tarjeta, Titulo, Txt, Vacio } from '../../src/ui';
 import { confirmar, edad, fechaCorta, plata } from '../../src/util';
@@ -137,7 +137,7 @@ export default function Solicitudes() {
               </Txt>
               {u.funciones.includes('arquero') ? (
                 <Txt muted style={{ fontSize: 13 }}>
-                  {u.arco} · {u.division} · {u.categoria} · {u.federado ? 'Federado' : 'No federado'}
+                  {resumenArquero(u)} · {u.federado ? 'Federado' : 'No federado'}
                 </Txt>
               ) : null}
               <View style={{ flexDirection: 'row', gap: 8 }}>

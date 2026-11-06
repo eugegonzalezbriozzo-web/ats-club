@@ -5,13 +5,14 @@ import { useAuth } from '../../src/auth';
 import { CampoFecha } from '../../src/CampoFecha';
 import * as repo from '../../src/data/repo';
 import { FotoPerfil } from '../../src/FotoPerfil';
-import { ARCOS, CATEGORIAS, DIVISIONES, LATERALIDADES, MAX_SOBRE_MI, Usuario } from '../../src/types';
-import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, Cargando, Check, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
+import { MAX_SOBRE_MI, Usuario } from '../../src/types';
+import { CamposArquero } from '../../src/CamposArquero';
+import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, Cargando, Check, MensajeError, Pantalla, Titulo, Txt } from '../../src/ui';
 import { armarNombreCompleto, confirmar, edad, fechaCorta, hoyISO } from '../../src/util';
 
 const VACIO: repo.DatosMenor = {
   nombre: '', apellido: '', alias: '', dni: '', nacimiento: '', sobreMi: '', federado: false, foto: '',
-  arco: 'Recurvo', division: 'Hombre', categoria: 'U15', lateralidad: 'Derecho',
+  arco: 'Recurvo', division: 'Hombre', categoria: 'U15', lateralidad: 'Derecho', modalidad: 'convencional', claseAdaptada: null,
 };
 
 /**
@@ -38,6 +39,7 @@ export default function MenorACargo() {
       setD({
         nombre: m.nombre, apellido: m.apellido, alias: m.alias ?? '', dni: m.dni ?? '', nacimiento: m.nacimiento ?? '', sobreMi: m.sobreMi ?? '',
         federado: !!m.federado, foto: m.foto ?? '', arco: m.arco, division: m.division, categoria: m.categoria, lateralidad: m.lateralidad,
+        modalidad: m.modalidad ?? 'convencional', claseAdaptada: m.claseAdaptada ?? null,
       });
     }
   };
@@ -148,10 +150,7 @@ export default function MenorACargo() {
 
       <Titulo style={{ marginTop: 8 }}>Datos de arquero</Titulo>
       <Txt muted>Se cargan por defecto cuando lo inscribís a un torneo.</Txt>
-      <Pildoras label="Arco" opciones={ARCOS} valor={d.arco} onChange={set('arco')} />
-      <Pildoras label="División" opciones={DIVISIONES} valor={d.division} onChange={set('division')} />
-      <Pildoras label="Categoría" opciones={CATEGORIAS} valor={d.categoria} onChange={set('categoria')} />
-      <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={d.lateralidad} onChange={set('lateralidad')} />
+      <CamposArquero d={d} onChange={(x) => setD({ ...d, ...x })} />
       <CampoFederado valor={d.federado} onChange={set('federado')} />
       <Txt muted style={{ fontSize: 13 }}>
         Los socios del club ven su nombre, alias, foto, datos de arquero y que está a tu cargo. No ven su DNI ni su fecha de nacimiento.

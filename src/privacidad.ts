@@ -18,7 +18,7 @@ export const PRIVACIDAD: { titulo: string; parrafos: string[] }[] = [
     titulo: 'Qué datos guardamos',
     parrafos: [
       'Datos de tu cuenta: email y contraseña (la contraseña se guarda cifrada; nadie puede leerla, ni ATS ni el club).',
-      'Datos de tu perfil: nombre, apellido, alias, foto, DNI, fecha de nacimiento, teléfono, ciudad, localidad, dirección, "sobre mí", redes sociales, tus funciones en el club (arquero/a, juez/a, entrenador/a, tutor/a), si sos federado y tus datos de arquero (arco, división, categoría y lateralidad). Solo nombre, apellido y email son obligatorios; el resto lo cargás si querés.',
+      'Datos de tu perfil: nombre, apellido, alias, foto, DNI, fecha de nacimiento, teléfono, ciudad, localidad, dirección, "sobre mí", redes sociales, tus funciones en el club (arquero/a, juez/a, entrenador/a, tutor/a), si sos federado y tus datos de arquero (modalidad convencional o adaptada; arco, división, categoría o clase de arquería adaptada; y lateralidad). Solo nombre, apellido y email son obligatorios; el resto lo cargás si querés.',
       'Lo que hacés en la app: tu club, tu rol, tus inscripciones a torneos, tus respuestas a encuestas, los "me gusta" y las noticias que marcaste como vistas.',
       'Pagos: lo que informás cuando pagás una cuota, una inscripción u otro gasto (monto, fecha, concepto) y el comprobante que adjuntás. La app no cobra ni guarda datos de tarjetas ni de cuentas bancarias de los socios.',
     ],

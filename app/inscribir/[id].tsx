@@ -3,16 +3,13 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../src/auth';
 import * as repo from '../../src/data/repo';
 import {
-  ARCOS,
-  CATEGORIAS,
-  DIVISIONES,
   DatosArquero,
-  LATERALIDADES,
   Inscripcion,
   Torneo,
   Usuario,
 } from '../../src/types';
-import { Aviso, Boton, Cargando, Check, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
+import { CamposArquero } from '../../src/CamposArquero';
+import { Aviso, Boton, Cargando, Check, MensajeError, Pantalla, Titulo, Txt } from '../../src/ui';
 import { fechaCorta, plata, fechasTorneo } from '../../src/util';
 
 /**
@@ -49,16 +46,20 @@ export default function Inscribir() {
   useEffect(() => {
     if (usuario && !datos && existente !== undefined) {
       const base = existente ?? usuario;
-      setDatos({ arco: base.arco, division: base.division, categoria: base.categoria, lateralidad: base.lateralidad });
+      setDatos({
+        arco: base.arco, division: base.division, categoria: base.categoria, lateralidad: base.lateralidad,
+        modalidad: base.modalidad ?? 'convencional', claseAdaptada: base.claseAdaptada ?? null,
+      });
     }
   }, [usuario, datos, existente]);
 
   if (!torneo || !datos || !usuario || existente === undefined) return <Cargando />;
 
   const perfil: DatosArquero = usuario;
-  const cambio = (k: keyof DatosArquero) => datos[k] !== perfil[k];
-  const hayCambios = (['arco', 'division', 'categoria', 'lateralidad'] as const).some(cambio);
-  const nota = (k: keyof DatosArquero) => (cambio(k) ? `Cambiado (perfil: ${perfil[k]})` : esMenor ? 'De su perfil' : 'De tu perfil');
+  const cambio = (k: keyof DatosArquero) => (datos[k] ?? null) !== (perfil[k] ?? (k === 'modalidad' ? 'convencional' : null));
+  const hayCambios = (['arco', 'division', 'categoria', 'lateralidad', 'modalidad', 'claseAdaptada'] as const).some(cambio);
+  const nota = (k: keyof DatosArquero) =>
+    cambio(k) ? `Cambiado (perfil: ${k === 'modalidad' ? (perfil.modalidad === 'adaptado' ? 'Adaptado' : 'Convencional') : perfil[k] ?? '—'})` : esMenor ? 'De su perfil' : 'De tu perfil';
   const set = <K extends keyof DatosArquero>(k: K) => (v: DatosArquero[K]) => setDatos({ ...datos, [k]: v });
 
   const enviar = async () => {
@@ -92,10 +93,7 @@ export default function Inscribir() {
         <Aviso icono="person-outline" texto="Cargamos los datos de tu perfil. Si para este torneo competís distinto, cambialos acá." />
       )}
 
-      <Pildoras label="Arco" opciones={ARCOS} valor={datos.arco} onChange={set('arco')} nota={nota('arco')} notaDestacada={cambio('arco')} />
-      <Pildoras label="División" opciones={DIVISIONES} valor={datos.division} onChange={set('division')} nota={nota('division')} notaDestacada={cambio('division')} />
-      <Pildoras label="Categoría" opciones={CATEGORIAS} valor={datos.categoria} onChange={set('categoria')} nota={nota('categoria')} notaDestacada={cambio('categoria')} />
-      <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={datos.lateralidad} onChange={set('lateralidad')} nota={nota('lateralidad')} notaDestacada={cambio('lateralidad')} />
+      <CamposArquero d={datos} onChange={setDatos} nota={nota} cambio={cambio} />
 
       {hayCambios ? <Check label={esMenor ? 'Guardar estos cambios también en su perfil' : 'Guardar estos cambios también en mi perfil'} valor={actualizarPerfil} onChange={setActualizarPerfil} /> : null}
       <MensajeError texto={error} />

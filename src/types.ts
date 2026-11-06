@@ -50,7 +50,32 @@ export interface DatosArquero {
   division: Division;
   categoria: Categoria;
   lateralidad: Lateralidad;
+  /** Convencional (arco, división, categoría) o Adaptado (clase). Por defecto, convencional. */
+  modalidad?: Modalidad;
+  /** Solo si es adaptado. */
+  claseAdaptada?: ClaseAdaptada | null;
 }
+
+/** Arquería adaptada. En Adaptado la clase reemplaza a arco y categoría. */
+export type Modalidad = 'convencional' | 'adaptado';
+export const MODALIDADES = ['Convencional', 'Adaptado'] as const;
+export const CLASES_ADAPTADAS = ['W1', 'Recurve Open', 'Compound Open', 'Visually Impaired 1', 'Visually Impaired 2/3'] as const;
+export type ClaseAdaptada = (typeof CLASES_ADAPTADAS)[number];
+/** En Visually Impaired no hay distinción de sexo (no se pide división). */
+export const claseSinDivision = (c?: ClaseAdaptada | null) => !!c && c.startsWith('Visually Impaired');
+/** Arco que corresponde a la clase (para lo que sigue usando "arco"). */
+export const arcoDeClase = (c?: ClaseAdaptada | null): Arco | null => (c === 'Recurve Open' ? 'Recurvo' : c === 'Compound Open' ? 'Compuesto' : null);
+/** Resumen para mostrar: "Recurvo · Hombre · Senior" o "Adaptado · W1 · Mujer". */
+export function resumenArquero(d: Partial<DatosArquero>, conLateralidad = false): string {
+  const partes =
+    d.modalidad === 'adaptado'
+      ? ['Adaptado', d.claseAdaptada ?? 'sin clase', ...(claseSinDivision(d.claseAdaptada) ? [] : [d.division])]
+      : [d.arco, d.division, d.categoria];
+  if (conLateralidad) partes.push(d.lateralidad);
+  return partes.filter(Boolean).join(' · ');
+}
+/** Etiqueta corta: el arco (convencional) o la clase (adaptado). */
+export const etiquetaArco = (d: Partial<DatosArquero>) => (d.modalidad === 'adaptado' ? d.claseAdaptada ?? 'Adaptado' : d.arco ?? '');
 
 /** Funciones en el club (un socio puede tener varias). No son permisos: eso es `rol`. */
 export type Funcion = 'arquero' | 'juez' | 'entrenador' | 'tutor';

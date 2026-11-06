@@ -2,12 +2,13 @@ import { Link } from 'expo-router';
 import React, { useState } from 'react';
 import { useTema } from '../src/theme';
 import { useAuth } from '../src/auth';
-import { ARCOS, Arco, CATEGORIAS, Categoria, DIVISIONES, Division, Funcion, LATERALIDADES, Lateralidad } from '../src/types';
+import { ClaseAdaptada, DatosArquero, Modalidad, Arco, Categoria, Division, Funcion, Lateralidad } from '../src/types';
 import { CampoFecha } from '../src/CampoFecha';
+import { CamposArquero } from '../src/CamposArquero';
 import { FotoPerfil } from '../src/FotoPerfil';
 import { armarNombreCompleto, edad, hoyISO } from '../src/util';
 import { View } from 'react-native';
-import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, LogoClub, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../src/ui';
+import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, LogoClub, MensajeError, Pantalla, Titulo, Txt } from '../src/ui';
 
 export default function Registro() {
   const { registrar, clubDelLink } = useAuth();
@@ -29,6 +30,17 @@ export default function Registro() {
   const [division, setDivision] = useState<Division>('Hombre');
   const [categoria, setCategoria] = useState<Categoria>('Senior');
   const [lateralidad, setLateralidad] = useState<Lateralidad>('Derecho');
+  const [modalidad, setModalidad] = useState<Modalidad>('convencional');
+  const [claseAdaptada, setClaseAdaptada] = useState<ClaseAdaptada | null>(null);
+  const datosArq: DatosArquero = { arco, division, categoria, lateralidad, modalidad, claseAdaptada };
+  const setDatosArq = (d: DatosArquero) => {
+    setArco(d.arco);
+    setDivision(d.division);
+    setCategoria(d.categoria);
+    setLateralidad(d.lateralidad);
+    setModalidad(d.modalidad ?? 'convencional');
+    setClaseAdaptada(d.claseAdaptada ?? null);
+  };
   const [federado, setFederado] = useState(false);
   const [funciones, setFunciones] = useState<Funcion[]>(['arquero']);
   const [nacimiento, setNacimiento] = useState('');
@@ -43,7 +55,7 @@ export default function Registro() {
     if (pass !== pass2) return setError('Las contraseñas no coinciden.');
     setEnviando(true);
     try {
-      const confirmar = await registrar({ nombre, apellido, alias, foto, dni, telefono, ciudad, localidad, direccion, email, password: pass, arco, division, categoria, lateralidad, federado, funciones, nacimiento });
+      const confirmar = await registrar({ nombre, apellido, alias, foto, dni, telefono, ciudad, localidad, direccion, email, password: pass, arco, division, categoria, lateralidad, modalidad, claseAdaptada, federado, funciones, nacimiento });
       if (confirmar) setRevisaMail(email.trim().toLowerCase());
     } catch (e) {
       setError((e as Error).message);
@@ -105,10 +117,7 @@ export default function Registro() {
         <>
           <Titulo style={{ marginTop: 8 }}>Datos de arquero</Titulo>
           <Txt muted>Se usan por defecto al inscribirte a torneos. Podés cambiarlos después.</Txt>
-          <Pildoras label="Arco" opciones={ARCOS} valor={arco} onChange={setArco} />
-          <Pildoras label="División" opciones={DIVISIONES} valor={division} onChange={setDivision} />
-          <Pildoras label="Categoría" opciones={CATEGORIAS} valor={categoria} onChange={setCategoria} />
-          <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={lateralidad} onChange={setLateralidad} />
+          <CamposArquero d={datosArq} onChange={setDatosArq} />
           <CampoFederado valor={federado} onChange={setFederado} />
         </>
       ) : null}

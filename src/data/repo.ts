@@ -17,7 +17,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RECUPERAR_URL, supabase } from './supabase';
 import { armarNombreCompleto } from '../util';
-import { MAX_SOBRE_MI } from '../types';
+import { MAX_SOBRE_MI, arcoDeClase } from '../types';
 import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
 import { edad, hoyISO } from '../util';
@@ -238,6 +238,7 @@ function aUsuario(p: FilaPerfil, m: FilaMembresia): Usuario {
     bajaPedida: m?.baja_pedida_el ? { el: m.baja_pedida_el, motivo: m.baja_motivo ?? '', borrar: !!m.baja_borrar } : null,
     sinCuenta: p.cuenta === false,
     arco: p.arco, division: p.division, categoria: p.categoria, lateralidad: p.lateralidad,
+    modalidad: p.modalidad ?? 'convencional', claseAdaptada: p.clase_adaptada ?? null,
   });
 }
 function aClub(c: Record<string, any>): Club {
@@ -449,6 +450,7 @@ function validarMenor(d: DatosMenor) {
   const e = edad(d.nacimiento);
   if (e === null || d.nacimiento > hoyISO()) throw new ErrorApp('Revisá la fecha de nacimiento.');
   if (e >= 18) throw new ErrorApp('Con 18 años o más tiene que crear su propia cuenta con el link del club.');
+  if (d.modalidad === 'adaptado' && !d.claseAdaptada) throw new ErrorApp('Elegí la clase de arquería adaptada.');
 }
 
 /** Tutor/a: suma a un menor a cargo. Queda pendiente hasta que un admin lo apruebe. */
@@ -458,7 +460,8 @@ export async function agregarMenor(d: DatosMenor): Promise<string> {
     p: {
       nombre: d.nombre.trim(), apellido: d.apellido.trim(), alias: d.alias.trim(), dni: d.dni.trim(), nacimiento: d.nacimiento,
       sobre_mi: d.sobreMi.trim().slice(0, MAX_SOBRE_MI), arco: d.arco, division: d.division, categoria: d.categoria, lateralidad: d.lateralidad,
-      federado: d.federado,
+      federado: d.federado, modalidad: d.modalidad ?? 'convencional', clase_adaptada: d.modalidad === 'adaptado' ? d.claseAdaptada ?? null : null,
+      ...(d.modalidad === 'adaptado' && arcoDeClase(d.claseAdaptada) ? { arco: arcoDeClase(d.claseAdaptada) } : {}),
     },
   });
   if (error) fallo(error, 'No se pudo sumar al menor.');
@@ -479,6 +482,7 @@ export async function actualizarMenor(menorId: string, d: DatosMenor) {
   await actualizarPerfil(menorId, {
     nombre: d.nombre.trim(), apellido: d.apellido.trim(), alias: d.alias.trim(), dni: d.dni.trim(), nacimiento: d.nacimiento,
     sobreMi: d.sobreMi.trim(), arco: d.arco, division: d.division, categoria: d.categoria, lateralidad: d.lateralidad, federado: d.federado,
+    modalidad: d.modalidad ?? 'convencional', claseAdaptada: d.modalidad === 'adaptado' ? d.claseAdaptada ?? null : null,
   });
 }
 
@@ -597,6 +601,7 @@ export interface DatosRegistro extends DatosArquero {
 export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario | null> {
   if (d.password.length < 6) throw new ErrorApp('La contraseña tiene que tener al menos 6 caracteres.');
   if (!d.funciones.length) throw new ErrorApp('Elegí al menos una función en el club.');
+  if (d.funciones.includes('arquero') && d.modalidad === 'adaptado' && !d.claseAdaptada) throw new ErrorApp('Elegí la clase de arquería adaptada.');
   if (d.nacimiento && (d.nacimiento > hoyISO() || d.nacimiento < '1900-01-01')) throw new ErrorApp('Revisá la fecha de nacimiento.');
   const e = edad(d.nacimiento);
   if (e !== null && e < EDAD_CUENTA_PROPIA)
@@ -618,7 +623,14 @@ export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario |
   if (data.user && (data.user.identities ?? []).length === 0) throw new ErrorApp('Ya existe una cuenta con ese email. Probá ingresar o usá otro email.');
   if (!data.session || !data.user) return null;
   mandarBienvenida(data.session.access_token);
-  await supabase.from('perfiles').update({ funciones: d.funciones.length ? d.funciones : ['arquero'], nacimiento: d.nacimiento || null }).eq('id', data.user.id);
+  await supabase
+    .from('perfiles')
+    .update({
+      funciones: d.funciones.length ? d.funciones : ['arquero'], nacimiento: d.nacimiento || null,
+      modalidad: d.modalidad === 'adaptado' ? 'adaptado' : 'convencional', clase_adaptada: d.modalidad === 'adaptado' ? d.claseAdaptada ?? null : null,
+      ...(d.modalidad === 'adaptado' && arcoDeClase(d.claseAdaptada) ? { arco: arcoDeClase(d.claseAdaptada) } : {}),
+    })
+    .eq('id', data.user.id);
   if (d.foto) {
     try {
       const foto = d.foto.startsWith('data:') ? await subirFoto(data.user.id, d.foto) : d.foto;
@@ -700,11 +712,12 @@ async function subirLogo(clubId: string, dataUri: string): Promise<string> {
 
 /* ================= Perfil ================= */
 
-export type CambiosPerfil = Partial<Pick<Usuario, 'nombre' | 'apellido' | 'alias' | 'sobreMi' | 'foto' | 'dni' | 'telefono' | 'ciudad' | 'localidad' | 'direccion' | 'federado' | 'instagram' | 'facebook' | 'tiktok' | 'arco' | 'division' | 'categoria' | 'lateralidad' | 'funciones' | 'nacimiento'>>;
+export type CambiosPerfil = Partial<Pick<Usuario, 'nombre' | 'apellido' | 'alias' | 'sobreMi' | 'foto' | 'dni' | 'telefono' | 'ciudad' | 'localidad' | 'direccion' | 'federado' | 'instagram' | 'facebook' | 'tiktok' | 'arco' | 'division' | 'categoria' | 'lateralidad' | 'funciones' | 'nacimiento' | 'modalidad' | 'claseAdaptada'>>;
 const COLUMNA: Record<keyof CambiosPerfil, string> = {
   nombre: 'nombre', apellido: 'apellido', alias: 'alias', sobreMi: 'sobre_mi', foto: 'foto_url', dni: 'dni', telefono: 'telefono',
   ciudad: 'ciudad', localidad: 'localidad', direccion: 'direccion', federado: 'federado', arco: 'arco', division: 'division',
   categoria: 'categoria', lateralidad: 'lateralidad', instagram: 'instagram', facebook: 'facebook', tiktok: 'tiktok',
+  modalidad: 'modalidad', claseAdaptada: 'clase_adaptada',
   funciones: 'funciones', nacimiento: 'nacimiento',
 };
 
@@ -716,6 +729,11 @@ export async function actualizarPerfil(usuarioId: string, cambios: CambiosPerfil
   if (cambios.foto?.startsWith('data:')) cambios = { ...cambios, foto: await subirFoto(usuarioId, cambios.foto) };
   else if (cambios.foto === '') await borrarFoto(usuarioId);
   if (cambios.funciones && !cambios.funciones.length) throw new ErrorApp('Elegí al menos una función en el club.');
+  if (cambios.modalidad === 'adaptado') {
+    if (!cambios.claseAdaptada) throw new ErrorApp('Elegí la clase de arquería adaptada.');
+    const a = arcoDeClase(cambios.claseAdaptada);
+    if (a) cambios = { ...cambios, arco: a };
+  } else if (cambios.modalidad === 'convencional') cambios = { ...cambios, claseAdaptada: null };
   if (cambios.nacimiento !== undefined) {
     if (cambios.nacimiento && (cambios.nacimiento > hoyISO() || cambios.nacimiento < '1900-01-01')) throw new ErrorApp('Revisá la fecha de nacimiento.');
     cambios = { ...cambios, nacimiento: cambios.nacimiento || (null as unknown as undefined) };
@@ -970,6 +988,7 @@ export interface PerfilArquero {
 const aPublico = (u: Usuario, conContacto: boolean): ArqueroPublico => ({
   id: u.id, nombre: u.nombre, apellido: u.apellido, nombreCompleto: u.nombreCompleto, alias: u.alias ?? '', sobreMi: u.sobreMi ?? '', foto: u.foto ?? '',
   esAdmin: u.rol === 'admin', arco: u.arco, division: u.division, categoria: u.categoria, lateralidad: u.lateralidad,
+  modalidad: u.modalidad ?? 'convencional', claseAdaptada: u.claseAdaptada ?? null,
   federado: !!u.federado, ciudad: u.ciudad ?? '', localidad: u.localidad ?? '', desde: u.creadoEl, telefono: u.telefono ?? '',
   instagram: u.instagram ?? '', facebook: u.facebook ?? '', tiktok: u.tiktok ?? '', funciones: u.funciones,
   menor: !!u.sinCuenta, aCargoDe: u.aCargoDe ?? [],
@@ -1006,10 +1025,12 @@ export async function listarArqueros(clubId: string, conContacto: boolean): Prom
       alias: a.alias, sobreMi: a.sobre_mi, foto: a.foto_url ?? '', dni: '', telefono: a.telefono, ciudad: a.ciudad, localidad: a.localidad,
       direccion: '', federado: a.federado, funciones: aFunciones(a.funciones), sinCuenta: !!a.menor, aCargoDe: a.a_cargo_de ?? [], rol: a.es_admin ? 'admin' : 'usuario', estado: 'aprobado', creadoEl: a.desde,
       arco: a.arco, division: a.division, categoria: a.categoria, lateralidad: a.lateralidad,
+      modalidad: a.modalidad ?? 'convencional', claseAdaptada: a.clase_adaptada ?? null,
     });
     return {
       id: a.id, nombre: a.nombre, apellido: a.apellido, nombreCompleto: a.nombre_completo, alias: a.alias ?? '', sobreMi: a.sobre_mi ?? '',
       foto: a.foto_url ?? '', esAdmin: !!a.es_admin, arco: a.arco, division: a.division, categoria: a.categoria, lateralidad: a.lateralidad,
+      modalidad: a.modalidad ?? 'convencional', claseAdaptada: a.clase_adaptada ?? null,
       federado: !!a.federado, ciudad: a.ciudad ?? '', localidad: a.localidad ?? '', desde: a.desde, telefono: a.telefono ?? '',
       instagram: a.instagram ?? '', facebook: a.facebook ?? '', tiktok: a.tiktok ?? '', funciones: aFunciones(a.funciones),
       menor: !!a.menor, aCargoDe: a.a_cargo_de ?? [],
@@ -1032,10 +1053,21 @@ function aTorneo(r: Record<string, any>): Torneo {
     inscripcionCierra: r.inscripcion_cierra, invitacion, notas: r.notas ?? '', creadoEl: r.creado_el,
   };
 }
+/** Datos de arquero → columnas (inscripciones). En Adaptado la clase es obligatoria. */
+function filaArquero(d: DatosArquero) {
+  const adaptado = d.modalidad === 'adaptado';
+  if (adaptado && !d.claseAdaptada) throw new ErrorApp('Elegí la clase de arquería adaptada.');
+  return {
+    arco: adaptado ? arcoDeClase(d.claseAdaptada) ?? d.arco : d.arco, division: d.division, categoria: d.categoria, lateralidad: d.lateralidad,
+    modalidad: adaptado ? 'adaptado' : 'convencional', clase_adaptada: adaptado ? d.claseAdaptada : null,
+  };
+}
+
 function aInscripcion(r: Record<string, any>): Inscripcion {
   return {
     id: r.id, clubId: r.club_id, torneoId: r.torneo_id, usuarioId: r.usuario_id, arco: r.arco, division: r.division,
-    categoria: r.categoria, lateralidad: r.lateralidad, estado: r.estado, creadoEl: r.creado_el,
+    categoria: r.categoria, lateralidad: r.lateralidad, modalidad: r.modalidad ?? 'convencional', claseAdaptada: r.clase_adaptada ?? null,
+    estado: r.estado, creadoEl: r.creado_el,
   };
 }
 
@@ -1137,7 +1169,7 @@ export async function inscribirse(usuarioId: string, torneoId: string, datos: Da
   if (estadoInscripcionTorneo(aTorneo(t)) !== 'abierta') throw new ErrorApp('La inscripción no está abierta.');
   const { data, error } = await supabase
     .from('inscripciones')
-    .insert({ club_id: t.club_id, torneo_id: torneoId, usuario_id: usuarioId, arco: datos.arco, division: datos.division, categoria: datos.categoria, lateralidad: datos.lateralidad })
+    .insert({ club_id: t.club_id, torneo_id: torneoId, usuario_id: usuarioId, ...filaArquero(datos) })
     .select('*')
     .single();
   if (error) {
@@ -1153,7 +1185,7 @@ export async function inscribirse(usuarioId: string, torneoId: string, datos: Da
 export async function editarInscripcion(clubId: string, inscripcionId: string, datos: DatosArquero) {
   const { data, error } = await supabase
     .from('inscripciones')
-    .update({ arco: datos.arco, division: datos.division, categoria: datos.categoria, lateralidad: datos.lateralidad })
+    .update({ ...filaArquero(datos) })
     .eq('id', inscripcionId)
     .eq('club_id', clubId)
     .select('id');
