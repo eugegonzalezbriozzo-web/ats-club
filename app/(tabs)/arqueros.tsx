@@ -22,7 +22,9 @@ export default function Arqueros() {
   const router = useRouter();
   const [todos, setTodos] = useState<repo.ArqueroPublico[]>([]);
   const [q, setQ] = useState('');
+  const [modalidad, setModalidad] = useState<'Todos' | 'Convencional' | 'Adaptado'>('Todos');
   const [arco, setArco] = useState<string>('Todos');
+  const [clase, setClase] = useState<string>('Todas');
   const [fed, setFed] = useState<'Todos' | 'Sí' | 'No'>('Todos');
   const [funcion, setFuncion] = useState<string>('Todas');
   const listadosArq = useListados();
@@ -34,22 +36,34 @@ export default function Arqueros() {
   );
 
   const texto = q.trim().toLowerCase();
+  const esAdaptado = (u: repo.ArqueroPublico) => u.modalidad === 'adaptado';
+  // Modalidad → Arco (convencional) o Clase (adaptado).
+  const pasaArquero = (u: repo.ArqueroPublico) => {
+    if (modalidad === 'Todos' && arco === 'Todos') return true;
+    if (!u.funciones.includes('arquero')) return false;
+    if (modalidad === 'Adaptado') return esAdaptado(u) && (clase === 'Todas' || u.claseAdaptada === clase);
+    if (modalidad === 'Convencional' && esAdaptado(u)) return false;
+    return arco === 'Todos' || (!esAdaptado(u) && u.arco === arco);
+  };
   const lista = todos.filter(
     (u) =>
       (funcion === 'Todas' || u.funciones.includes(FUNCIONES.find((f) => f.nombre === funcion)!.id)) &&
-      (arco === 'Todos' ||
-        (u.funciones.includes('arquero') && (arco === 'Adaptado' ? u.modalidad === 'adaptado' : u.modalidad !== 'adaptado' && u.arco === arco))) &&
+      pasaArquero(u) &&
       (fed === 'Todos' || (u.funciones.includes('arquero') && u.federado === (fed === 'Sí'))) &&
       (!texto || `${u.nombre} ${u.apellido} ${u.alias}`.toLowerCase().includes(texto)),
   );
   // Solo las funciones que alguien del club tiene (si son todos arqueros, no hace falta el filtro).
   const funcionesUsadas = FUNCIONES.filter((f) => todos.some((u) => u.funciones.includes(f.id))).map((f) => f.nombre);
   const arqueros = todos.filter((u) => u.funciones.includes('arquero'));
-  const opciones = [
-    'Todos',
-    ...listadosArq.arcos.map((a) => a.nombre).filter((a) => arqueros.some((u) => u.modalidad !== 'adaptado' && u.arco === a)),
-    ...(arqueros.some((u) => u.modalidad === 'adaptado') ? ['Adaptado'] : []),
-  ];
+  // Solo lo que tiene algún socio.
+  const hayAdaptados = arqueros.some(esAdaptado);
+  const opciones = ['Todos', ...listadosArq.arcos.map((a) => a.nombre).filter((a) => arqueros.some((u) => !esAdaptado(u) && u.arco === a))];
+  const clases = ['Todas', ...listadosArq.clases.map((c) => c.nombre).filter((c) => arqueros.some((u) => esAdaptado(u) && u.claseAdaptada === c))];
+  const cambiarModalidad = (m: typeof modalidad) => {
+    setModalidad(m);
+    setArco('Todos');
+    setClase('Todas');
+  };
 
   return (
     <Pantalla amplia>
@@ -58,7 +72,11 @@ export default function Arqueros() {
       </Txt>
       <Campo label="Buscar" value={q} onChangeText={setQ} placeholder="Nombre, apellido o alias" />
       {funcionesUsadas.length > 1 ? <Pildoras label="Función" opciones={['Todas', ...funcionesUsadas]} valor={funcion} onChange={setFuncion} /> : null}
-      {opciones.length > 2 ? <Pildoras label="Arco" opciones={opciones} valor={arco} onChange={setArco} /> : null}
+      {hayAdaptados ? (
+        <Pildoras label="Modalidad" opciones={['Todos', 'Convencional', 'Adaptado'] as const} valor={modalidad} onChange={cambiarModalidad} />
+      ) : null}
+      {modalidad !== 'Adaptado' && opciones.length > 2 ? <Pildoras label="Arco" opciones={opciones} valor={arco} onChange={setArco} /> : null}
+      {modalidad === 'Adaptado' && clases.length > 2 ? <Pildoras label="Clase" opciones={clases} valor={clase} onChange={setClase} /> : null}
       <Pildoras label="Federado" opciones={['Todos', 'Sí', 'No'] as const} valor={fed} onChange={setFed} />
       {lista.length === 0 ? (
         <Vacio texto={todos.length ? 'Nadie coincide con la búsqueda.' : 'Todavía no hay socios aprobados.'} />
