@@ -13,3 +13,15 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# El service worker de las notificaciones no se guarda en caché: así cada versión nueva se toma enseguida.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache"
