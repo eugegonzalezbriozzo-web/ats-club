@@ -10,6 +10,7 @@ import { useAuth } from '../../src/auth';
 import { useTema } from '../../src/theme';
 import type { Noticia, Torneo } from '../../src/types';
 import { SeccionNoticias } from '../../src/Noticias';
+import { BannerPush } from '../../src/BannerPush';
 import { Grilla, Pantalla, Titulo, Txt, Vacio } from '../../src/ui';
 import { hoyISO, finTorneo } from '../../src/util';
 
@@ -55,6 +56,8 @@ export default function Inicio() {
           <Titulo style={{ fontSize: 26 }}>{usuario?.alias || usuario?.nombre}</Titulo>
         </View>
       </View>
+
+      <BannerPush />
 
       {esAdmin
         ? (

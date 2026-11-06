@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from '../src/auth';
 import { TemaProvider, useTema } from '../src/theme';
 import { BotonIcono, Cargando } from '../src/ui';
 import { FUENTES } from '../src/texto';
+import { registrarServiceWorker } from '../src/push';
 import {
   K2D_400Regular,
   K2D_500Medium,
@@ -92,6 +93,7 @@ function Navegacion() {
         <Stack.Screen name="cuenta/email" options={{ title: 'Cambiar email' }} />
         <Stack.Screen name="cuenta/baja" options={{ title: 'Pedir la baja' }} />
         <Stack.Screen name="cuenta/menor" options={{ title: 'Menor a cargo' }} />
+        <Stack.Screen name="cuenta/notificaciones" options={{ title: 'Notificaciones' }} />
         <Stack.Screen name="privacidad" options={{ title: 'Privacidad' }} />
         <Stack.Screen name="pendiente" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -122,6 +124,7 @@ function Navegacion() {
 export default function RootLayout() {
   // Tipografía K2D: se carga antes de mostrar la app.
   const [fuentesListas] = useFonts({ K2D_400Regular, K2D_500Medium, K2D_600SemiBold, K2D_700Bold, K2D_800ExtraBold });
+  useEffect(() => registrarServiceWorker(), []); // para las notificaciones push (web)
   if (!fuentesListas) return null;
   return (
     <SafeAreaProvider>

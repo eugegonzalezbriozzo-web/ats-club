@@ -144,6 +144,7 @@ export default function Mas() {
       ) : null}
       <Seccion texto="Mi cuenta" />
       <FilaMenu icono="person-outline" titulo="Mi perfil" detalle="Datos personales, foto y datos de arquero" onPress={() => router.push('/perfil')} />
+      <FilaMenu icono="notifications-outline" titulo="Notificaciones" detalle="Torneos, noticias y pagos en tu celular" onPress={() => router.push('/cuenta/notificaciones')} />
       {esSuperadmin ? (
         <FilaMenu
           icono="business-outline"

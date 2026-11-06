@@ -21,6 +21,7 @@ export const PRIVACIDAD: { titulo: string; parrafos: string[] }[] = [
       'Datos de tu perfil: nombre, apellido, alias, foto, DNI, fecha de nacimiento, teléfono, ciudad, localidad, dirección, "sobre mí", redes sociales, tus funciones en el club (arquero/a, juez/a, entrenador/a, tutor/a), si sos federado y tus datos de arquero (modalidad convencional o adaptada; arco, división, categoría o clase de arquería adaptada; y lateralidad). Solo nombre, apellido y email son obligatorios; el resto lo cargás si querés.',
       'Lo que hacés en la app: tu club, tu rol, tus inscripciones a torneos, tus respuestas a encuestas, los "me gusta" y las noticias que marcaste como vistas.',
       'Pagos: lo que informás cuando pagás una cuota, una inscripción u otro gasto (monto, fecha, concepto) y el comprobante que adjuntás. La app no cobra ni guarda datos de tarjetas ni de cuentas bancarias de los socios.',
+      'Notificaciones: si las activás, guardamos la dirección técnica que da el navegador de cada dispositivo para poder mandarte avisos, el tipo de dispositivo (por ejemplo, «Chrome en Android») y qué tipos de aviso elegiste. Las podés desactivar cuando quieras; al cerrar sesión se borra la de ese dispositivo.',
     ],
   },
   {
@@ -28,6 +29,7 @@ export const PRIVACIDAD: { titulo: string; parrafos: string[] }[] = [
     parrafos: [
       'Solo para que la app funcione: que el club apruebe tu cuenta, te puedas inscribir a torneos, veas las noticias de tu grupo, respondas encuestas y el club pueda revisar tus pagos.',
       'Te mandamos mails solo por tu cuenta: la bienvenida al registrarte, el código para cambiar la contraseña o el email, y el aviso cuando cambia tu email.',
+      'Si activaste las notificaciones, te avisamos de torneos, noticias de tu grupo, tu cuenta y tus pagos (y, si sos admin, de lo que hay que revisar). Las manda la plataforma a través del servicio de notificaciones de tu navegador (Google, Apple o Mozilla), que recibe el aviso cifrado.',
       'No vendemos ni alquilamos tus datos, no mostramos publicidad y no usamos herramientas de seguimiento ni de análisis.',
     ],
   },

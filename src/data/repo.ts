@@ -16,6 +16,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RECUPERAR_URL, supabase } from './supabase';
+import { desactivarPush } from '../push';
 import { armarNombreCompleto } from '../util';
 import { MAX_SOBRE_MI, arcoDeClase, errorArquero, fijarListados, type Listados } from '../types';
 import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
@@ -231,7 +232,7 @@ function aUsuario(p: FilaPerfil, m: FilaMembresia): Usuario {
     nombre: p.nombre ?? '', apellido: p.apellido ?? '', nombreCompleto: p.nombre_completo || armarNombreCompleto(p.nombre ?? '', p.apellido ?? ''),
     alias: p.alias ?? '', sobreMi: p.sobre_mi ?? '', foto: p.foto_url ?? '', dni: p.dni ?? '', telefono: p.telefono ?? '',
     ciudad: p.ciudad ?? '', localidad: p.localidad ?? '', direccion: p.direccion ?? '', federado: !!p.federado,
-    funciones: aFunciones(p.funciones), nacimiento: p.nacimiento ?? undefined,
+    funciones: aFunciones(p.funciones), nacimiento: p.nacimiento ?? undefined, avisos: p.avisos ?? ['torneos', 'noticias', 'cuenta', 'admin'],
     instagram: p.instagram ?? '', facebook: p.facebook ?? '', tiktok: p.tiktok ?? '',
     tipoCuota: m?.tipo_cuota_id ?? undefined,
     rol: m?.rol ?? 'usuario', estado: m?.estado ?? 'pendiente', creadoEl: m?.creado_el ?? p.creado_el,
@@ -574,6 +575,7 @@ export async function eliminarSocio(clubId: string, usuarioId: string, sinCuenta
 
 export async function logout() {
   usuariosConocidos.clear();
+  await desactivarPush().catch(() => {}); // este dispositivo deja de recibir las de esta cuenta
   await supabase.auth.signOut();
 }
 
@@ -713,13 +715,13 @@ async function subirLogo(clubId: string, dataUri: string): Promise<string> {
 
 /* ================= Perfil ================= */
 
-export type CambiosPerfil = Partial<Pick<Usuario, 'nombre' | 'apellido' | 'alias' | 'sobreMi' | 'foto' | 'dni' | 'telefono' | 'ciudad' | 'localidad' | 'direccion' | 'federado' | 'instagram' | 'facebook' | 'tiktok' | 'arco' | 'division' | 'categoria' | 'lateralidad' | 'funciones' | 'nacimiento' | 'modalidad' | 'claseAdaptada'>>;
+export type CambiosPerfil = Partial<Pick<Usuario, 'nombre' | 'apellido' | 'alias' | 'sobreMi' | 'foto' | 'dni' | 'telefono' | 'ciudad' | 'localidad' | 'direccion' | 'federado' | 'instagram' | 'facebook' | 'tiktok' | 'arco' | 'division' | 'categoria' | 'lateralidad' | 'funciones' | 'nacimiento' | 'modalidad' | 'claseAdaptada' | 'avisos'>>;
 const COLUMNA: Record<keyof CambiosPerfil, string> = {
   nombre: 'nombre', apellido: 'apellido', alias: 'alias', sobreMi: 'sobre_mi', foto: 'foto_url', dni: 'dni', telefono: 'telefono',
   ciudad: 'ciudad', localidad: 'localidad', direccion: 'direccion', federado: 'federado', arco: 'arco', division: 'division',
   categoria: 'categoria', lateralidad: 'lateralidad', instagram: 'instagram', facebook: 'facebook', tiktok: 'tiktok',
   modalidad: 'modalidad', claseAdaptada: 'clase_adaptada',
-  funciones: 'funciones', nacimiento: 'nacimiento',
+  funciones: 'funciones', nacimiento: 'nacimiento', avisos: 'avisos',
 };
 
 /**

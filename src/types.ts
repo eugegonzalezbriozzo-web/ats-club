@@ -174,6 +174,8 @@ export interface Usuario extends DatosArquero {
   funciones: Funcion[];
   /** Fecha de nacimiento (YYYY-MM-DD), opcional. La ven solo el socio y los admins; la app calcula la edad. */
   nacimiento?: string;
+  /** Tipos de notificación push que quiere recibir: torneos, noticias, cuenta, admin. */
+  avisos?: string[];
   /** Redes del arquero (usuario o link, opcionales). Las ven los socios del club. */
   instagram?: string;
   facebook?: string;
