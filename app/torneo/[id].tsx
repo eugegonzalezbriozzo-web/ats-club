@@ -81,7 +81,17 @@ export default function DetalleTorneo() {
   if (!esSocio) {
     pie = null; // la plataforma mirando el club no se inscribe
   } else if (insc) {
-    pie = estado === 'abierta' ? <Boton titulo="Cancelar inscripción" variante="secundario" onPress={cancelar} /> : null;
+    pie =
+      estado === 'abierta' ? (
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Boton titulo="Cancelar" variante="secundario" onPress={cancelar} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Boton titulo="Editar" icono="create-outline" onPress={() => router.push(`/inscribir/${torneo.id}`)} />
+          </View>
+        </View>
+      ) : null;
   } else if (estado === 'abierta') {
     pie = <Boton titulo="Inscribirme" onPress={() => router.push(`/inscribir/${torneo.id}`)} />;
   }
@@ -161,6 +171,7 @@ export default function DetalleTorneo() {
                     {torneo.valor > 0 && (pago === null || pago === 'rechazado') ? (
                       <Boton titulo="Informar pago" variante="secundario" icono="cash-outline" onPress={() => router.push(`/pagos/informar?concepto=inscripcion&torneoId=${torneo.id}&para=${m.id}`)} />
                     ) : null}
+                    {estado === 'abierta' ? <Boton titulo="Editar" variante="secundario" icono="create-outline" onPress={() => router.push(`/inscribir/${torneo.id}?para=${m.id}`)} /> : null}
                     {estado === 'abierta' ? <Boton titulo="Cancelar" variante="secundario" onPress={() => cancelarMenor(m, mi)} /> : null}
                   </View>
                 </>

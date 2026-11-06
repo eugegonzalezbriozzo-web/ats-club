@@ -1149,6 +1149,18 @@ export async function inscribirse(usuarioId: string, torneoId: string, datos: Da
   return aInscripcion(data);
 }
 
+/** Socio o tutor/a: corrige arco, división, categoría o lateralidad mientras la inscripción está abierta. */
+export async function editarInscripcion(clubId: string, inscripcionId: string, datos: DatosArquero) {
+  const { data, error } = await supabase
+    .from('inscripciones')
+    .update({ arco: datos.arco, division: datos.division, categoria: datos.categoria, lateralidad: datos.lateralidad })
+    .eq('id', inscripcionId)
+    .eq('club_id', clubId)
+    .select('id');
+  if (error) fallo(error, 'No se pudo guardar el cambio.');
+  if (!data?.length) throw new ErrorApp('La inscripción ya cerró: pedile al admin del club que la corrija.');
+}
+
 export async function cancelarInscripcion(clubId: string, inscripcionId: string) {
   const { error } = await supabase.from('inscripciones').delete().eq('id', inscripcionId).eq('club_id', clubId);
   if (error) fallo(error, 'No se pudo cancelar la inscripción.');

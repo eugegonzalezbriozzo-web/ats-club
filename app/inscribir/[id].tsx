@@ -8,6 +8,7 @@ import {
   DIVISIONES,
   DatosArquero,
   LATERALIDADES,
+  Inscripcion,
   Torneo,
   Usuario,
 } from '../../src/types';
@@ -32,6 +33,8 @@ export default function Inscribir() {
   const router = useRouter();
   const [torneo, setTorneo] = useState<Torneo | null>(null);
   const [datos, setDatos] = useState<DatosArquero | null>(null);
+  // Si ya está inscripto/a, esta pantalla edita la inscripción (undefined = todavía buscando).
+  const [existente, setExistente] = useState<Inscripcion | null | undefined>(undefined);
   const [actualizarPerfil, setActualizarPerfil] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -41,12 +44,16 @@ export default function Inscribir() {
   }, [id, club]);
 
   useEffect(() => {
-    if (usuario && !datos) {
-      setDatos({ arco: usuario.arco, division: usuario.division, categoria: usuario.categoria, lateralidad: usuario.lateralidad });
+    if (usuario) repo.inscripcionDe(usuario.id, id).then(setExistente);
+  }, [usuario, id]);
+  useEffect(() => {
+    if (usuario && !datos && existente !== undefined) {
+      const base = existente ?? usuario;
+      setDatos({ arco: base.arco, division: base.division, categoria: base.categoria, lateralidad: base.lateralidad });
     }
-  }, [usuario, datos]);
+  }, [usuario, datos, existente]);
 
-  if (!torneo || !datos || !usuario) return <Cargando />;
+  if (!torneo || !datos || !usuario || existente === undefined) return <Cargando />;
 
   const perfil: DatosArquero = usuario;
   const cambio = (k: keyof DatosArquero) => datos[k] !== perfil[k];
@@ -58,7 +65,12 @@ export default function Inscribir() {
     setError(null);
     setEnviando(true);
     try {
-      await repo.inscribirse(usuario.id, torneo.id, datos, hayCambios && actualizarPerfil);
+      if (existente) {
+        await repo.editarInscripcion(torneo.clubId, existente.id, datos);
+        if (hayCambios && actualizarPerfil) await repo.actualizarPerfil(usuario.id, datos);
+      } else {
+        await repo.inscribirse(usuario.id, torneo.id, datos, hayCambios && actualizarPerfil);
+      }
       if (hayCambios && actualizarPerfil && !esMenor) await refrescar();
       router.back();
     } catch (e) {
@@ -68,8 +80,8 @@ export default function Inscribir() {
   };
 
   return (
-    <Pantalla pie={<Boton titulo="Confirmar inscripción" onPress={enviar} cargando={enviando} />}>
-      <Stack.Screen options={{ title: 'Inscripción' }} />
+    <Pantalla pie={<Boton titulo={existente ? 'Guardar cambios' : 'Confirmar inscripción'} onPress={enviar} cargando={enviando} />}>
+      <Stack.Screen options={{ title: existente ? 'Editar inscripción' : 'Inscripción' }} />
       <Titulo>{torneo.nombre}</Titulo>
       <Txt muted>
         {fechasTorneo(torneo)} · {torneo.clubOrganizador} · {plata(torneo.valor)}
