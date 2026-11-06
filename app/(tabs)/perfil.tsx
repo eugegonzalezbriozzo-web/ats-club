@@ -1,10 +1,12 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View } from 'react-native';
+import { Avatar } from '../../src/FotoPerfil';
 import { useAuth } from '../../src/auth';
 import * as repo from '../../src/data/repo';
-import { ARCOS, Arco, CATEGORIAS, MAX_SOBRE_MI, Categoria, DIVISIONES, Division, Funcion, LATERALIDADES, Lateralidad } from '../../src/types';
+import { ARCOS, Arco, CATEGORIAS, MAX_SOBRE_MI, Categoria, DIVISIONES, Division, Funcion, LATERALIDADES, Lateralidad, Usuario } from '../../src/types';
 import { CampoFecha } from '../../src/CampoFecha';
-import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
+import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, Chip, MensajeError, Pantalla, Pildoras, Tarjeta, Titulo, Txt } from '../../src/ui';
 import { FotoPerfil } from '../../src/FotoPerfil';
 import { armarNombreCompleto, confirmar, edad, hoyISO } from '../../src/util';
 
@@ -30,6 +32,12 @@ export default function Perfil() {
   const [federado, setFederado] = useState(false);
   const [funciones, setFunciones] = useState<Funcion[]>(['arquero']);
   const [nacimiento, setNacimiento] = useState('');
+  const [menores, setMenores] = useState<Usuario[]>([]);
+  useFocusEffect(
+    useCallback(() => {
+      if (usuario && !usuario.esSuperadmin) repo.menoresACargo(usuario.id).then(setMenores).catch(() => setMenores([]));
+    }, [usuario]),
+  );
   const [error, setError] = useState<string | null>(null);
   const [guardado, setGuardado] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -130,6 +138,31 @@ export default function Perfil() {
       <MensajeError texto={error} />
       {guardado ? <Aviso tipo="ok" texto="Perfil actualizado." /> : null}
       <Boton titulo="Guardar cambios" onPress={guardar} cargando={enviando} />
+      {!esSuperadmin ? (
+        <>
+          <Titulo style={{ marginTop: 8 }}>Menores a cargo</Titulo>
+          <Txt muted style={{ fontSize: 13 }}>
+            Chicos y chicas menores de 16 no tienen cuenta propia: los sumás vos y los manejás desde acá (inscripciones a torneos y pagos).
+          </Txt>
+          {menores.map((m) => (
+            <Tarjeta key={m.id} onPress={() => router.push(`/cuenta/menor?id=${m.id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Avatar foto={m.foto} nombre={m.nombre} apellido={m.apellido} size={44} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Txt style={{ fontWeight: '700', fontSize: 16 }}>{m.alias || m.nombreCompleto}</Txt>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {edad(m.nacimiento) !== null ? <Chip texto={`${edad(m.nacimiento)} años`} /> : null}
+                  <Chip texto={m.arco} relleno />
+                  {m.estado === 'pendiente' ? <Chip texto="Esperando aprobación" /> : null}
+                  {m.estado === 'baja' ? <Chip texto="Dado de baja" /> : null}
+                  {m.estado === 'rechazado' ? <Chip texto="Rechazado" /> : null}
+                  {m.bajaPedida ? <Chip texto="Baja pedida" /> : null}
+                </View>
+              </View>
+            </Tarjeta>
+          ))}
+          <Boton titulo="Sumar menor a cargo" variante="secundario" icono="person-add-outline" onPress={() => router.push('/cuenta/menor')} />
+        </>
+      ) : null}
       <Titulo style={{ marginTop: 8 }}>Cuenta</Titulo>
       <Txt muted style={{ fontSize: 13 }}>Ingresás con {usuario.email}</Txt>
       <Boton titulo="Cambiar email" variante="secundario" icono="mail-outline" onPress={() => router.push('/cuenta/email')} />

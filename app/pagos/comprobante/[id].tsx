@@ -21,7 +21,7 @@ export default function VerComprobante() {
   const [error, setError] = useState('');
   useEffect(() => {
     if (!club || !usuario) return;
-    repo.listarPagos(club.id, { id: usuario.id, esAdmin }).then((l) => setP(l.find((x) => x.id === id) ?? null));
+    repo.obtenerPago(club.id, id).then(setP);
     repo.listarTorneos(club.id).then(setTorneos);
   }, [club, usuario, esAdmin, id]);
   // El comprobante está en un bucket privado: se pide un link temporal.

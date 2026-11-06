@@ -69,6 +69,7 @@ export default function Arqueros() {
                   </Text>
                   {u.alias ? <Txt muted style={{ fontSize: 13 }}>{u.nombreCompleto}</Txt> : null}
                   {u.esAdmin ? <Text style={{ color: t.accent, fontSize: 13, fontWeight: '700' }}>Admin del club</Text> : null}
+                  {u.menor ? <Txt muted style={{ fontSize: 13 }}>A cargo de {u.aCargoDe.join(' y ') || 'su tutor/a'}</Txt> : null}
                 </View>
                 {u.telefono && u.id !== usuario?.id ? <IconoWhatsApp tel={u.telefono} nombre={u.alias || u.nombre} /> : null}
                 <Ionicons name="chevron-forward" size={20} color={t.muted} />

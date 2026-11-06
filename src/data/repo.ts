@@ -20,7 +20,7 @@ import { armarNombreCompleto } from '../util';
 import { MAX_SOBRE_MI } from '../types';
 import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
-import { hoyISO } from '../util';
+import { edad, hoyISO } from '../util';
 import { MAX_TIT_NOTICIA, MAX_TXT_NOTICIA } from '../types';
 
 const KEY = 'arqueria-db-v2';
@@ -236,6 +236,7 @@ function aUsuario(p: FilaPerfil, m: FilaMembresia): Usuario {
     tipoCuota: m?.tipo_cuota_id ?? undefined,
     rol: m?.rol ?? 'usuario', estado: m?.estado ?? 'pendiente', creadoEl: m?.creado_el ?? p.creado_el,
     bajaPedida: m?.baja_pedida_el ? { el: m.baja_pedida_el, motivo: m.baja_motivo ?? '', borrar: !!m.baja_borrar } : null,
+    sinCuenta: p.cuenta === false,
     arco: p.arco, division: p.division, categoria: p.categoria, lateralidad: p.lateralidad,
   });
 }
@@ -411,6 +412,97 @@ export async function confirmarCambioEmail(codigo: string) {
   await supabase.auth.refreshSession(); // la sesión pasa a tener el email nuevo
 }
 
+/* ---------- Menores a cargo (socios sin cuenta que maneja su tutor/a) ---------- */
+
+/** Edad mínima para tener cuenta propia; por debajo, el socio va a cargo de un tutor/a. */
+export const EDAD_CUENTA_PROPIA = 16;
+
+/** Los menores que tengo a cargo, con su estado en el club. */
+export async function menoresACargo(tutorId: string): Promise<Usuario[]> {
+  const { data: ts, error } = await supabase.from('tutores').select('menor_id').eq('tutor_id', tutorId);
+  if (error) fallo(error);
+  const ids = (ts ?? []).map((t) => t.menor_id as string);
+  if (!ids.length) return [];
+  const [{ data: ps }, { data: ms }] = await Promise.all([
+    supabase.from('perfiles').select('*').in('id', ids),
+    supabase.from('membresias').select('club_id, rol, estado, creado_el, tipo_cuota_id, baja_pedida_el, baja_motivo, baja_borrar, usuario_id').in('usuario_id', ids),
+  ]);
+  return (ps ?? [])
+    .map((p: any) => aUsuario(p, ((ms ?? []) as any[]).find((m) => m.usuario_id === p.id) ?? null))
+    .sort((a, b) => (a.nacimiento ?? '').localeCompare(b.nacimiento ?? '') || a.nombre.localeCompare(b.nombre));
+}
+
+export interface DatosMenor extends DatosArquero {
+  nombre: string;
+  apellido: string;
+  alias: string;
+  dni: string;
+  nacimiento: string;
+  sobreMi: string;
+  federado: boolean;
+  foto: string;
+}
+
+function validarMenor(d: DatosMenor) {
+  if (!d.nombre.trim() || !d.apellido.trim()) throw new ErrorApp('Completá nombre y apellido.');
+  if (!d.nacimiento) throw new ErrorApp('Completá la fecha de nacimiento.');
+  const e = edad(d.nacimiento);
+  if (e === null || d.nacimiento > hoyISO()) throw new ErrorApp('Revisá la fecha de nacimiento.');
+  if (e >= 18) throw new ErrorApp('Con 18 años o más tiene que crear su propia cuenta con el link del club.');
+}
+
+/** Tutor/a: suma a un menor a cargo. Queda pendiente hasta que un admin lo apruebe. */
+export async function agregarMenor(d: DatosMenor): Promise<string> {
+  validarMenor(d);
+  const { data, error } = await supabase.rpc('agregar_menor', {
+    p: {
+      nombre: d.nombre.trim(), apellido: d.apellido.trim(), alias: d.alias.trim(), dni: d.dni.trim(), nacimiento: d.nacimiento,
+      sobre_mi: d.sobreMi.trim().slice(0, MAX_SOBRE_MI), arco: d.arco, division: d.division, categoria: d.categoria, lateralidad: d.lateralidad,
+      federado: d.federado,
+    },
+  });
+  if (error) fallo(error, 'No se pudo sumar al menor.');
+  const id = data as string;
+  if (d.foto) {
+    try {
+      await actualizarPerfil(id, { foto: d.foto });
+    } catch {
+      /* la foto se puede subir después */
+    }
+  }
+  return id;
+}
+
+/** Tutor/a: edita los datos del menor. */
+export async function actualizarMenor(menorId: string, d: DatosMenor) {
+  validarMenor(d);
+  await actualizarPerfil(menorId, {
+    nombre: d.nombre.trim(), apellido: d.apellido.trim(), alias: d.alias.trim(), dni: d.dni.trim(), nacimiento: d.nacimiento,
+    sobreMi: d.sobreMi.trim(), arco: d.arco, division: d.division, categoria: d.categoria, lateralidad: d.lateralidad, federado: d.federado,
+  });
+}
+
+/** Tutor/a: saca a un menor que todavía no fue aprobado por el club. */
+export async function quitarMenor(menorId: string) {
+  try {
+    await supabase.storage.from('avatars').remove([`${menorId}.jpg`]);
+  } catch {
+    /* sin foto */
+  }
+  const { error } = await supabase.rpc('quitar_menor', { p_menor: menorId });
+  if (error) fallo(error, 'No se pudo quitar.');
+}
+
+/** Tutor/a: pide la baja del menor (la resuelve un admin) o la cancela. */
+export async function pedirBajaMenor(menorId: string, motivo: string, borrar: boolean) {
+  const { error } = await supabase.rpc('pedir_baja_menor', { p_menor: menorId, p_motivo: motivo.trim().slice(0, 300), p_borrar: borrar });
+  if (error) fallo(error, 'No se pudo enviar el pedido de baja.');
+}
+export async function cancelarBajaMenor(menorId: string) {
+  const { error } = await supabase.rpc('cancelar_baja_menor', { p_menor: menorId });
+  if (error) fallo(error, 'No se pudo cancelar el pedido.');
+}
+
 /* ---------- Pedido de baja (lo pide el socio, lo resuelve el admin) ---------- */
 
 /** Socio: pide la baja de su club. Si `borrar`, pide además que se eliminen su cuenta y sus datos. */
@@ -440,7 +532,21 @@ export async function rechazarPedidoBaja(clubId: string, usuarioId: string) {
  * Admin: elimina la cuenta y todos los datos de un socio que lo pidió (perfil, foto, inscripciones,
  * votos, pagos y comprobantes). Lo hace el Apps Script con permisos de servidor.
  */
-export async function eliminarSocio(clubId: string, usuarioId: string) {
+export async function eliminarSocio(clubId: string, usuarioId: string, sinCuenta = false) {
+  if (sinCuenta) {
+    // Menor a cargo: no tiene cuenta de Auth; lo borra la base (perfil y, en cascada, todo lo suyo).
+    try {
+      const carpeta = `${clubId}/${usuarioId}`;
+      const { data } = await supabase.storage.from('comprobantes').list(carpeta, { limit: 1000 });
+      if (data?.length) await supabase.storage.from('comprobantes').remove(data.map((o) => `${carpeta}/${o.name}`));
+      await supabase.storage.from('avatars').remove([`${usuarioId}.jpg`]);
+    } catch {
+      /* sin archivos */
+    }
+    const { error } = await supabase.rpc('eliminar_menor', { p_menor: usuarioId });
+    if (error) fallo(error, 'No se pudo eliminar.');
+    return;
+  }
   // Comprobantes del socio (el admin puede borrarlos con su sesión); el script borra la foto y la cuenta.
   try {
     const carpeta = `${clubId}/${usuarioId}`;
@@ -492,6 +598,9 @@ export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario |
   if (d.password.length < 6) throw new ErrorApp('La contraseña tiene que tener al menos 6 caracteres.');
   if (!d.funciones.length) throw new ErrorApp('Elegí al menos una función en el club.');
   if (d.nacimiento && (d.nacimiento > hoyISO() || d.nacimiento < '1900-01-01')) throw new ErrorApp('Revisá la fecha de nacimiento.');
+  const e = edad(d.nacimiento);
+  if (e !== null && e < EDAD_CUENTA_PROPIA)
+    throw new ErrorApp(`Con menos de ${EDAD_CUENTA_PROPIA} años no se crea cuenta propia: pedile a tu mamá, papá o tutor/a que te sume desde su cuenta (Mi perfil → Menores a cargo).`);
   const { data, error } = await supabase.auth.signUp({
     email: d.email.trim().toLowerCase(),
     password: d.password,
@@ -743,10 +852,20 @@ async function sociosRemotos(clubId: string): Promise<Usuario[]> {
     .select('club_id, rol, estado, creado_el, tipo_cuota_id, baja_pedida_el, baja_motivo, baja_borrar, perfil:perfiles!membresias_usuario_id_fkey(*)')
     .eq('club_id', clubId);
   if (error) fallo(error);
-  return (data ?? [])
+  const socios = (data ?? [])
     .filter((m: any) => m.perfil)
     .map((m: any) => aUsuario(m.perfil, m))
     .sort((a, b) => a.apellido.localeCompare(b.apellido) || a.nombre.localeCompare(b.nombre));
+  // Menores a cargo: quién los tiene a cargo (el admin ve la tabla de tutores de su club).
+  if (socios.some((u) => u.sinCuenta)) {
+    const { data: ts } = await supabase.from('tutores').select('menor_id, tutor_id').eq('club_id', clubId);
+    const nombre = (id: string) => {
+      const t = socios.find((x) => x.id === id);
+      return t ? t.alias || t.nombreCompleto : '';
+    };
+    for (const u of socios) if (u.sinCuenta) u.aCargoDe = (ts ?? []).filter((t) => t.menor_id === u.id).map((t) => nombre(t.tutor_id)).filter(Boolean);
+  }
+  return socios;
 }
 
 export async function adminsDeClub(clubId: string): Promise<Usuario[]> {
@@ -821,6 +940,9 @@ export interface ArqueroPublico extends DatosArquero {
   /** Solo para el admin del club. */
   email?: string;
   funciones: Funcion[];
+  /** Menor a cargo (sin cuenta): no se muestran teléfono, lugar ni redes. */
+  menor: boolean;
+  aCargoDe: string[];
 }
 
 /** Admin del club: marca a un socio como federado o no (define qué publicaciones ve). */
@@ -850,6 +972,7 @@ const aPublico = (u: Usuario, conContacto: boolean): ArqueroPublico => ({
   esAdmin: u.rol === 'admin', arco: u.arco, division: u.division, categoria: u.categoria, lateralidad: u.lateralidad,
   federado: !!u.federado, ciudad: u.ciudad ?? '', localidad: u.localidad ?? '', desde: u.creadoEl, telefono: u.telefono ?? '',
   instagram: u.instagram ?? '', facebook: u.facebook ?? '', tiktok: u.tiktok ?? '', funciones: u.funciones,
+  menor: !!u.sinCuenta, aCargoDe: u.aCargoDe ?? [],
   ...(conContacto ? { email: u.email } : {}),
 });
 
@@ -881,7 +1004,7 @@ export async function listarArqueros(clubId: string, conContacto: boolean): Prom
     recordar({
       id: a.id, clubId, esSuperadmin: false, email: '', nombre: a.nombre, apellido: a.apellido, nombreCompleto: a.nombre_completo,
       alias: a.alias, sobreMi: a.sobre_mi, foto: a.foto_url ?? '', dni: '', telefono: a.telefono, ciudad: a.ciudad, localidad: a.localidad,
-      direccion: '', federado: a.federado, funciones: aFunciones(a.funciones), rol: a.es_admin ? 'admin' : 'usuario', estado: 'aprobado', creadoEl: a.desde,
+      direccion: '', federado: a.federado, funciones: aFunciones(a.funciones), sinCuenta: !!a.menor, aCargoDe: a.a_cargo_de ?? [], rol: a.es_admin ? 'admin' : 'usuario', estado: 'aprobado', creadoEl: a.desde,
       arco: a.arco, division: a.division, categoria: a.categoria, lateralidad: a.lateralidad,
     });
     return {
@@ -889,6 +1012,7 @@ export async function listarArqueros(clubId: string, conContacto: boolean): Prom
       foto: a.foto_url ?? '', esAdmin: !!a.es_admin, arco: a.arco, division: a.division, categoria: a.categoria, lateralidad: a.lateralidad,
       federado: !!a.federado, ciudad: a.ciudad ?? '', localidad: a.localidad ?? '', desde: a.desde, telefono: a.telefono ?? '',
       instagram: a.instagram ?? '', facebook: a.facebook ?? '', tiktok: a.tiktok ?? '', funciones: aFunciones(a.funciones),
+      menor: !!a.menor, aCargoDe: a.a_cargo_de ?? [],
     };
   });
 }
@@ -1502,6 +1626,12 @@ export async function listarPagos(clubId: string, lector: { id: string; esAdmin:
   return (data ?? []).map(aPago);
 }
 
+/** Un pago por id (lo ve quien pagó, su tutor/a o un admin: lo decide la base). */
+export async function obtenerPago(clubId: string, pagoId: string): Promise<Pago | null> {
+  const { data } = await supabase.from('pagos').select('*').eq('club_id', clubId).eq('id', pagoId).maybeSingle();
+  return data ? aPago(data) : null;
+}
+
 /** Link temporal (1 hora) para ver un comprobante (bucket privado). */
 export async function linkComprobante(ruta: string): Promise<string> {
   const { data, error } = await supabase.storage.from('comprobantes').createSignedUrl(ruta, 3600);
@@ -1538,7 +1668,8 @@ export interface DatosPago {
  */
 export async function informarPago(clubId: string, quien: Usuario, d: DatosPago, porAdmin = false): Promise<Pago> {
   const esAdmin = porAdmin && (quien.rol === 'admin' || quien.esSuperadmin);
-  if (!esAdmin && d.usuarioId !== quien.id) throw new ErrorApp('Solo podés informar tus propios pagos.');
+  if (!esAdmin && d.usuarioId !== quien.id && !(await menoresACargo(quien.id)).some((m) => m.id === d.usuarioId))
+    throw new ErrorApp('Solo podés informar tus pagos o los de tus menores a cargo.');
   if (!d.usuarioId) throw new ErrorApp('Elegí el socio.');
   if (d.concepto === 'cuota' && !d.periodos.length) throw new ErrorApp('Elegí qué mes o meses pagás.');
   if (d.concepto === 'inscripcion' && !(d.torneoId && (await inscripcionDe(d.usuarioId, d.torneoId)))) throw new ErrorApp('Elegí el torneo.');

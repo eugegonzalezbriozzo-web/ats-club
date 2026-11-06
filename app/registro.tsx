@@ -88,6 +88,9 @@ export default function Registro() {
       <Campo label="DNI" value={dni} onChangeText={setDni} keyboardType="number-pad" />
       <CampoFecha label="Fecha de nacimiento (opcional)" valor={nacimiento} onChange={setNacimiento} min="1900-01-01" max={hoyISO()} opcional
         ayuda={edad(nacimiento) !== null ? `Edad: ${edad(nacimiento)} años · La ven solo vos y los admins del club.` : 'La ven solo vos y los admins del club.'} />
+      {edad(nacimiento) !== null && edad(nacimiento)! < 16 ? (
+        <Aviso icono="people-outline" texto="Con menos de 16 años no se crea cuenta propia: pedile a tu mamá, papá o tutor/a que te sume desde su cuenta, en Mi perfil → Menores a cargo." />
+      ) : null}
       <Campo label="WhatsApp (opcional)" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
       <Campo label="Ciudad (opcional)" value={ciudad} onChangeText={setCiudad} autoComplete="postal-address-locality" />
       <Campo label="Localidad (opcional)" value={localidad} onChangeText={setLocalidad} />

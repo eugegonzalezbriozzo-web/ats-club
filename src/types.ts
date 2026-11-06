@@ -99,6 +99,10 @@ export interface Usuario extends DatosArquero {
   creadoEl: string; // ISO
   /** El socio pidió la baja del club (la resuelve un admin). */
   bajaPedida?: { el: string; motivo: string; borrar: boolean } | null;
+  /** Menor a cargo: socio sin cuenta (sin email ni contraseña) que maneja su tutor/a. */
+  sinCuenta?: boolean;
+  /** Nombres de quienes lo tienen a cargo (solo menores). */
+  aCargoDe?: string[];
 }
 
 /** Archivo PDF adjunto. Local: data URI. Con Supabase: URL de Storage. */

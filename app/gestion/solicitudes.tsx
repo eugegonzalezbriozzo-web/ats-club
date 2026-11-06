@@ -69,7 +69,11 @@ export default function Solicitudes() {
       `Se borran la cuenta de ${u.nombre} ${u.apellido} y todos sus datos: perfil, foto, inscripciones, respuestas, pagos y comprobantes. No se puede deshacer.`,
       'Eliminar',
     );
-    if (ok) await hacer(() => repo.eliminarSocio(club.id, u.id), `Eliminamos la cuenta de ${u.nombre} ${u.apellido}. Le mandamos un mail avisándole.`);
+    if (ok)
+      await hacer(
+        () => repo.eliminarSocio(club.id, u.id, u.sinCuenta),
+        u.sinCuenta ? `Eliminamos los datos de ${u.nombre} ${u.apellido}.` : `Eliminamos la cuenta de ${u.nombre} ${u.apellido}. Le mandamos un mail avisándole.`,
+      );
   };
   const rechazarBaja = async (u: Usuario) => {
     if (!club) return;
@@ -85,8 +89,13 @@ export default function Solicitudes() {
           {u.nombreCompleto || `${u.nombre} ${u.apellido}`}
           {u.alias ? ` (“${u.alias}”)` : ''}
         </Text>
-        <Txt muted style={{ fontSize: 13 }}>{u.email}{u.dni ? ` · DNI ${u.dni}` : ''}</Txt>
-        {u.telefono ? <BotonWhatsApp tel={u.telefono} nombre={u.alias || u.nombre} /> : null}
+        {u.sinCuenta ? (
+          <Txt style={{ fontSize: 13, color: t.accent, fontWeight: '700' }}>
+            Menor a cargo de {u.aCargoDe?.length ? u.aCargoDe.join(' y ') : '(sin tutor/a)'}
+          </Txt>
+        ) : null}
+        <Txt muted style={{ fontSize: 13 }}>{u.sinCuenta ? 'Sin cuenta propia' : u.email}{u.dni ? ` · DNI ${u.dni}` : ''}</Txt>
+        {u.telefono && !u.sinCuenta ? <BotonWhatsApp tel={u.telefono} nombre={u.alias || u.nombre} /> : null}
       </View>
     </View>
   );

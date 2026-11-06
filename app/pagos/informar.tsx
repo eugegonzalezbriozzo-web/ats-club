@@ -21,7 +21,7 @@ const NOMBRE_CONCEPTO: Record<ConceptoPago, string> = { cuota: 'Cuota', inscripc
  * Admin (?admin=1): registra un pago de cualquier socio (efectivo, etc.); queda aprobado.
  */
 export default function InformarPago() {
-  const q = useLocalSearchParams<{ concepto?: ConceptoPago; torneoId?: string; admin?: string; usuarioId?: string }>();
+  const q = useLocalSearchParams<{ concepto?: ConceptoPago; torneoId?: string; admin?: string; usuarioId?: string; para?: string }>();
   const { t } = useTema();
   const { club, usuario, esAdmin } = useAuth();
   const router = useRouter();
@@ -32,7 +32,9 @@ export default function InformarPago() {
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [socios, setSocios] = useState<Usuario[]>([]);
   const [insDe, setInsDe] = useState<Inscripcion[]>([]);
-  const [uid, setUid] = useState<string>(porAdmin ? (q.usuarioId ?? '') : (usuario?.id ?? ''));
+  const [uid, setUid] = useState<string>(porAdmin ? (q.usuarioId ?? '') : (q.para ?? usuario?.id ?? ''));
+  // Tutor/a: también puede informar pagos de sus menores a cargo.
+  const [menores, setMenores] = useState<Usuario[]>([]);
   const [buscar, setBuscar] = useState('');
   const [concepto, setConcepto] = useState<ConceptoPago>(q.concepto ?? 'cuota');
   const [periodos, setPeriodos] = useState<string[] | null>(null);
@@ -53,15 +55,20 @@ export default function InformarPago() {
       setCfg(c);
       setCuentaId(c.cuentas[0]?.id ?? '');
     });
-    repo.listarPagos(club.id, { id: usuario.id, esAdmin }).then(setPagos);
     repo.listarTorneos(club.id).then(setTorneos);
     if (porAdmin) repo.listarSocios(club.id).then((l) => setSocios(l.filter((x) => x.estado === 'aprobado')));
+    else repo.menoresACargo(usuario.id).then((ms) => setMenores(ms.filter((m) => m.estado === 'aprobado'))).catch(() => setMenores([]));
   }, [club, usuario, esAdmin, porAdmin]);
+  useEffect(() => {
+    if (!club || !usuario) return;
+    // Admin: todos los pagos del club. Socio: los de quien paga (yo o mi menor a cargo).
+    repo.listarPagos(club.id, porAdmin ? { id: usuario.id, esAdmin: true } : { id: uid || usuario.id, esAdmin: false }).then(setPagos);
+  }, [club, usuario, porAdmin, uid]);
   useEffect(() => {
     if (uid && club) repo.inscripcionesDeUsuario(uid).then((l) => setInsDe(l.filter((i) => i.clubId === club.id)));
   }, [uid, club]);
 
-  const u = porAdmin ? socios.find((x) => x.id === uid) : usuario ?? undefined;
+  const u = porAdmin ? socios.find((x) => x.id === uid) : uid && uid !== usuario?.id ? menores.find((m) => m.id === uid) : usuario ?? undefined;
   const ec = useMemo(() => (cfg && u ? repo.estadoCuota(cfg, u, pagos) : null), [cfg, u, pagos]);
   const insPagables = insDe
     .map((i) => ({ i, tor: torneos.find((x) => x.id === i.torneoId) }))
@@ -100,7 +107,7 @@ export default function InformarPago() {
         club.id,
         usuario,
         {
-          usuarioId: porAdmin ? uid : usuario.id, concepto: conc, periodos: conc === 'cuota' ? sel : [],
+          usuarioId: porAdmin ? uid : u?.id ?? usuario.id, concepto: conc, periodos: conc === 'cuota' ? sel : [],
           torneoId: conc === 'inscripcion' ? (tSel?.tor.id ?? null) : null, descripcion,
           monto: Number(String(monto).replace(/[^\d]/g, '')), fecha, cuentaId: cuentaId || null, comprobante: comp, nota,
         },
@@ -123,6 +130,21 @@ export default function InformarPago() {
           ? 'Para pagos en efectivo o transferencias que te llegaron por otro lado. Queda aprobado directamente.'
           : 'Primero transferí desde tu banco y después informalo acá con el comprobante. Ya no hace falta mandarlo al grupo.'}
       </Txt>
+
+      {!porAdmin && menores.length ? (
+        <Pildoras
+          label="¿De quién es el pago?"
+          opciones={['Mío', ...menores.map((m) => m.alias || m.nombre)]}
+          valor={uid === usuario?.id || !uid ? 'Mío' : (menores.find((m) => m.id === uid)?.alias || menores.find((m) => m.id === uid)?.nombre) ?? 'Mío'}
+          onChange={(v) => {
+            const m = menores.find((x) => (x.alias || x.nombre) === v);
+            setUid(m ? m.id : usuario?.id ?? '');
+            setPeriodos(null);
+            setTorneoId('');
+            setMontoManual(null);
+          }}
+        />
+      ) : null}
 
       {porAdmin ? (
         u ? (

@@ -52,6 +52,7 @@ export default function PerfilArquero() {
         </View>
         <Titulo style={{ textAlign: 'center' }}>{a.alias || a.nombreCompleto}</Titulo>
         {a.alias ? <Txt muted>{a.nombreCompleto}</Txt> : null}
+        {a.menor ? <Txt muted>Menor a cargo de {a.aCargoDe.join(' y ') || 'su tutor/a'}</Txt> : null}
         <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
           {a.esAdmin ? <Chip texto="Admin del club" relleno /> : null}
           {etiquetasFunciones(a.funciones).map((f) => <Chip key={f} texto={f} relleno />)}
@@ -89,7 +90,7 @@ export default function PerfilArquero() {
       {p.privado ? (
         <Tarjeta>
           <Seccion>Solo para admins</Seccion>
-          <FilaDato k="Email" v={p.privado.email} />
+          <FilaDato k="Email" v={a.menor ? 'Sin cuenta propia (lo maneja su tutor/a)' : p.privado.email} />
           {p.privado.telefono ? <FilaDato k="WhatsApp" v={p.privado.telefono} /> : null}
           {p.privado.dni ? <FilaDato k="DNI" v={p.privado.dni} /> : null}
           {p.privado.nacimiento ? <FilaDato k="Nacimiento" v={`${fechaCorta(p.privado.nacimiento)} · ${edad(p.privado.nacimiento)} años`} /> : null}

@@ -6,7 +6,8 @@ import { useAuth } from '../../src/auth';
 import { TarjetaInvitacion } from '../../src/Pdf';
 import * as repo from '../../src/data/repo';
 import { FUENTE_TITULO, useTema } from '../../src/theme';
-import type { Inscripcion, Torneo } from '../../src/types';
+import type { Inscripcion, Torneo, Usuario } from '../../src/types';
+import { Avatar } from '../../src/FotoPerfil';
 import { Aviso, Boton, Cargando, Chip, FilaDato, MensajeError, Pantalla, Tarjeta, Txt, Vacio } from '../../src/ui';
 import { TEXTO_PAGO_INS } from '../../src/Pagos';
 import { confirmar, diasEntre, fechaCorta, hoyISO, plata, fechasTorneo } from '../../src/util';
@@ -19,6 +20,8 @@ export default function DetalleTorneo() {
   const [torneo, setTorneo] = useState<Torneo | null | undefined>(undefined);
   const [insc, setInsc] = useState<Inscripcion | null>(null);
   const [estadoPago, setEstadoPago] = useState<'aprobado' | 'revision' | 'rechazado' | null>(null);
+  // Menores a cargo (aprobados): su inscripción y su pago para este torneo.
+  const [menores, setMenores] = useState<{ m: Usuario; insc: Inscripcion | null; pago: 'aprobado' | 'revision' | 'rechazado' | null }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
@@ -29,6 +32,15 @@ export default function DetalleTorneo() {
       setInsc(await repo.inscripcionDe(usuario.id, t.id));
       const ps = await repo.listarPagos(club.id, { id: usuario.id, esAdmin: false });
       setEstadoPago(repo.estadoPagoInscripcion(ps, t.id, usuario.id));
+      const ms = (await repo.menoresACargo(usuario.id)).filter((m) => m.estado === 'aprobado' && m.clubId === club.id);
+      setMenores(
+        await Promise.all(
+          ms.map(async (m) => {
+            const pm = await repo.listarPagos(club.id, { id: m.id, esAdmin: false });
+            return { m, insc: await repo.inscripcionDe(m.id, t.id), pago: repo.estadoPagoInscripcion(pm, t.id, m.id) };
+          }),
+        ),
+      );
     }
   }, [id, usuario, club]);
 
@@ -50,6 +62,16 @@ export default function DetalleTorneo() {
     try {
       await repo.cancelarInscripcion(torneo.clubId, insc.id);
       setInsc(null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const cancelarMenor = async (m: Usuario, i: Inscripcion) => {
+    if (!(await confirmar('Cancelar inscripción', `¿Dar de baja a ${m.alias || m.nombre} de "${torneo.nombre}"?`, 'Dar de baja'))) return;
+    try {
+      await repo.cancelarInscripcion(torneo.clubId, i.id);
+      cargar();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -121,6 +143,36 @@ export default function DetalleTorneo() {
       ) : (
         <Aviso texto="La inscripción está cerrada." icono="lock-closed-outline" />
       )}
+
+      {menores.length ? (
+        <Tarjeta style={{ gap: 12 }}>
+          <Text style={{ color: tema.muted, fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}>Menores a cargo</Text>
+          {menores.map(({ m, insc: mi, pago }) => (
+            <View key={m.id} style={{ gap: 8, borderTopWidth: 1, borderTopColor: tema.border, paddingTop: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Avatar foto={m.foto} nombre={m.nombre} apellido={m.apellido} size={36} />
+                <Txt style={{ flex: 1, fontWeight: '700' }}>{m.alias || m.nombreCompleto}</Txt>
+                {mi ? <Chip texto={mi.estado === 'confirmada' ? 'Confirmada' : 'Inscripto/a'} relleno /> : null}
+              </View>
+              {mi ? (
+                <>
+                  <Txt muted style={{ fontSize: 13 }}>{mi.arco} · {mi.division} · {mi.categoria}{torneo.valor > 0 ? ` · ${pago ? TEXTO_PAGO_INS[pago] : 'Pago sin informar'}` : ''}</Txt>
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    {torneo.valor > 0 && (pago === null || pago === 'rechazado') ? (
+                      <Boton titulo="Informar pago" variante="secundario" icono="cash-outline" onPress={() => router.push(`/pagos/informar?concepto=inscripcion&torneoId=${torneo.id}&para=${m.id}`)} />
+                    ) : null}
+                    {estado === 'abierta' ? <Boton titulo="Cancelar" variante="secundario" onPress={() => cancelarMenor(m, mi)} /> : null}
+                  </View>
+                </>
+              ) : estado === 'abierta' ? (
+                <Boton titulo={`Inscribir a ${m.alias || m.nombre}`} variante="secundario" icono="person-add-outline" onPress={() => router.push(`/inscribir/${torneo.id}?para=${m.id}`)} />
+              ) : (
+                <Txt muted style={{ fontSize: 13 }}>No está inscripto/a.</Txt>
+              )}
+            </View>
+          ))}
+        </Tarjeta>
+      ) : null}
 
       <MensajeError texto={error} />
 

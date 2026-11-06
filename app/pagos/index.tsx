@@ -6,7 +6,7 @@ import * as repo from '../../src/data/repo';
 import { DatosCuenta, Etiqueta, TarjetaPago } from '../../src/Pagos';
 import { Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
-import type { ConfigPagos, Inscripcion, Pago, Torneo } from '../../src/types';
+import type { ConfigPagos, Inscripcion, Pago, Torneo, Usuario } from '../../src/types';
 import { Boton, Pantalla, Tarjeta, Txt } from '../../src/ui';
 import { fechaCorta, plata } from '../../src/util';
 
@@ -19,6 +19,8 @@ export default function MisPagos() {
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [misIns, setMisIns] = useState<Inscripcion[]>([]);
+  // Menores a cargo (aprobados) con sus pagos, para ver su cuota.
+  const [menores, setMenores] = useState<{ m: Usuario; pagos: Pago[] }[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -27,6 +29,11 @@ export default function MisPagos() {
       repo.listarPagos(club.id, { id: usuario.id, esAdmin: false }).then(setPagos);
       repo.listarTorneos(club.id).then(setTorneos);
       repo.inscripcionesDeUsuario(usuario.id).then((l) => setMisIns(l.filter((i) => i.clubId === club.id)));
+      repo
+        .menoresACargo(usuario.id)
+        .then((ms) => Promise.all(ms.filter((m) => m.estado === 'aprobado').map(async (m) => ({ m, pagos: await repo.listarPagos(club.id, { id: m.id, esAdmin: false }) }))))
+        .then(setMenores)
+        .catch(() => setMenores([]));
     }, [club, usuario]),
   );
   if (!cfg || !usuario) return null;
@@ -73,6 +80,22 @@ export default function MisPagos() {
           <Boton titulo="Informar pago" variante="secundario" icono="cash-outline" onPress={() => router.push(`/pagos/informar?concepto=inscripcion&torneoId=${tor!.id}`)} />
         </Tarjeta>
       ))}
+      {menores.map(({ m, pagos: pm }) => {
+        const e = repo.estadoCuota(cfg, m, pm);
+        if (!e) return null;
+        return (
+          <Tarjeta key={m.id} style={{ gap: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <Text style={{ color: t.text, fontSize: 16, fontWeight: '700', flex: 1 }}>Cuota de {m.alias || m.nombre}</Text>
+              <Etiqueta texto={e.alDia ? 'Al día' : `Debe ${e.debe.length}`} tipo={e.alDia ? 'ok' : 'aviso'} />
+            </View>
+            <Txt muted style={{ fontSize: 13 }}>{e.tipo.nombre} · {plata(e.montoHoy)} por mes · a tu cargo</Txt>
+            {!e.alDia ? <Txt>Meses sin pagar: <Text style={{ fontWeight: '700', color: t.text }}>{e.debe.map(repo.nombreMes).join(', ')}</Text> · total {plata(e.total)}</Txt> : null}
+            {e.revision.size ? <Txt muted style={{ fontSize: 13 }}>En revisión: {[...e.revision].sort().map(repo.nombreMes).join(', ')}</Txt> : null}
+            <Boton titulo={`Informar pago de ${m.alias || m.nombre}`} variante="secundario" icono="cash-outline" onPress={() => router.push(`/pagos/informar?concepto=cuota&para=${m.id}`)} />
+          </Tarjeta>
+        );
+      })}
       <Boton titulo="Informar otro pago" variante="secundario" icono="cash-outline" onPress={() => router.push('/pagos/informar?concepto=otros')} />
       {cfg.cuentas.length ? (
         <>
@@ -86,6 +109,19 @@ export default function MisPagos() {
       ) : (
         pagos.map((p) => <TarjetaPago key={p.id} p={p} cfg={cfg} torneos={torneos} />)
       )}
+      {menores.some((x) => x.pagos.length) ? (
+        <>
+          <Seccion>Pagos de menores a cargo</Seccion>
+          {menores.flatMap(({ m, pagos: pm }) =>
+            pm.map((p) => (
+              <View key={p.id} style={{ gap: 4 }}>
+                <Txt muted style={{ fontSize: 13, fontWeight: '700' }}>{m.alias || m.nombre}</Txt>
+                <TarjetaPago p={p} cfg={cfg} torneos={torneos} />
+              </View>
+            )),
+          )}
+        </>
+      ) : null}
     </Pantalla>
   );
 }
