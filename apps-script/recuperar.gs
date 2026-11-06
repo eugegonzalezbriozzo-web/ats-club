@@ -53,7 +53,14 @@ function doPost(e) {
         to: email,
         name: 'ATS Club',
         subject: 'Tu código para cambiar la contraseña: ' + codigo,
-        htmlBody: html(codigo),
+        htmlBody: plantilla({
+          resumen: 'Tu código es ' + codigo + '. Vence en 1 hora.',
+          titulo: 'Cambiar la contraseña',
+          parrafos: ['Pediste cambiar la contraseña de tu cuenta de <b>ATS Club</b>. Escribí este código en la app:'],
+          codigo: codigo,
+          vence: 'Vence en 1 hora.',
+          pie: 'Si no lo pediste, ignorá este mail: tu contraseña no cambia.',
+        }),
         body: 'Tu código para cambiar la contraseña de ATS Club es: ' + codigo +
           '\n\nEscribilo en la app. Vence en 1 hora.\nSi no lo pediste, ignorá este mail: tu contraseña no cambia.',
       });
@@ -118,11 +125,14 @@ function cambiarEmail(datos) {
     to: nuevo,
     name: 'ATS Club',
     subject: 'Tu código para cambiar el email: ' + codigo,
-    htmlBody: '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;padding:24px;color:#222">' +
-      '<h2 style="margin:0 0 12px">Cambiar email</h2>' +
-      '<p>Para usar <b>' + escapar(nuevo) + '</b> en tu cuenta de ATS Club, escribí este código en la app:</p>' +
-      '<p style="font-size:32px;font-weight:bold;letter-spacing:6px;background:#f2f2f5;padding:14px;text-align:center;border-radius:10px">' + codigo + '</p>' +
-      '<p>Vence en 15 minutos.</p><p style="color:#888;font-size:13px">Si no lo pediste, ignorá este mail.</p></div>',
+    htmlBody: plantilla({
+      resumen: 'Tu código es ' + codigo + '. Vence en 15 minutos.',
+      titulo: 'Cambiar el email',
+      parrafos: ['Para usar <b>' + escapar(nuevo) + '</b> en tu cuenta de ATS Club, escribí este código en la app:'],
+      codigo: codigo,
+      vence: 'Vence en 15 minutos.',
+      pie: 'Si no lo pediste, ignorá este mail: tu email no cambia.',
+    }),
     body: 'Tu código para cambiar el email de tu cuenta de ATS Club es: ' + codigo + '\nVence en 15 minutos. Si no lo pediste, ignorá este mail.',
   });
   contarEnvio(c, q);
@@ -162,6 +172,12 @@ function confirmarEmail(datos) {
         to: u.email,
         name: 'ATS Club',
         subject: 'Cambiaste el email de tu cuenta de ATS Club',
+        htmlBody: plantilla({
+          resumen: 'Tu cuenta ahora usa ' + p.email + '.',
+          titulo: 'Cambiaste tu email',
+          parrafos: ['Tu cuenta de ATS Club ahora usa el email <b>' + escapar(p.email) + '</b>.', 'Desde ahora ingresá a la app con ese email y tu misma contraseña.'],
+          aviso: 'Si no fuiste vos, escribile al admin de tu club o a <a href="mailto:ats.archery@gmail.com" style="color:#032845">ats.archery@gmail.com</a>.',
+        }),
         body: 'Tu cuenta de ATS Club ahora usa el email ' + p.email + '. Desde ahora ingresá con ese email.' +
           '\n\nSi no fuiste vos, escribile al admin de tu club o a ats.archery@gmail.com.',
       });
@@ -228,6 +244,15 @@ function eliminarSocio(datos) {
         to: socio.email,
         name: 'ATS Club',
         subject: 'Eliminamos tu cuenta de ATS Club',
+        htmlBody: plantilla({
+          resumen: club + ' procesó tu pedido de baja.',
+          club: club,
+          titulo: 'Eliminamos tu cuenta',
+          saludo: (socio.alias || socio.nombre) ? 'Hola ' + escapar(socio.alias || socio.nombre) + ',' : 'Hola,',
+          parrafos: [escapar(club) + ' procesó tu pedido de baja: eliminamos tu cuenta de ATS Club (<b>' + escapar(socio.email) + '</b>) junto con tu perfil, tu foto, tus inscripciones, respuestas y pagos informados.',
+            'Si querés volver, pedile al club el link de registro y creá una cuenta nueva.'],
+          pie: 'Si no lo pediste vos, escribinos a <a href="mailto:ats.archery@gmail.com" style="color:#032845">ats.archery@gmail.com</a>.',
+        }),
         body: 'Hola' + ((socio.alias || socio.nombre) ? ' ' + (socio.alias || socio.nombre) : '') + ',\n\n' +
           club + ' procesó tu pedido de baja: eliminamos tu cuenta de ATS Club (' + socio.email + ') junto con tu perfil, tu foto, tus inscripciones, respuestas y pagos informados.' +
           '\n\nSi querés volver, pedile al club el link de registro y creá una cuenta nueva.' +
@@ -288,13 +313,67 @@ function escapar(t) {
   return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function htmlBienvenida(nombre, club, email) {
-  return '<div style="font-family:Arial,sans-serif;max-width:460px;margin:auto;padding:24px;color:#222">' +
-    '<h2 style="margin:0 0 12px">¡Hola' + (nombre ? ' ' + escapar(nombre) : '') + '! 🏹</h2>' +
-    '<p>Tu cuenta en <b>' + escapar(club) + '</b> quedó creada con el email <b>' + escapar(email) + '</b>.</p>' +
-    '<p style="background:#f2f2f5;padding:14px;border-radius:10px">Ahora un admin del club tiene que <b>aprobarla</b>. ' +
-    'Cuando la aprueben, ingresá a la app con tu email y contraseña y vas a ver los torneos, noticias e inscripciones.</p>' +
-    '<p>Si te olvidás la contraseña, en la app tocá <b>Olvidé mi contraseña</b>.</p>' +
-    '<p style="color:#888;font-size:13px">Si no te registraste vos, ignorá este mail.</p></div>';
+  return plantilla({
+    resumen: 'Tu cuenta quedó creada. Falta que el club la apruebe.',
+    club: club,
+    titulo: '¡Bienvenido/a!',
+    saludo: '¡Hola' + (nombre ? ' ' + escapar(nombre) : '') + '! 🏹',
+    parrafos: ['Tu cuenta en <b>' + escapar(club) + '</b> quedó creada con el email <b>' + escapar(email) + '</b>.'],
+    aviso: '<b>Falta un paso:</b> un admin del club tiene que aprobar tu cuenta. Cuando la aprueben, ingresá a la app con tu email y contraseña y vas a ver los torneos, noticias e inscripciones.',
+    extra: 'Si te olvidás la contraseña, en la app tocá <b>Olvidé mi contraseña</b>.',
+    pie: 'Si no te registraste vos, ignorá este mail.',
+  });
+}
+
+/* ---------- Diseño de los mails ---------- */
+
+// Logo (PNG blanco, se ve sobre el azul). Está en el repositorio público de GitHub.
+var LOGO_MAIL = 'https://raw.githubusercontent.com/eugegonzalezbriozzo-web/ats-club/main/public/logo-mail.png';
+var AZUL = '#032845', NARANJA = '#E8892A', GRIS = '#F3F4F7', TEXTO = '#1F2430', SUAVE = '#6B7280';
+
+/**
+ * Mail con el diseño de ATS Club: banda azul con el logo, tarjeta blanca y pie.
+ * Hecho con tablas y estilos en línea para que se vea bien en Gmail, Outlook y el celular.
+ * o: { resumen, titulo, club, saludo, parrafos[], codigo, vence, aviso, extra, pie }  (texto ya escapado)
+ */
+function plantilla(o) {
+  var p = function (t, est) { return '<p style="margin:0 0 14px;font-size:16px;line-height:24px;color:' + TEXTO + ';' + (est || '') + '">' + t + '</p>'; };
+  var cuerpo = '';
+  if (o.club) cuerpo += '<p style="margin:0 0 6px;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:' + NARANJA + ';font-weight:bold">' + escapar(o.club) + '</p>';
+  cuerpo += '<h1 style="margin:0 0 18px;font-size:24px;line-height:30px;color:' + AZUL + ';font-weight:bold">' + o.titulo + '</h1>';
+  if (o.saludo) cuerpo += p(o.saludo, 'font-weight:bold');
+  (o.parrafos || []).forEach(function (t) { cuerpo += p(t); });
+  if (o.codigo) {
+    cuerpo += '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 10px"><tr><td align="center" style="background:' + GRIS +
+      ';border:2px dashed ' + NARANJA + ';border-radius:12px;padding:18px 10px">' +
+      '<span style="font-family:\'Courier New\',monospace;font-size:36px;line-height:40px;font-weight:bold;letter-spacing:10px;color:' + AZUL + '">' + o.codigo + '</span></td></tr></table>';
+    if (o.vence) cuerpo += p(o.vence, 'font-size:14px;color:' + SUAVE + ';text-align:center');
+  }
+  if (o.aviso) {
+    cuerpo += '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 16px"><tr><td style="background:#FFF6EC;border-left:4px solid ' + NARANJA +
+      ';border-radius:8px;padding:14px 16px;font-size:15px;line-height:22px;color:' + TEXTO + '">' + o.aviso + '</td></tr></table>';
+  }
+  if (o.extra) cuerpo += p(o.extra);
+  if (o.pie) cuerpo += '<p style="margin:18px 0 0;padding-top:16px;border-top:1px solid #E5E7EB;font-size:13px;line-height:20px;color:' + SUAVE + '">' + o.pie + '</p>';
+
+  return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>' +
+    '<body style="margin:0;padding:0;background:' + GRIS + '">' +
+    // Texto de vista previa (lo que se ve en la bandeja de entrada antes de abrir).
+    '<div style="display:none;max-height:0;overflow:hidden;opacity:0">' + escapar(o.resumen || '') + '</div>' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + GRIS + '"><tr><td align="center" style="padding:24px 12px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;font-family:Arial,Helvetica,sans-serif">' +
+    // Banda azul con el logo
+    '<tr><td align="center" style="background:' + AZUL + ';border-radius:16px 16px 0 0;padding:22px 20px 18px">' +
+    '<img src="' + LOGO_MAIL + '" width="110" alt="ATS Club" style="display:block;border:0;width:110px;height:auto;color:#ffffff;font-size:22px;font-weight:bold"></td></tr>' +
+    '<tr><td style="background:' + NARANJA + ';height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>' +
+    // Tarjeta
+    '<tr><td style="background:#ffffff;border-radius:0 0 16px 16px;padding:28px 28px 24px">' + cuerpo + '</td></tr>' +
+    // Pie
+    '<tr><td align="center" style="padding:18px 10px;font-size:12px;line-height:18px;color:' + SUAVE + '">' +
+    '<b style="color:' + AZUL + '">ATS Club</b> · parte de las herramientas ATS<br>' +
+    '<a href="https://instagram.com/ats.archery" style="color:' + SUAVE + '">@ats.archery</a> · ' +
+    '<a href="mailto:ats.archery@gmail.com" style="color:' + SUAVE + '">ats.archery@gmail.com</a></td></tr>' +
+    '</table></td></tr></table></body></html>';
 }
 
 /** Pide a Supabase el código de recuperación (sin que Supabase mande su propio mail). */
@@ -319,17 +398,17 @@ function pedirCodigo(email, props) {
   return b.email_otp || (b.properties && b.properties.email_otp) || null;
 }
 
-function html(codigo) {
-  return '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;padding:24px;color:#222">' +
-    '<h2 style="margin:0 0 12px">Cambiar contraseña</h2>' +
-    '<p>Tu código para cambiar la contraseña de <b>ATS Club</b> es:</p>' +
-    '<p style="font-size:32px;font-weight:bold;letter-spacing:6px;background:#f2f2f5;padding:14px;text-align:center;border-radius:10px">' + codigo + '</p>' +
-    '<p>Escribilo en la app. Vence en 1 hora.</p>' +
-    '<p style="color:#888;font-size:13px">Si no lo pediste, ignorá este mail: tu contraseña no cambia.</p></div>';
-}
-
 function responder(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/** Para ver el diseño: manda los mails de ejemplo a la cuenta de ATS (Ejecutar → probarDiseno). */
+function probarDiseno() {
+  var yo = Session.getActiveUser().getEmail() || 'ats.archery@gmail.com';
+  MailApp.sendEmail({ to: yo, name: 'ATS Club', subject: '[Prueba] Bienvenida', htmlBody: htmlBienvenida('Euge', 'Arquería Sierras Chicas', 'socio@ejemplo.com'), body: 'Prueba' });
+  MailApp.sendEmail({ to: yo, name: 'ATS Club', subject: '[Prueba] Código', body: 'Prueba', htmlBody: plantilla({
+    resumen: 'Tu código es 123456.', titulo: 'Cambiar la contraseña', parrafos: ['Pediste cambiar la contraseña de tu cuenta de <b>ATS Club</b>. Escribí este código en la app:'],
+    codigo: '123456', vence: 'Vence en 1 hora.', pie: 'Si no lo pediste, ignorá este mail: tu contraseña no cambia.' }) });
 }
 
 /** Para probar desde el editor: cambiá el email y tocá Ejecutar. */
