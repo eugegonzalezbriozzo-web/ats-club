@@ -21,7 +21,8 @@ export async function exportarInscriptosExcel(torneo: Torneo, filas: Fila[]) {
     const ad = f.modalidad === 'adaptado';
     return {
     Modalidad: ad ? 'Adaptado' : 'Convencional',
-    'Categoría / clase': ad ? f.claseAdaptada ?? '' : f.categoria,
+    Clase: ad ? f.claseAdaptada ?? '' : '',
+    'Categoría': f.categoria ?? '',
     Apellido: f.usuario.apellido,
     Nombre: f.usuario.nombre,
     Alias: f.usuario.alias ?? '',
@@ -40,7 +41,7 @@ export async function exportarInscriptosExcel(torneo: Torneo, filas: Fila[]) {
   };
   });
   const ws = XLSX.utils.json_to_sheet(datos);
-  ws['!cols'] = [13, 18, 16, 16, 12, 12, 15, 28, 12, 10, 11, 9, 12, 12, 14, 14, 26].map((wch) => ({ wch }));
+  ws['!cols'] = [13, 18, 11, 16, 16, 12, 12, 15, 28, 12, 10, 11, 9, 12, 12, 14, 14, 26].map((wch) => ({ wch }));
   if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Inscriptos');

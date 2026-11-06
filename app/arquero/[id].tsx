@@ -78,12 +78,13 @@ export default function PerfilArquero() {
               <FilaDato k="Modalidad" v="Adaptado" />
               <FilaDato k="Clase" v={a.claseAdaptada ?? '—'} />
               <FilaDato k="División" v={claseSinDivision(a.claseAdaptada) ? 'Sin distinción de sexo' : a.division} />
+              {a.categoria ? <FilaDato k="Categoría" v={a.categoria} /> : null}
             </>
           ) : (
             <>
               <FilaDato k="Arco" v={a.arco} />
               <FilaDato k="División" v={a.division} />
-              <FilaDato k="Categoría" v={a.categoria} />
+              <FilaDato k="Categoría" v={a.categoria ?? '—'} />
             </>
           )}
           <FilaDato k="Lateralidad" v={a.lateralidad} />

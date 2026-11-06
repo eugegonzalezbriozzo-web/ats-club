@@ -136,12 +136,13 @@ export default function DetalleTorneo() {
                 <Chip texto="Adaptado" relleno />
                 <Chip texto={insc.claseAdaptada ?? ''} relleno />
                 {claseSinDivision(insc.claseAdaptada) ? null : <Chip texto={insc.division} />}
+                {insc.categoria ? <Chip texto={insc.categoria} /> : null}
               </>
             ) : (
               <>
                 <Chip texto={insc.arco} relleno />
                 <Chip texto={insc.division} />
-                <Chip texto={insc.categoria} />
+                <Chip texto={insc.categoria ?? ''} />
               </>
             )}
             <Chip texto={insc.lateralidad} />

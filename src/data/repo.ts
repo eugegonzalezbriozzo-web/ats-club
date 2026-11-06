@@ -17,7 +17,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RECUPERAR_URL, supabase } from './supabase';
 import { armarNombreCompleto } from '../util';
-import { MAX_SOBRE_MI, arcoDeClase, fijarListados, type Listados } from '../types';
+import { MAX_SOBRE_MI, arcoDeClase, errorArquero, fijarListados, type Listados } from '../types';
 import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
 import { edad, hoyISO } from '../util';
@@ -450,7 +450,8 @@ function validarMenor(d: DatosMenor) {
   const e = edad(d.nacimiento);
   if (e === null || d.nacimiento > hoyISO()) throw new ErrorApp('Revisá la fecha de nacimiento.');
   if (e >= 18) throw new ErrorApp('Con 18 años o más tiene que crear su propia cuenta con el link del club.');
-  if (d.modalidad === 'adaptado' && !d.claseAdaptada) throw new ErrorApp('Elegí la clase de arquería adaptada.');
+  const ea = errorArquero(d);
+  if (ea) throw new ErrorApp(ea);
 }
 
 /** Tutor/a: suma a un menor a cargo. Queda pendiente hasta que un admin lo apruebe. */
@@ -601,7 +602,7 @@ export interface DatosRegistro extends DatosArquero {
 export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario | null> {
   if (d.password.length < 6) throw new ErrorApp('La contraseña tiene que tener al menos 6 caracteres.');
   if (!d.funciones.length) throw new ErrorApp('Elegí al menos una función en el club.');
-  if (d.funciones.includes('arquero') && d.modalidad === 'adaptado' && !d.claseAdaptada) throw new ErrorApp('Elegí la clase de arquería adaptada.');
+  if (d.funciones.includes('arquero') && errorArquero(d)) throw new ErrorApp(errorArquero(d)!);
   if (d.nacimiento && (d.nacimiento > hoyISO() || d.nacimiento < '1900-01-01')) throw new ErrorApp('Revisá la fecha de nacimiento.');
   const e = edad(d.nacimiento);
   if (e !== null && e < EDAD_CUENTA_PROPIA)
@@ -729,8 +730,11 @@ export async function actualizarPerfil(usuarioId: string, cambios: CambiosPerfil
   if (cambios.foto?.startsWith('data:')) cambios = { ...cambios, foto: await subirFoto(usuarioId, cambios.foto) };
   else if (cambios.foto === '') await borrarFoto(usuarioId);
   if (cambios.funciones && !cambios.funciones.length) throw new ErrorApp('Elegí al menos una función en el club.');
+  if (cambios.modalidad) {
+    const ea = errorArquero(cambios);
+    if (ea) throw new ErrorApp(ea);
+  }
   if (cambios.modalidad === 'adaptado') {
-    if (!cambios.claseAdaptada) throw new ErrorApp('Elegí la clase de arquería adaptada.');
     const a = arcoDeClase(cambios.claseAdaptada);
     if (a) cambios = { ...cambios, arco: a };
   } else if (cambios.modalidad === 'convencional') cambios = { ...cambios, claseAdaptada: null };
@@ -1056,7 +1060,8 @@ function aTorneo(r: Record<string, any>): Torneo {
 /** Datos de arquero → columnas (inscripciones). En Adaptado la clase es obligatoria. */
 function filaArquero(d: DatosArquero) {
   const adaptado = d.modalidad === 'adaptado';
-  if (adaptado && !d.claseAdaptada) throw new ErrorApp('Elegí la clase de arquería adaptada.');
+  const ea = errorArquero(d);
+  if (ea) throw new ErrorApp(ea);
   return {
     arco: adaptado ? arcoDeClase(d.claseAdaptada) ?? d.arco : d.arco, division: d.division, categoria: d.categoria, lateralidad: d.lateralidad,
     modalidad: adaptado ? 'adaptado' : 'convencional', clase_adaptada: adaptado ? d.claseAdaptada : null,
@@ -1789,5 +1794,5 @@ export async function cargarListados(): Promise<void> {
   const { data, error } = await supabase.rpc('listados');
   if (error || !data) return;
   const l = data as Listados;
-  if (l.arcos?.length && l.categorias?.length) fijarListados({ arcos: l.arcos, categorias: l.categorias, clases: l.clases ?? [] });
+  if (l.arcos?.length && l.categorias?.some((c) => c.modalidad === 'convencional')) fijarListados({ arcos: l.arcos, categorias: l.categorias, clases: l.clases ?? [] });
 }

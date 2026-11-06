@@ -56,7 +56,7 @@ export default function Inscriptos() {
     if (!club) return;
     repo.obtenerTorneo(club.id, id).then(setTorneo);
     repo.listarPagos(club.id, { id: '', esAdmin: true }).then(setPagos);
-    repo.inscriptosDeTorneo(club.id, id).then((f) => setFilas(f.sort((a, b) => a.categoria.localeCompare(b.categoria) || a.usuario.apellido.localeCompare(b.usuario.apellido))));
+    repo.inscriptosDeTorneo(club.id, id).then((f) => setFilas(f.sort((a, b) => (a.categoria ?? '').localeCompare(b.categoria ?? '') || a.usuario.apellido.localeCompare(b.usuario.apellido))));
   }, [id, club]);
   useFocusEffect(cargar);
 
@@ -64,7 +64,8 @@ export default function Inscriptos() {
   // (Una categoría o clase que no esté en los listados va al final, para que nadie quede afuera.)
   const conv = filas.filter((f) => f.modalidad !== 'adaptado');
   const adap = filas.filter((f) => f.modalidad === 'adaptado');
-  const cats = [...listadosIns.categorias.map((c) => c.nombre), ...conv.map((f) => f.categoria)].filter((c, i, a) => a.indexOf(c) === i);
+  const cats = [...listadosIns.categorias.filter((c) => c.modalidad === 'convencional').map((c) => c.nombre), ...conv.map((f) => f.categoria ?? '')]
+    .filter((c, i, a) => a.indexOf(c) === i);
   const clases = [...listadosIns.clases.map((c) => c.nombre), ...adap.map((f) => f.claseAdaptada ?? '')].filter((c, i, a) => a.indexOf(c) === i);
   const grupos = [
     ...cats.map((c) => [c, conv.filter((f) => f.categoria === c)] as const),
@@ -209,7 +210,7 @@ export default function Inscriptos() {
                     </Text>
                     <Txt muted style={{ fontSize: 13 }}>
                       {f.modalidad === 'adaptado'
-                        ? [claseSinDivision(f.claseAdaptada) ? null : f.division, f.lateralidad].filter(Boolean).join(' · ')
+                        ? [claseSinDivision(f.claseAdaptada) ? null : f.division, f.categoria, f.lateralidad].filter(Boolean).join(' · ')
                         : `${f.arco} · ${f.division} · ${f.lateralidad}`}
                       {f.usuario.federado ? ' · Federado' : ''}
                       {torneo.valor > 0 ? ` · ${(() => { const e = repo.estadoPagoInscripcion(pagos, torneo.id, f.usuarioId); return e ? TEXTO_PAGO_INS[e] : 'Sin pago informado'; })()}` : ''}

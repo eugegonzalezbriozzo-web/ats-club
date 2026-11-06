@@ -47,7 +47,8 @@ export interface Club {
 export interface DatosArquero {
   arco: Arco;
   division: Division;
-  categoria: Categoria;
+  /** Siempre en convencional; en adaptado, si hay categorías de adaptado cargadas. */
+  categoria: Categoria | null;
   lateralidad: Lateralidad;
   /** Convencional (arco, división, categoría) o Adaptado (clase). Por defecto, convencional. */
   modalidad?: Modalidad;
@@ -66,14 +67,17 @@ export type ClaseAdaptada = string;
  * `activo: false` = no se ofrece para elegir, pero quien ya lo tiene lo sigue viendo.
  */
 export interface ItemListado { nombre: string; activo: boolean }
-export interface CategoriaListado extends ItemListado { edadDesde?: number | null; edadHasta?: number | null }
+export interface CategoriaListado extends ItemListado { modalidad: Modalidad; edadDesde?: number | null; edadHasta?: number | null }
 export interface ClaseListado extends ItemListado { conDivision: boolean; arco: string | null }
 export interface Listados { arcos: ItemListado[]; categorias: CategoriaListado[]; clases: ClaseListado[] }
 
 const activo = (nombre: string) => ({ nombre, activo: true });
 let listadosActuales: Listados = {
   arcos: ['Compuesto', 'Recurvo', 'Raso', 'Tradicional', 'Longbow', 'Cazador'].map(activo),
-  categorias: ['Senior', 'U21', 'U18', 'U15', '50+', 'E10', 'E20', 'E30', 'E40', 'E50', 'E60'].map(activo),
+  categorias: ['Senior', 'U21', 'U18', 'U15', 'Escuela', '50+', 'E10', 'E20', 'E30', 'E40', 'E50', 'E60'].map((n) => ({
+    ...activo(n),
+    modalidad: 'convencional' as const,
+  })),
   clases: [
     { ...activo('W1'), conDivision: true, arco: null },
     { ...activo('Recurve Open'), conDivision: true, arco: 'Recurvo' },
@@ -97,6 +101,23 @@ export function opcionesDe(lista: ItemListado[], actual?: string | null): string
   const n = lista.filter((x) => x.activo).map((x) => x.nombre);
   return actual && !n.includes(actual) ? [...n, actual] : n;
 }
+/** Categorías de una modalidad (cada modalidad tiene las suyas: se tira a distintos blancos). */
+export const categoriasDe = (m?: Modalidad | null) =>
+  listadosActuales.categorias.filter((c) => c.modalidad === (m === 'adaptado' ? 'adaptado' : 'convencional'));
+/** ¿Hay que elegir categoría? Siempre en convencional; en adaptado, si hay alguna cargada. */
+export const pideCategoria = (m?: Modalidad | null) => m !== 'adaptado' || categoriasDe('adaptado').some((c) => c.activo);
+/** Al cambiar de modalidad: la categoría tiene que existir en la nueva (si no, la primera, o vacía en adaptado). */
+export function categoriaPara(m: Modalidad, actual?: string | null): string | null {
+  const l = categoriasDe(m);
+  if (actual && l.some((c) => c.nombre === actual)) return actual;
+  return m === 'adaptado' ? null : l.find((c) => c.activo)?.nombre ?? 'Senior';
+}
+/** Error de datos de arquero (o null). */
+export function errorArquero(d: Partial<DatosArquero>): string | null {
+  if (d.modalidad === 'adaptado' && !d.claseAdaptada) return 'Elegí la clase de arquería adaptada.';
+  if (pideCategoria(d.modalidad) && !d.categoria) return 'Elegí la categoría.';
+  return null;
+}
 /** Sin distinción de sexo (no se pide división): según adm.clase.con_division. */
 export const claseSinDivision = (c?: string | null) => {
   if (!c) return false;
@@ -109,7 +130,7 @@ export const arcoDeClase = (c?: string | null): string | null => listadosActuale
 export function resumenArquero(d: Partial<DatosArquero>, conLateralidad = false): string {
   const partes =
     d.modalidad === 'adaptado'
-      ? ['Adaptado', d.claseAdaptada ?? 'sin clase', ...(claseSinDivision(d.claseAdaptada) ? [] : [d.division])]
+      ? ['Adaptado', d.claseAdaptada ?? 'sin clase', ...(claseSinDivision(d.claseAdaptada) ? [] : [d.division]), d.categoria]
       : [d.arco, d.division, d.categoria];
   if (conLateralidad) partes.push(d.lateralidad);
   return partes.filter(Boolean).join(' · ');

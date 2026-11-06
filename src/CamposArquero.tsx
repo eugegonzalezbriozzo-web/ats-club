@@ -1,5 +1,5 @@
 import React from 'react';
-import { DIVISIONES, DatosArquero, LATERALIDADES, MODALIDADES, claseSinDivision, opcionesDe } from './types';
+import { DIVISIONES, DatosArquero, LATERALIDADES, MODALIDADES, categoriaPara, categoriasDe, claseSinDivision, opcionesDe } from './types';
 import { useListados } from './listados';
 import { Pildoras, Txt } from './ui';
 
@@ -7,7 +7,7 @@ type Clave = keyof DatosArquero;
 
 /**
  * Datos de arquero: Modalidad (Convencional / Adaptado).
- * Convencional → Arco, División, Categoría, Lateralidad. Adaptado → Clase, División (salvo Visually Impaired), Lateralidad.
+ * Convencional → Arco, División, Categoría, Lateralidad. Adaptado → Clase, División (salvo Visually Impaired), Categoría de adaptado, Lateralidad.
  * `nota`/`cambio` (opcionales) marcan lo que difiere del perfil, para la inscripción a un torneo.
  */
 export function CamposArquero({
@@ -23,6 +23,7 @@ export function CamposArquero({
 }) {
   const l = useListados();
   const adaptado = d.modalidad === 'adaptado';
+  const catsAdaptado = l.categorias.filter((c) => c.modalidad === 'adaptado');
   const set = <K extends Clave>(k: K) => (v: DatosArquero[K]) => onChange({ ...d, [k]: v });
   const marca = (k: Clave) => ({ nota: nota?.(k), notaDestacada: cambio?.(k) });
   return (
@@ -34,8 +35,8 @@ export function CamposArquero({
         onChange={(v) =>
           onChange(
             v === 'Adaptado'
-              ? { ...d, modalidad: 'adaptado', claseAdaptada: d.claseAdaptada ?? null }
-              : { ...d, modalidad: 'convencional', claseAdaptada: null },
+              ? { ...d, modalidad: 'adaptado', claseAdaptada: d.claseAdaptada ?? null, categoria: categoriaPara('adaptado', d.categoria) }
+              : { ...d, modalidad: 'convencional', claseAdaptada: null, categoria: categoriaPara('convencional', d.categoria) },
           )
         }
         {...marca('modalidad')}
@@ -55,12 +56,15 @@ export function CamposArquero({
           ) : (
             <Pildoras label="División" opciones={DIVISIONES} valor={d.division} onChange={set('division')} {...marca('division')} />
           )}
+          {catsAdaptado.some((c) => c.activo) || d.categoria ? (
+            <Pildoras label="Categoría" opciones={opcionesDe(catsAdaptado, d.categoria)} valor={d.categoria ?? ''} onChange={set('categoria')} {...marca('categoria')} />
+          ) : null}
         </>
       ) : (
         <>
           <Pildoras label="Arco" opciones={opcionesDe(l.arcos, d.arco)} valor={d.arco} onChange={set('arco')} {...marca('arco')} />
           <Pildoras label="División" opciones={DIVISIONES} valor={d.division} onChange={set('division')} {...marca('division')} />
-          <Pildoras label="Categoría" opciones={opcionesDe(l.categorias, d.categoria)} valor={d.categoria} onChange={set('categoria')} {...marca('categoria')} />
+          <Pildoras label="Categoría" opciones={opcionesDe(categoriasDe('convencional'), d.categoria)} valor={d.categoria ?? ''} onChange={set('categoria')} {...marca('categoria')} />
         </>
       )}
       <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={d.lateralidad} onChange={set('lateralidad')} {...marca('lateralidad')} />

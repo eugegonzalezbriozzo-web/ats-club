@@ -28,7 +28,7 @@ export default function Perfil() {
   const [direccion, setDireccion] = useState('');
   const [arco, setArco] = useState<Arco>('Recurvo');
   const [division, setDivision] = useState<Division>('Hombre');
-  const [categoria, setCategoria] = useState<Categoria>('Senior');
+  const [categoria, setCategoria] = useState<Categoria | null>('Senior');
   const [lateralidad, setLateralidad] = useState<Lateralidad>('Derecho');
   const [modalidad, setModalidad] = useState<Modalidad>('convencional');
   const [claseAdaptada, setClaseAdaptada] = useState<ClaseAdaptada | null>(null);
