@@ -45,7 +45,7 @@ function Seccion({ texto }: { texto: string }) {
 
 /** Menú "Más": perfil, administración (admins), modo claro/oscuro y cerrar sesión. */
 export default function Mas() {
-  const { t, alternar } = useTema();
+  const { t } = useTema();
   const { usuario, club, esAdmin, esSuperadmin, salirDeClub, logout } = useAuth();
   const router = useRouter();
   const [pendientes, setPendientes] = useState(0);
@@ -143,7 +143,6 @@ export default function Mas() {
       ) : null}
       <Seccion texto="Mi cuenta" />
       <FilaMenu icono="person-outline" titulo="Mi perfil" detalle="Datos personales, foto y datos de arquero" onPress={() => router.push('/perfil')} />
-      <FilaMenu icono={t.oscuro ? 'sunny-outline' : 'moon-outline'} titulo={t.oscuro ? 'Usar modo claro' : 'Usar modo oscuro'} onPress={alternar} />
       {esSuperadmin ? (
         <FilaMenu
           icono="business-outline"
