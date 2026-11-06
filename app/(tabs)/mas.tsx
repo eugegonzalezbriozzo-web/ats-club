@@ -11,14 +11,15 @@ import { ContactoClub } from '../../src/ContactoClub';
 import { useTema } from '../../src/theme';
 import { Boton, Pantalla, Tarjeta, Txt } from '../../src/ui';
 
-function FilaMenu({ icono, titulo, detalle, badge, onPress }: {
-  icono: keyof typeof Ionicons.glyphMap; titulo: string; detalle?: string; badge?: number; onPress: () => void;
+/** `principal`: ícono con el color principal del club (las opciones de Administración). */
+function FilaMenu({ icono, titulo, detalle, badge, onPress, principal }: {
+  icono: keyof typeof Ionicons.glyphMap; titulo: string; detalle?: string; badge?: number; onPress: () => void; principal?: boolean;
 }) {
   const { t } = useTema();
   return (
     <Tarjeta onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.sec, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name={icono} size={22} color={t.onSec} />
+      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: principal ? t.btn : t.sec, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={icono} size={22} color={principal ? t.onBtn : t.onSec} />
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ color: t.text, fontSize: 17, fontWeight: '700' }}>{titulo}</Text>
@@ -115,9 +116,9 @@ export default function Mas() {
         <>
           <Seccion texto="Administración" />
           {club ? (
-            <FilaMenu icono="link-outline" titulo="Link del club" detalle="Compartilo para que los socios se registren o ingresen" onPress={() => router.push('/gestion/invitar')} />
+            <FilaMenu principal icono="link-outline" titulo="Link del club" detalle="Compartilo para que los socios se registren o ingresen" onPress={() => router.push('/gestion/invitar')} />
           ) : null}
-          <FilaMenu
+          <FilaMenu principal
             icono="person-add-outline"
             titulo="Solicitudes"
             detalle={
@@ -128,17 +129,17 @@ export default function Mas() {
             badge={pendientes + bajas}
             onPress={() => router.push('/gestion/solicitudes')}
           />
-          <FilaMenu
+          <FilaMenu principal
             icono="cash-outline"
             titulo="Pagos"
             badge={enRevision}
             detalle={enRevision ? `${enRevision} comprobante${enRevision === 1 ? '' : 's'} para revisar` : 'Cuotas, inscripciones y cuentas del club'}
             onPress={() => router.push('/gestion/pagos')}
           />
-          <FilaMenu icono="locate-outline" titulo="Torneos e inscriptos" detalle="Crear y editar torneos, ver y confirmar inscriptos" onPress={() => router.push('/admin')} />
-          <FilaMenu icono="megaphone-outline" titulo="Noticias y encuestas" detalle="Publicar para todos, federados, no federados o comisión" onPress={() => router.push('/gestion/noticias')} />
-          <FilaMenu icono="key-outline" titulo="Socios y roles" detalle="Quién es usuario y quién es admin" onPress={() => router.push('/gestion/usuarios')} />
-          <FilaMenu icono="share-social-outline" titulo="Datos del club" detalle="Logo, teléfono, email, Instagram, Facebook y TikTok" onPress={() => router.push('/gestion/club')} />
+          <FilaMenu principal icono="locate-outline" titulo="Torneos e inscriptos" detalle="Crear y editar torneos, ver y confirmar inscriptos" onPress={() => router.push('/admin')} />
+          <FilaMenu principal icono="megaphone-outline" titulo="Noticias y encuestas" detalle="Publicar para todos, federados, no federados o comisión" onPress={() => router.push('/gestion/noticias')} />
+          <FilaMenu principal icono="key-outline" titulo="Socios y roles" detalle="Quién es usuario y quién es admin" onPress={() => router.push('/gestion/usuarios')} />
+          <FilaMenu principal icono="share-social-outline" titulo="Datos del club" detalle="Logo, teléfono, email, Instagram, Facebook y TikTok" onPress={() => router.push('/gestion/club')} />
         </>
       ) : null}
       <Seccion texto="Mi cuenta" />
