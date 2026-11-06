@@ -62,15 +62,16 @@ export function Pantalla({
  * Lista de tarjetas en columnas: 1 en celular, 2 en tablet, 3 en compu ancha.
  * Usa porcentajes y relleno (no calc) para funcionar igual en web y celular.
  */
-export function Grilla({ children, maxColumnas = 3 }: { children: React.ReactNode; maxColumnas?: number }) {
+export function Grilla({ children, maxColumnas = 3, separacion = 16 }: { children: React.ReactNode; maxColumnas?: number; separacion?: number }) {
   const { width } = useWindowDimensions();
   const cols = Math.min(maxColumnas, width >= 1280 ? 3 : width >= ANCHO_TABLET ? 2 : 1);
   const items = React.Children.toArray(children).filter(Boolean);
-  if (cols === 1) return <View style={{ gap: 16 }}>{items}</View>;
+  const m = separacion / 2;
+  if (cols === 1) return <View style={{ gap: separacion }}>{items}</View>;
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -8, marginVertical: -8 }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -m, marginVertical: -m }}>
       {items.map((c, i) => (
-        <View key={(c as { key?: React.Key }).key ?? i} style={{ width: `${100 / cols}%`, padding: 8 }}>
+        <View key={(c as { key?: React.Key }).key ?? i} style={{ width: `${100 / cols}%`, padding: m }}>
           {c}
         </View>
       ))}
@@ -375,15 +376,15 @@ export function Chip({ texto, relleno }: { texto: string; relleno?: boolean }) {
   return (
     <View
       style={{
-        paddingHorizontal: 8,
-        paddingVertical: 3,
+        paddingHorizontal: 7,
+        paddingVertical: 2,
         borderRadius: 6,
         backgroundColor: relleno ? t.chip : 'transparent',
         borderWidth: relleno ? 0 : 1,
         borderColor: t.border,
       }}
     >
-      <Text style={{ fontSize: 12, fontWeight: '700', color: relleno ? t.accent : t.text }}>{texto}</Text>
+      <Text style={{ fontSize: 11.5, fontWeight: '700', color: relleno ? t.accent : t.text }}>{texto}</Text>
     </View>
   );
 }

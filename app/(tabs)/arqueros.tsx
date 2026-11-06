@@ -117,31 +117,37 @@ export default function Arqueros() {
       {lista.length === 0 ? (
         <Vacio texto={todos.length ? 'Nadie coincide con la búsqueda.' : 'Todavía no hay socios aprobados.'} />
       ) : (
-        <Grilla>
+        <Grilla separacion={10}>
           {lista.map((u) => (
-            <Tarjeta key={u.id} style={{ gap: 10 }} onPress={() => router.push(`/arquero/${u.id}`)}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <Avatar foto={u.foto} nombre={u.nombre} apellido={u.apellido} size={48} />
-                <View style={{ flex: 1, gap: 2 }}>
+            <Tarjeta key={u.id} style={{ padding: 12, gap: 6 }} onPress={() => router.push(`/arquero/${u.id}`)}>
+              {/* Compacta: todo al lado de la foto. */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Avatar foto={u.foto} nombre={u.nombre} apellido={u.apellido} size={40} />
+                <View style={{ flex: 1, gap: 3, minWidth: 0 }}>
                   {/* El alias es como lo conocen en el club: va primero. */}
-                  <Text style={{ color: t.text, fontSize: 16, fontWeight: '700' }}>
+                  <Text style={{ color: t.text, fontSize: 15, fontWeight: '700' }} numberOfLines={1}>
                     {u.alias || u.nombreCompleto}
                     {u.id === usuario?.id ? ' (vos)' : ''}
+                    {u.alias ? <Text style={{ color: t.muted, fontSize: 13, fontWeight: '400' }}>{`  ${u.nombreCompleto}`}</Text> : null}
                   </Text>
-                  {u.alias ? <Txt muted style={{ fontSize: 13 }}>{u.nombreCompleto}</Txt> : null}
-                  {u.esAdmin ? <Text style={{ color: t.accent, fontSize: 13, fontWeight: '700' }}>Admin del club</Text> : null}
-                  {u.menor ? <Txt muted style={{ fontSize: 13 }}>A cargo de {u.aCargoDe.join(' y ') || 'su tutor/a'}</Txt> : null}
+                  {u.esAdmin || u.menor ? (
+                    <Text style={{ fontSize: 12, color: t.muted }} numberOfLines={1}>
+                      {u.esAdmin ? <Text style={{ color: t.accent, fontWeight: '700' }}>Admin del club</Text> : null}
+                      {u.esAdmin && u.menor ? ' · ' : ''}
+                      {u.menor ? `A cargo de ${u.aCargoDe.join(' y ') || 'su tutor/a'}` : ''}
+                    </Text>
+                  ) : null}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                    {u.funciones.includes('arquero') ? <Chip texto={u.modalidad === 'adaptado' ? `Adaptado · ${u.claseAdaptada ?? ''}` : u.arco} relleno /> : null}
+                    {etiquetasFunciones(u.funciones).map((f) => <Chip key={f} texto={f} relleno />)}
+                    {u.funciones.includes('arquero') && u.federado ? <Chip texto="Federado" relleno /> : null}
+                  </View>
+                  {esAdmin && u.email ? <Txt muted style={{ fontSize: 12 }} numberOfLines={1}>{u.email}</Txt> : null}
                 </View>
                 {u.telefono && u.id !== usuario?.id ? <IconoWhatsApp tel={u.telefono} nombre={u.alias || u.nombre} /> : null}
-                <Ionicons name="chevron-forward" size={20} color={t.muted} />
+                <Ionicons name="chevron-forward" size={18} color={t.muted} />
               </View>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {u.funciones.includes('arquero') ? <Chip texto={u.modalidad === 'adaptado' ? `Adaptado · ${u.claseAdaptada ?? ''}` : u.arco} relleno /> : null}
-                {etiquetasFunciones(u.funciones).map((f) => <Chip key={f} texto={f} relleno />)}
-                {u.funciones.includes('arquero') && u.federado ? <Chip texto="Federado" relleno /> : null}
-              </View>
-              {u.sobreMi ? <Txt style={{ fontSize: 14, lineHeight: 20 }} numberOfLines={3}>{u.sobreMi}</Txt> : null}
-              {esAdmin && u.email ? <Txt muted style={{ fontSize: 13 }}>{u.email}</Txt> : null}
+              {u.sobreMi ? <Txt style={{ fontSize: 13, lineHeight: 18 }} numberOfLines={2}>{u.sobreMi}</Txt> : null}
             </Tarjeta>
           ))}
         </Grilla>
