@@ -1,15 +1,14 @@
-export const ARCOS = ['Compuesto', 'Recurvo', 'Raso', 'Tradicional', 'Longbow', 'Cazador'] as const;
 export const DIVISIONES = ['Hombre', 'Mujer'] as const;
-export const CATEGORIAS = ['Senior', 'U21', 'U18', 'U15', '50+', 'E10', 'E20', 'E30', 'E40', 'E50', 'E60'] as const;
 export const LATERALIDADES = ['Derecho', 'Zurdo'] as const;
 export const TIPOS_TORNEO = ['Aire libre', 'Indoor', 'JJCC', '3D'] as const;
 export const JERARQUIAS = ['Social', 'Homologatorio', 'Rankeable', 'Final Regional', 'Final Nacional'] as const;
 
 export const MAX_SOBRE_MI = 300;
 
-export type Arco = (typeof ARCOS)[number];
+/** Arco, categoría y clase adaptada salen de los listados de Supabase (esquema adm): ver `listados()`. */
+export type Arco = string;
 export type Division = (typeof DIVISIONES)[number];
-export type Categoria = (typeof CATEGORIAS)[number];
+export type Categoria = string;
 export type Lateralidad = (typeof LATERALIDADES)[number];
 export type TipoTorneo = (typeof TIPOS_TORNEO)[number];
 export type Jerarquia = (typeof JERARQUIAS)[number];
@@ -59,12 +58,53 @@ export interface DatosArquero {
 /** Arquería adaptada. En Adaptado la clase reemplaza a arco y categoría. */
 export type Modalidad = 'convencional' | 'adaptado';
 export const MODALIDADES = ['Convencional', 'Adaptado'] as const;
-export const CLASES_ADAPTADAS = ['W1', 'Recurve Open', 'Compound Open', 'Visually Impaired 1', 'Visually Impaired 2/3'] as const;
-export type ClaseAdaptada = (typeof CLASES_ADAPTADAS)[number];
-/** En Visually Impaired no hay distinción de sexo (no se pide división). */
-export const claseSinDivision = (c?: ClaseAdaptada | null) => !!c && c.startsWith('Visually Impaired');
-/** Arco que corresponde a la clase (para lo que sigue usando "arco"). */
-export const arcoDeClase = (c?: ClaseAdaptada | null): Arco | null => (c === 'Recurve Open' ? 'Recurvo' : c === 'Compound Open' ? 'Compuesto' : null);
+export type ClaseAdaptada = string;
+
+/**
+ * Listados editables a mano en Supabase (tablas adm.arco, adm.categoria, adm.clase).
+ * La app los carga al arrancar (repo.cargarListados); hasta entonces usa estos valores de base.
+ * `activo: false` = no se ofrece para elegir, pero quien ya lo tiene lo sigue viendo.
+ */
+export interface ItemListado { nombre: string; activo: boolean }
+export interface CategoriaListado extends ItemListado { edadDesde?: number | null; edadHasta?: number | null }
+export interface ClaseListado extends ItemListado { conDivision: boolean; arco: string | null }
+export interface Listados { arcos: ItemListado[]; categorias: CategoriaListado[]; clases: ClaseListado[] }
+
+const activo = (nombre: string) => ({ nombre, activo: true });
+let listadosActuales: Listados = {
+  arcos: ['Compuesto', 'Recurvo', 'Raso', 'Tradicional', 'Longbow', 'Cazador'].map(activo),
+  categorias: ['Senior', 'U21', 'U18', 'U15', '50+', 'E10', 'E20', 'E30', 'E40', 'E50', 'E60'].map(activo),
+  clases: [
+    { ...activo('W1'), conDivision: true, arco: null },
+    { ...activo('Recurve Open'), conDivision: true, arco: 'Recurvo' },
+    { ...activo('Compound Open'), conDivision: true, arco: 'Compuesto' },
+    { ...activo('Visually Impaired 1'), conDivision: false, arco: null },
+    { ...activo('Visually Impaired 2/3'), conDivision: false, arco: null },
+  ],
+};
+const avisar = new Set<() => void>();
+export const listados = () => listadosActuales;
+export function fijarListados(l: Listados) {
+  listadosActuales = l;
+  avisar.forEach((f) => f());
+}
+export function alCambiarListados(f: () => void) {
+  avisar.add(f);
+  return () => void avisar.delete(f);
+}
+/** Nombres para elegir (activos). Si `actual` está inactivo, se agrega para no perderlo. */
+export function opcionesDe(lista: ItemListado[], actual?: string | null): string[] {
+  const n = lista.filter((x) => x.activo).map((x) => x.nombre);
+  return actual && !n.includes(actual) ? [...n, actual] : n;
+}
+/** Sin distinción de sexo (no se pide división): según adm.clase.con_division. */
+export const claseSinDivision = (c?: string | null) => {
+  if (!c) return false;
+  const k = listadosActuales.clases.find((x) => x.nombre === c);
+  return k ? !k.conDivision : c.startsWith('Visually Impaired');
+};
+/** Arco que corresponde a la clase (adm.clase.arco), para lo que sigue usando "arco". */
+export const arcoDeClase = (c?: string | null): string | null => listadosActuales.clases.find((x) => x.nombre === c)?.arco ?? null;
 /** Resumen para mostrar: "Recurvo · Hombre · Senior" o "Adaptado · W1 · Mujer". */
 export function resumenArquero(d: Partial<DatosArquero>, conLateralidad = false): string {
   const partes =

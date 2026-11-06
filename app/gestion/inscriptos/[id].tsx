@@ -6,7 +6,8 @@ import { Avatar } from '../../../src/FotoPerfil';
 import { useAuth } from '../../../src/auth';
 import { IconoWhatsApp } from '../../../src/BotonWhatsApp';
 import { Ionicons } from '@expo/vector-icons';
-import { CATEGORIAS, CLASES_ADAPTADAS, claseSinDivision } from '../../../src/types';
+import { claseSinDivision } from '../../../src/types';
+import { useListados } from '../../../src/listados';
 import * as repo from '../../../src/data/repo';
 import { useTema } from '../../../src/theme';
 import type { Inscripcion, Pago, Torneo, Usuario } from '../../../src/types';
@@ -34,6 +35,7 @@ export default function Inscriptos() {
   const router = useRouter();
   const [torneo, setTorneo] = useState<Torneo | null>(null);
   const [filas, setFilas] = useState<Fila[]>([]);
+  const listadosIns = useListados();
   const [errorExcel, setErrorExcel] = useState<string | null>(null);
   const [pagos, setPagos] = useState<Pago[]>([]);
   // Selección múltiple
@@ -59,10 +61,14 @@ export default function Inscriptos() {
   useFocusEffect(cargar);
 
   // Convencional: agrupados por categoría. Adaptado: por clase, después.
+  // (Una categoría o clase que no esté en los listados va al final, para que nadie quede afuera.)
   const conv = filas.filter((f) => f.modalidad !== 'adaptado');
+  const adap = filas.filter((f) => f.modalidad === 'adaptado');
+  const cats = [...listadosIns.categorias.map((c) => c.nombre), ...conv.map((f) => f.categoria)].filter((c, i, a) => a.indexOf(c) === i);
+  const clases = [...listadosIns.clases.map((c) => c.nombre), ...adap.map((f) => f.claseAdaptada ?? '')].filter((c, i, a) => a.indexOf(c) === i);
   const grupos = [
-    ...CATEGORIAS.map((c) => [c as string, conv.filter((f) => f.categoria === c)] as const),
-    ...CLASES_ADAPTADAS.map((c) => [`Adaptado · ${c}`, filas.filter((f) => f.modalidad === 'adaptado' && f.claseAdaptada === c)] as const),
+    ...cats.map((c) => [c, conv.filter((f) => f.categoria === c)] as const),
+    ...clases.map((c) => [`Adaptado · ${c || 'sin clase'}`, adap.filter((f) => (f.claseAdaptada ?? '') === c)] as const),
   ].filter(([, l]) => l.length > 0);
 
   if (!torneo) return <Pantalla><Vacio texto="Cargando…" /></Pantalla>;

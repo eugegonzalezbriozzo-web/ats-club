@@ -17,7 +17,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RECUPERAR_URL, supabase } from './supabase';
 import { armarNombreCompleto } from '../util';
-import { MAX_SOBRE_MI, arcoDeClase } from '../types';
+import { MAX_SOBRE_MI, arcoDeClase, fijarListados, type Listados } from '../types';
 import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
 import { edad, hoyISO } from '../util';
@@ -1782,4 +1782,12 @@ export async function cambiarTipoCuota(clubId: string, usuarioId: string, tipoId
 /** Borra todo y vuelve a los datos de ejemplo (útil para probar). */
 export async function reiniciarDatos() {
   await guardar(semilla());
+}
+
+/** Listados de Supabase (arcos, categorías, clases adaptadas). Si falla, quedan los de base. */
+export async function cargarListados(): Promise<void> {
+  const { data, error } = await supabase.rpc('listados');
+  if (error || !data) return;
+  const l = data as Listados;
+  if (l.arcos?.length && l.categorias?.length) fijarListados({ arcos: l.arcos, categorias: l.categorias, clases: l.clases ?? [] });
 }

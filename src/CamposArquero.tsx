@@ -1,15 +1,6 @@
 import React from 'react';
-import {
-  ARCOS,
-  CATEGORIAS,
-  CLASES_ADAPTADAS,
-  ClaseAdaptada,
-  DIVISIONES,
-  DatosArquero,
-  LATERALIDADES,
-  MODALIDADES,
-  claseSinDivision,
-} from './types';
+import { DIVISIONES, DatosArquero, LATERALIDADES, MODALIDADES, claseSinDivision, opcionesDe } from './types';
+import { useListados } from './listados';
 import { Pildoras, Txt } from './ui';
 
 type Clave = keyof DatosArquero;
@@ -30,6 +21,7 @@ export function CamposArquero({
   nota?: (k: Clave) => string | undefined;
   cambio?: (k: Clave) => boolean;
 }) {
+  const l = useListados();
   const adaptado = d.modalidad === 'adaptado';
   const set = <K extends Clave>(k: K) => (v: DatosArquero[K]) => onChange({ ...d, [k]: v });
   const marca = (k: Clave) => ({ nota: nota?.(k), notaDestacada: cambio?.(k) });
@@ -52,8 +44,8 @@ export function CamposArquero({
         <>
           <Pildoras
             label="Clase"
-            opciones={CLASES_ADAPTADAS}
-            valor={(d.claseAdaptada ?? '') as ClaseAdaptada}
+            opciones={opcionesDe(l.clases, d.claseAdaptada)}
+            valor={d.claseAdaptada ?? ''}
             onChange={(v) => set('claseAdaptada')(v)}
             {...marca('claseAdaptada')}
           />
@@ -66,9 +58,9 @@ export function CamposArquero({
         </>
       ) : (
         <>
-          <Pildoras label="Arco" opciones={ARCOS} valor={d.arco} onChange={set('arco')} {...marca('arco')} />
+          <Pildoras label="Arco" opciones={opcionesDe(l.arcos, d.arco)} valor={d.arco} onChange={set('arco')} {...marca('arco')} />
           <Pildoras label="División" opciones={DIVISIONES} valor={d.division} onChange={set('division')} {...marca('division')} />
-          <Pildoras label="Categoría" opciones={CATEGORIAS} valor={d.categoria} onChange={set('categoria')} {...marca('categoria')} />
+          <Pildoras label="Categoría" opciones={opcionesDe(l.categorias, d.categoria)} valor={d.categoria} onChange={set('categoria')} {...marca('categoria')} />
         </>
       )}
       <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={d.lateralidad} onChange={set('lateralidad')} {...marca('lateralidad')} />

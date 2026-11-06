@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [cargarClub, clubVistaId]);
 
   useEffect(() => {
+    repo.cargarListados().catch(() => {});
     refrescar().finally(() => setCargando(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -8,7 +8,7 @@ import * as repo from '../../src/data/repo';
 import { Avatar } from '../../src/FotoPerfil';
 import { IconoWhatsApp } from '../../src/BotonWhatsApp';
 import { useTema } from '../../src/theme';
-import { ARCOS } from '../../src/types';
+import { useListados } from '../../src/listados';
 import { Grilla, Campo, Chip, etiquetasFunciones, Pantalla, Pildoras, Tarjeta, Txt, Vacio } from '../../src/ui';
 import { FUNCIONES } from '../../src/types';
 
@@ -25,6 +25,7 @@ export default function Arqueros() {
   const [arco, setArco] = useState<string>('Todos');
   const [fed, setFed] = useState<'Todos' | 'Sí' | 'No'>('Todos');
   const [funcion, setFuncion] = useState<string>('Todas');
+  const listadosArq = useListados();
 
   useFocusEffect(
     useCallback(() => {
@@ -46,7 +47,7 @@ export default function Arqueros() {
   const arqueros = todos.filter((u) => u.funciones.includes('arquero'));
   const opciones = [
     'Todos',
-    ...ARCOS.filter((a) => arqueros.some((u) => u.modalidad !== 'adaptado' && u.arco === a)),
+    ...listadosArq.arcos.map((a) => a.nombre).filter((a) => arqueros.some((u) => u.modalidad !== 'adaptado' && u.arco === a)),
     ...(arqueros.some((u) => u.modalidad === 'adaptado') ? ['Adaptado'] : []),
   ];
 
