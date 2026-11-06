@@ -74,7 +74,7 @@ export interface Listados { arcos: ItemListado[]; categorias: CategoriaListado[]
 const activo = (nombre: string) => ({ nombre, activo: true });
 let listadosActuales: Listados = {
   arcos: ['Compuesto', 'Recurvo', 'Raso', 'Tradicional', 'Longbow', 'Cazador'].map(activo),
-  categorias: ['Senior', 'U21', 'U18', 'U15', 'Escuela', '50+', 'E10', 'E20', 'E30', 'E40', 'E50', 'E60'].map((n) => ({
+  categorias: ['Senior', 'U21', 'U18', 'U15', '50+', 'E10', 'E20', 'E30', 'E40', 'E50', 'E60'].map((n) => ({
     ...activo(n),
     modalidad: 'convencional' as const,
   })),
