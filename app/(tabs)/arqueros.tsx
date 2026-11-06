@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Text } from '../../src/texto';
 import { useAuth } from '../../src/auth';
 import * as repo from '../../src/data/repo';
@@ -28,6 +28,7 @@ export default function Arqueros() {
   const [fed, setFed] = useState<'Todos' | 'Sí' | 'No'>('Todos');
   const [funcion, setFuncion] = useState<string>('Todas');
   const listadosArq = useListados();
+  const [verFiltros, setVerFiltros] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -59,6 +60,21 @@ export default function Arqueros() {
   const hayAdaptados = arqueros.some(esAdaptado);
   const opciones = ['Todos', ...listadosArq.arcos.map((a) => a.nombre).filter((a) => arqueros.some((u) => !esAdaptado(u) && u.arco === a))];
   const clases = ['Todas', ...listadosArq.clases.map((c) => c.nombre).filter((c) => arqueros.some((u) => esAdaptado(u) && u.claseAdaptada === c))];
+  // Filtros elegidos (para el resumen cuando están plegados).
+  const activos = [
+    funcion !== 'Todas' ? funcion : null,
+    modalidad !== 'Todos' ? modalidad : null,
+    arco !== 'Todos' ? arco : null,
+    clase !== 'Todas' ? clase : null,
+    fed !== 'Todos' ? (fed === 'Sí' ? 'Federados' : 'No federados') : null,
+  ].filter(Boolean) as string[];
+  const limpiar = () => {
+    setFuncion('Todas');
+    setModalidad('Todos');
+    setArco('Todos');
+    setClase('Todas');
+    setFed('Todos');
+  };
   const cambiarModalidad = (m: typeof modalidad) => {
     setModalidad(m);
     setArco('Todos');
@@ -71,13 +87,33 @@ export default function Arqueros() {
         {todos.length} socio{todos.length === 1 ? '' : 's'} en {club?.nombre}
       </Txt>
       <Campo label="Buscar" value={q} onChangeText={setQ} placeholder="Nombre, apellido o alias" />
-      {funcionesUsadas.length > 1 ? <Pildoras label="Función" opciones={['Todas', ...funcionesUsadas]} valor={funcion} onChange={setFuncion} /> : null}
-      {hayAdaptados ? (
+      {/* Filtros plegados por defecto: un renglón con el resumen. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: verFiltros }}
+          onPress={() => setVerFiltros((v) => !v)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999,
+            borderWidth: 1, borderColor: activos.length ? t.accent : t.border, backgroundColor: t.surface }}
+        >
+          <Ionicons name="options-outline" size={17} color={activos.length ? t.accent : t.text} />
+          <Text style={{ color: activos.length ? t.accent : t.text, fontWeight: '700', fontSize: 14 }}>
+            Filtros{activos.length ? ` (${activos.length})` : ''}
+          </Text>
+          <Ionicons name={verFiltros ? 'chevron-up' : 'chevron-down'} size={15} color={t.muted} />
+        </Pressable>
+        {!verFiltros && activos.length ? <Txt muted style={{ fontSize: 13, flexShrink: 1 }}>{activos.join(' · ')}</Txt> : null}
+        {activos.length ? (
+          <Text accessibilityRole="button" onPress={limpiar} style={{ color: t.accent, fontWeight: '700', fontSize: 13 }}>Limpiar</Text>
+        ) : null}
+      </View>
+      {verFiltros && funcionesUsadas.length > 1 ? <Pildoras label="Función" opciones={['Todas', ...funcionesUsadas]} valor={funcion} onChange={setFuncion} /> : null}
+      {verFiltros && hayAdaptados ? (
         <Pildoras label="Modalidad" opciones={['Todos', 'Convencional', 'Adaptado'] as const} valor={modalidad} onChange={cambiarModalidad} />
       ) : null}
-      {modalidad !== 'Adaptado' && opciones.length > 2 ? <Pildoras label="Arco" opciones={opciones} valor={arco} onChange={setArco} /> : null}
-      {modalidad === 'Adaptado' && clases.length > 2 ? <Pildoras label="Clase" opciones={clases} valor={clase} onChange={setClase} /> : null}
-      <Pildoras label="Federado" opciones={['Todos', 'Sí', 'No'] as const} valor={fed} onChange={setFed} />
+      {verFiltros && modalidad !== 'Adaptado' && opciones.length > 2 ? <Pildoras label="Arco" opciones={opciones} valor={arco} onChange={setArco} /> : null}
+      {verFiltros && modalidad === 'Adaptado' && clases.length > 2 ? <Pildoras label="Clase" opciones={clases} valor={clase} onChange={setClase} /> : null}
+      {verFiltros ? <Pildoras label="Federado" opciones={['Todos', 'Sí', 'No'] as const} valor={fed} onChange={setFed} /> : null}
       {lista.length === 0 ? (
         <Vacio texto={todos.length ? 'Nadie coincide con la búsqueda.' : 'Todavía no hay socios aprobados.'} />
       ) : (
