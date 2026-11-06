@@ -2,11 +2,12 @@ import { Link } from 'expo-router';
 import React, { useState } from 'react';
 import { useTema } from '../src/theme';
 import { useAuth } from '../src/auth';
-import { ARCOS, Arco, CATEGORIAS, Categoria, DIVISIONES, Division, LATERALIDADES, Lateralidad } from '../src/types';
+import { ARCOS, Arco, CATEGORIAS, Categoria, DIVISIONES, Division, Funcion, LATERALIDADES, Lateralidad } from '../src/types';
+import { CampoFecha } from '../src/CampoFecha';
 import { FotoPerfil } from '../src/FotoPerfil';
-import { armarNombreCompleto } from '../src/util';
+import { armarNombreCompleto, edad, hoyISO } from '../src/util';
 import { View } from 'react-native';
-import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, LogoClub, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../src/ui';
+import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, LogoClub, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../src/ui';
 
 export default function Registro() {
   const { registrar, clubDelLink } = useAuth();
@@ -29,6 +30,8 @@ export default function Registro() {
   const [categoria, setCategoria] = useState<Categoria>('Senior');
   const [lateralidad, setLateralidad] = useState<Lateralidad>('Derecho');
   const [federado, setFederado] = useState(false);
+  const [funciones, setFunciones] = useState<Funcion[]>(['arquero']);
+  const [nacimiento, setNacimiento] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -40,7 +43,7 @@ export default function Registro() {
     if (pass !== pass2) return setError('Las contraseñas no coinciden.');
     setEnviando(true);
     try {
-      const confirmar = await registrar({ nombre, apellido, alias, foto, dni, telefono, ciudad, localidad, direccion, email, password: pass, arco, division, categoria, lateralidad, federado });
+      const confirmar = await registrar({ nombre, apellido, alias, foto, dni, telefono, ciudad, localidad, direccion, email, password: pass, arco, division, categoria, lateralidad, federado, funciones, nacimiento });
       if (confirmar) setRevisaMail(email.trim().toLowerCase());
     } catch (e) {
       setError((e as Error).message);
@@ -83,6 +86,8 @@ export default function Registro() {
       <CampoCalculado label="Nombre completo" valor={armarNombreCompleto(nombre, apellido)} vacio="Se completa con nombre y apellido" ayuda="Se arma solo con los dos campos de arriba." />
       <Campo label="Alias (opcional)" value={alias} onChangeText={setAlias} placeholder="Cómo te dicen en el club" autoComplete="nickname" />
       <Campo label="DNI" value={dni} onChangeText={setDni} keyboardType="number-pad" />
+      <CampoFecha label="Fecha de nacimiento (opcional)" valor={nacimiento} onChange={setNacimiento} min="1900-01-01" max={hoyISO()} opcional
+        ayuda={edad(nacimiento) !== null ? `Edad: ${edad(nacimiento)} años · La ven solo vos y los admins del club.` : 'La ven solo vos y los admins del club.'} />
       <Campo label="WhatsApp (opcional)" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
       <Campo label="Ciudad (opcional)" value={ciudad} onChangeText={setCiudad} autoComplete="postal-address-locality" />
       <Campo label="Localidad (opcional)" value={localidad} onChangeText={setLocalidad} />
@@ -91,13 +96,19 @@ export default function Registro() {
       <Campo label="Contraseña" value={pass} onChangeText={setPass} secureTextEntry />
       <Campo label="Repetir contraseña" value={pass2} onChangeText={setPass2} secureTextEntry />
 
-      <Titulo style={{ marginTop: 8 }}>Datos de arquero</Titulo>
-      <Txt muted>Se usan por defecto al inscribirte a torneos. Podés cambiarlos después.</Txt>
-      <Pildoras label="Arco" opciones={ARCOS} valor={arco} onChange={setArco} />
-      <Pildoras label="División" opciones={DIVISIONES} valor={division} onChange={setDivision} />
-      <Pildoras label="Categoría" opciones={CATEGORIAS} valor={categoria} onChange={setCategoria} />
-      <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={lateralidad} onChange={setLateralidad} />
-      <CampoFederado valor={federado} onChange={setFederado} />
+      <Titulo style={{ marginTop: 8 }}>En el club</Titulo>
+      <CampoFunciones valor={funciones} onChange={setFunciones} />
+      {funciones.includes('arquero') ? (
+        <>
+          <Titulo style={{ marginTop: 8 }}>Datos de arquero</Titulo>
+          <Txt muted>Se usan por defecto al inscribirte a torneos. Podés cambiarlos después.</Txt>
+          <Pildoras label="Arco" opciones={ARCOS} valor={arco} onChange={setArco} />
+          <Pildoras label="División" opciones={DIVISIONES} valor={division} onChange={setDivision} />
+          <Pildoras label="Categoría" opciones={CATEGORIAS} valor={categoria} onChange={setCategoria} />
+          <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={lateralidad} onChange={setLateralidad} />
+          <CampoFederado valor={federado} onChange={setFederado} />
+        </>
+      ) : null}
       <Txt muted style={{ fontSize: 13 }}>
         Al enviar la solicitud aceptás la{' '}
         <Link href="/privacidad" style={{ color: t.accent, fontWeight: '700' }}>Política de privacidad</Link>: tus datos los ven los socios y los admins de tu club.

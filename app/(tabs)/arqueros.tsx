@@ -9,11 +9,12 @@ import { Avatar } from '../../src/FotoPerfil';
 import { IconoWhatsApp } from '../../src/BotonWhatsApp';
 import { useTema } from '../../src/theme';
 import { ARCOS } from '../../src/types';
-import { Grilla, Campo, Chip, Pantalla, Pildoras, Tarjeta, Txt, Vacio } from '../../src/ui';
+import { Grilla, Campo, Chip, etiquetasFunciones, Pantalla, Pildoras, Tarjeta, Txt, Vacio } from '../../src/ui';
+import { FUNCIONES } from '../../src/types';
 
 /**
- * Arqueros aprobados del club. Cualquier socio ve nombre, alias, foto, datos de
- * arquero y el logo de WhatsApp (si cargó número); el admin ve además el email.
+ * Socios aprobados del club (arqueros, jueces, entrenadores, tutores). Cualquier socio ve nombre, alias,
+ * foto, funciones, datos de arquero y el logo de WhatsApp (si cargó número); el admin ve además el email.
  */
 export default function Arqueros() {
   const { t } = useTema();
@@ -23,6 +24,7 @@ export default function Arqueros() {
   const [q, setQ] = useState('');
   const [arco, setArco] = useState<string>('Todos');
   const [fed, setFed] = useState<'Todos' | 'Sí' | 'No'>('Todos');
+  const [funcion, setFuncion] = useState<string>('Todas');
 
   useFocusEffect(
     useCallback(() => {
@@ -32,20 +34,27 @@ export default function Arqueros() {
 
   const texto = q.trim().toLowerCase();
   const lista = todos.filter(
-    (u) => (arco === 'Todos' || u.arco === arco) && (fed === 'Todos' || u.federado === (fed === 'Sí')) && (!texto || `${u.nombre} ${u.apellido} ${u.alias}`.toLowerCase().includes(texto)),
+    (u) =>
+      (funcion === 'Todas' || u.funciones.includes(FUNCIONES.find((f) => f.nombre === funcion)!.id)) &&
+      (arco === 'Todos' || (u.funciones.includes('arquero') && u.arco === arco)) &&
+      (fed === 'Todos' || (u.funciones.includes('arquero') && u.federado === (fed === 'Sí'))) &&
+      (!texto || `${u.nombre} ${u.apellido} ${u.alias}`.toLowerCase().includes(texto)),
   );
+  // Solo las funciones que alguien del club tiene (si son todos arqueros, no hace falta el filtro).
+  const funcionesUsadas = FUNCIONES.filter((f) => todos.some((u) => u.funciones.includes(f.id))).map((f) => f.nombre);
   const opciones = ['Todos', ...ARCOS.filter((a) => todos.some((u) => u.arco === a))];
 
   return (
     <Pantalla amplia>
       <Txt muted>
-        {todos.length} arquero{todos.length === 1 ? '' : 's'} en {club?.nombre}
+        {todos.length} socio{todos.length === 1 ? '' : 's'} en {club?.nombre}
       </Txt>
       <Campo label="Buscar" value={q} onChangeText={setQ} placeholder="Nombre, apellido o alias" />
+      {funcionesUsadas.length > 1 ? <Pildoras label="Función" opciones={['Todas', ...funcionesUsadas]} valor={funcion} onChange={setFuncion} /> : null}
       {opciones.length > 2 ? <Pildoras label="Arco" opciones={opciones} valor={arco} onChange={setArco} /> : null}
       <Pildoras label="Federado" opciones={['Todos', 'Sí', 'No'] as const} valor={fed} onChange={setFed} />
       {lista.length === 0 ? (
-        <Vacio texto={todos.length ? 'Ningún arquero coincide con la búsqueda.' : 'Todavía no hay arqueros aprobados.'} />
+        <Vacio texto={todos.length ? 'Nadie coincide con la búsqueda.' : 'Todavía no hay socios aprobados.'} />
       ) : (
         <Grilla>
           {lista.map((u) => (
@@ -65,8 +74,9 @@ export default function Arqueros() {
                 <Ionicons name="chevron-forward" size={20} color={t.muted} />
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                <Chip texto={u.arco} relleno />
-                {u.federado ? <Chip texto="Federado" relleno /> : null}
+                {u.funciones.includes('arquero') ? <Chip texto={u.arco} relleno /> : null}
+                {etiquetasFunciones(u.funciones).map((f) => <Chip key={f} texto={f} relleno />)}
+                {u.funciones.includes('arquero') && u.federado ? <Chip texto="Federado" relleno /> : null}
               </View>
               {u.sobreMi ? <Txt style={{ fontSize: 14, lineHeight: 20 }} numberOfLines={3}>{u.sobreMi}</Txt> : null}
               {esAdmin && u.email ? <Txt muted style={{ fontSize: 13 }}>{u.email}</Txt> : null}

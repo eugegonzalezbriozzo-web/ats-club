@@ -9,9 +9,10 @@ import { pedirBaja } from '../../src/baja';
 import * as repo from '../../src/data/repo';
 import { Etiqueta } from '../../src/Pagos';
 import { useTema } from '../../src/theme';
+import { FUNCIONES } from '../../src/types';
 import type { ConfigPagos, Pago, Usuario } from '../../src/types';
 import { Grilla, Aviso, Boton, MensajeError, Pantalla, Tarjeta, Titulo, Txt, Vacio } from '../../src/ui';
-import { confirmar, fechaCorta, plata } from '../../src/util';
+import { confirmar, edad, fechaCorta, plata } from '../../src/util';
 
 /** Admin: cuentas nuevas para aprobar y pedidos de baja de socios. */
 export default function Solicitudes() {
@@ -122,8 +123,14 @@ export default function Solicitudes() {
                 <Txt muted style={{ fontSize: 13 }}>{[u.direccion, u.localidad, u.ciudad].filter(Boolean).join(', ')}</Txt>
               ) : null}
               <Txt muted style={{ fontSize: 13 }}>
-                {u.arco} · {u.division} · {u.categoria} · {u.federado ? 'Federado' : 'No federado'}
+                {FUNCIONES.filter((f) => u.funciones.includes(f.id)).map((f) => f.nombre).join(' · ')}
+                {edad(u.nacimiento) !== null ? ` · ${edad(u.nacimiento)} años` : ''}
               </Txt>
+              {u.funciones.includes('arquero') ? (
+                <Txt muted style={{ fontSize: 13 }}>
+                  {u.arco} · {u.division} · {u.categoria} · {u.federado ? 'Federado' : 'No federado'}
+                </Txt>
+              ) : null}
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <View style={{ flex: 1 }}>
                   <Boton titulo="Rechazar" variante="secundario" onPress={() => resolver(u, 'rechazado')} />

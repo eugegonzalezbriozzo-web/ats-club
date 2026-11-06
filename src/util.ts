@@ -99,3 +99,12 @@ export function fechasTorneo(t: { fecha: string; fechaFin?: string }) {
   if (y1 === y2) return `${d1}/${m1} al ${d2}/${m2}/${y2}`;
   return `${fechaCorta(t.fecha)} al ${fechaCorta(fin)}`;
 }
+
+/** Edad en años cumplidos a una fecha (hoy por defecto). null si no hay fecha de nacimiento. */
+export function edad(nacimiento?: string | null, al?: string): number | null {
+  if (!nacimiento || !/^\d{4}-\d{2}-\d{2}$/.test(nacimiento)) return null;
+  const h = al ?? hoyISO();
+  let e = Number(h.slice(0, 4)) - Number(nacimiento.slice(0, 4));
+  if (h.slice(5) < nacimiento.slice(5)) e--;
+  return e >= 0 ? e : null;
+}

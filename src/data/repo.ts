@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RECUPERAR_URL, supabase } from './supabase';
 import { armarNombreCompleto } from '../util';
 import { MAX_SOBRE_MI } from '../types';
-import type { ArchivoPdf, Audiencia, Club, DatosArquero, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
+import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
 import { hoyISO } from '../util';
 import { MAX_TIT_NOTICIA, MAX_TXT_NOTICIA } from '../types';
@@ -222,6 +222,8 @@ function usuarioDe(db: Db, id: string): Usuario | undefined {
 type FilaPerfil = Record<string, any>;
 type FilaMembresia = { club_id: string; rol: Rol; estado: Usuario['estado']; creado_el: string; tipo_cuota_id?: string | null; baja_pedida_el?: string | null; baja_motivo?: string; baja_borrar?: boolean } | null;
 
+const aFunciones = (f: unknown): Funcion[] => (Array.isArray(f) && f.length ? (f as Funcion[]) : ['arquero']);
+
 /** Fila de Supabase (perfil + membresía) → Usuario de la app. */
 function aUsuario(p: FilaPerfil, m: FilaMembresia): Usuario {
   return recordar({
@@ -229,6 +231,7 @@ function aUsuario(p: FilaPerfil, m: FilaMembresia): Usuario {
     nombre: p.nombre ?? '', apellido: p.apellido ?? '', nombreCompleto: p.nombre_completo || armarNombreCompleto(p.nombre ?? '', p.apellido ?? ''),
     alias: p.alias ?? '', sobreMi: p.sobre_mi ?? '', foto: p.foto_url ?? '', dni: p.dni ?? '', telefono: p.telefono ?? '',
     ciudad: p.ciudad ?? '', localidad: p.localidad ?? '', direccion: p.direccion ?? '', federado: !!p.federado,
+    funciones: aFunciones(p.funciones), nacimiento: p.nacimiento ?? undefined,
     instagram: p.instagram ?? '', facebook: p.facebook ?? '', tiktok: p.tiktok ?? '',
     tipoCuota: m?.tipo_cuota_id ?? undefined,
     rol: m?.rol ?? 'usuario', estado: m?.estado ?? 'pendiente', creadoEl: m?.creado_el ?? p.creado_el,
@@ -465,6 +468,8 @@ export async function logout() {
 
 export interface DatosRegistro extends DatosArquero {
   federado?: boolean;
+  funciones: Funcion[];
+  nacimiento?: string;
   email: string;
   password: string;
   nombre: string;
@@ -485,6 +490,8 @@ export interface DatosRegistro extends DatosArquero {
  */
 export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario | null> {
   if (d.password.length < 6) throw new ErrorApp('La contraseña tiene que tener al menos 6 caracteres.');
+  if (!d.funciones.length) throw new ErrorApp('Elegí al menos una función en el club.');
+  if (d.nacimiento && (d.nacimiento > hoyISO() || d.nacimiento < '1900-01-01')) throw new ErrorApp('Revisá la fecha de nacimiento.');
   const { data, error } = await supabase.auth.signUp({
     email: d.email.trim().toLowerCase(),
     password: d.password,
@@ -502,6 +509,7 @@ export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario |
   if (data.user && (data.user.identities ?? []).length === 0) throw new ErrorApp('Ya existe una cuenta con ese email. Probá ingresar o usá otro email.');
   if (!data.session || !data.user) return null;
   mandarBienvenida(data.session.access_token);
+  await supabase.from('perfiles').update({ funciones: d.funciones.length ? d.funciones : ['arquero'], nacimiento: d.nacimiento || null }).eq('id', data.user.id);
   if (d.foto) {
     try {
       const foto = d.foto.startsWith('data:') ? await subirFoto(data.user.id, d.foto) : d.foto;
@@ -583,11 +591,12 @@ async function subirLogo(clubId: string, dataUri: string): Promise<string> {
 
 /* ================= Perfil ================= */
 
-export type CambiosPerfil = Partial<Pick<Usuario, 'nombre' | 'apellido' | 'alias' | 'sobreMi' | 'foto' | 'dni' | 'telefono' | 'ciudad' | 'localidad' | 'direccion' | 'federado' | 'instagram' | 'facebook' | 'tiktok' | 'arco' | 'division' | 'categoria' | 'lateralidad'>>;
+export type CambiosPerfil = Partial<Pick<Usuario, 'nombre' | 'apellido' | 'alias' | 'sobreMi' | 'foto' | 'dni' | 'telefono' | 'ciudad' | 'localidad' | 'direccion' | 'federado' | 'instagram' | 'facebook' | 'tiktok' | 'arco' | 'division' | 'categoria' | 'lateralidad' | 'funciones' | 'nacimiento'>>;
 const COLUMNA: Record<keyof CambiosPerfil, string> = {
   nombre: 'nombre', apellido: 'apellido', alias: 'alias', sobreMi: 'sobre_mi', foto: 'foto_url', dni: 'dni', telefono: 'telefono',
   ciudad: 'ciudad', localidad: 'localidad', direccion: 'direccion', federado: 'federado', arco: 'arco', division: 'division',
   categoria: 'categoria', lateralidad: 'lateralidad', instagram: 'instagram', facebook: 'facebook', tiktok: 'tiktok',
+  funciones: 'funciones', nacimiento: 'nacimiento',
 };
 
 /**
@@ -597,6 +606,11 @@ const COLUMNA: Record<keyof CambiosPerfil, string> = {
 export async function actualizarPerfil(usuarioId: string, cambios: CambiosPerfil): Promise<Usuario> {
   if (cambios.foto?.startsWith('data:')) cambios = { ...cambios, foto: await subirFoto(usuarioId, cambios.foto) };
   else if (cambios.foto === '') await borrarFoto(usuarioId);
+  if (cambios.funciones && !cambios.funciones.length) throw new ErrorApp('Elegí al menos una función en el club.');
+  if (cambios.nacimiento !== undefined) {
+    if (cambios.nacimiento && (cambios.nacimiento > hoyISO() || cambios.nacimiento < '1900-01-01')) throw new ErrorApp('Revisá la fecha de nacimiento.');
+    cambios = { ...cambios, nacimiento: cambios.nacimiento || (null as unknown as undefined) };
+  }
   const fila: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(cambios)) {
     if (v === undefined) continue;
@@ -806,6 +820,7 @@ export interface ArqueroPublico extends DatosArquero {
   tiktok: string;
   /** Solo para el admin del club. */
   email?: string;
+  funciones: Funcion[];
 }
 
 /** Admin del club: marca a un socio como federado o no (define qué publicaciones ve). */
@@ -814,10 +829,19 @@ export async function cambiarFederado(_clubId: string, usuarioId: string, federa
   if (error) fallo(error, 'No se pudo cambiar el dato.');
 }
 
+/** Admin del club: corrige las funciones de un socio (Arquero/a, Juez/a, Entrenador/a, Tutor/a). */
+export async function cambiarFunciones(usuarioId: string, funciones: Funcion[]) {
+  if (!funciones.length) throw new ErrorApp('Elegí al menos una función.');
+  const { error } = await supabase.rpc('cambiar_funciones', { p_usuario: usuarioId, p_funciones: funciones });
+  if (error) fallo(error, 'No se pudo cambiar el dato.');
+  const u = usuariosConocidos.get(usuarioId);
+  if (u) u.funciones = funciones;
+}
+
 export interface PerfilArquero {
   arquero: ArqueroPublico;
   /** Solo para el admin del club. */
-  privado?: { email: string; telefono: string; dni: string; direccion: string; tipoCuota?: string };
+  privado?: { email: string; telefono: string; dni: string; direccion: string; tipoCuota?: string; nacimiento?: string };
   inscripciones?: { inscripcion: Inscripcion; torneo: Torneo }[];
 }
 
@@ -825,7 +849,7 @@ const aPublico = (u: Usuario, conContacto: boolean): ArqueroPublico => ({
   id: u.id, nombre: u.nombre, apellido: u.apellido, nombreCompleto: u.nombreCompleto, alias: u.alias ?? '', sobreMi: u.sobreMi ?? '', foto: u.foto ?? '',
   esAdmin: u.rol === 'admin', arco: u.arco, division: u.division, categoria: u.categoria, lateralidad: u.lateralidad,
   federado: !!u.federado, ciudad: u.ciudad ?? '', localidad: u.localidad ?? '', desde: u.creadoEl, telefono: u.telefono ?? '',
-  instagram: u.instagram ?? '', facebook: u.facebook ?? '', tiktok: u.tiktok ?? '',
+  instagram: u.instagram ?? '', facebook: u.facebook ?? '', tiktok: u.tiktok ?? '', funciones: u.funciones,
   ...(conContacto ? { email: u.email } : {}),
 });
 
@@ -841,7 +865,7 @@ export async function perfilArquero(clubId: string, id: string, esAdmin: boolean
     .filter((i) => i.clubId === clubId)
     .map(({ torneo, ...inscripcion }) => ({ inscripcion, torneo }))
     .sort((a, b) => b.torneo.fecha.localeCompare(a.torneo.fecha));
-  return { arquero: aPublico(u, true), privado: { email: u.email, telefono: u.telefono ?? '', dni: u.dni ?? '', direccion: u.direccion ?? '', tipoCuota: u.tipoCuota }, inscripciones };
+  return { arquero: aPublico(u, true), privado: { email: u.email, telefono: u.telefono ?? '', dni: u.dni ?? '', direccion: u.direccion ?? '', tipoCuota: u.tipoCuota, nacimiento: u.nacimiento }, inscripciones };
 }
 
 /**
@@ -857,14 +881,14 @@ export async function listarArqueros(clubId: string, conContacto: boolean): Prom
     recordar({
       id: a.id, clubId, esSuperadmin: false, email: '', nombre: a.nombre, apellido: a.apellido, nombreCompleto: a.nombre_completo,
       alias: a.alias, sobreMi: a.sobre_mi, foto: a.foto_url ?? '', dni: '', telefono: a.telefono, ciudad: a.ciudad, localidad: a.localidad,
-      direccion: '', federado: a.federado, rol: a.es_admin ? 'admin' : 'usuario', estado: 'aprobado', creadoEl: a.desde,
+      direccion: '', federado: a.federado, funciones: aFunciones(a.funciones), rol: a.es_admin ? 'admin' : 'usuario', estado: 'aprobado', creadoEl: a.desde,
       arco: a.arco, division: a.division, categoria: a.categoria, lateralidad: a.lateralidad,
     });
     return {
       id: a.id, nombre: a.nombre, apellido: a.apellido, nombreCompleto: a.nombre_completo, alias: a.alias ?? '', sobreMi: a.sobre_mi ?? '',
       foto: a.foto_url ?? '', esAdmin: !!a.es_admin, arco: a.arco, division: a.division, categoria: a.categoria, lateralidad: a.lateralidad,
       federado: !!a.federado, ciudad: a.ciudad ?? '', localidad: a.localidad ?? '', desde: a.desde, telefono: a.telefono ?? '',
-      instagram: a.instagram ?? '', facebook: a.facebook ?? '', tiktok: a.tiktok ?? '',
+      instagram: a.instagram ?? '', facebook: a.facebook ?? '', tiktok: a.tiktok ?? '', funciones: aFunciones(a.funciones),
     };
   });
 }

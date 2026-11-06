@@ -8,8 +8,8 @@ import * as repo from '../../src/data/repo';
 import { Avatar } from '../../src/FotoPerfil';
 import { fechaNoticia } from '../../src/Noticias';
 import { useTema } from '../../src/theme';
-import { Boton, CampoFederado, Chip, FilaDato, Pantalla, Pildoras, Tarjeta, Titulo, Txt, Vacio } from '../../src/ui';
-import { fechaCorta, plata, fechasTorneo } from '../../src/util';
+import { Boton, CampoFederado, CampoFunciones, Chip, etiquetasFunciones, FilaDato, Pantalla, Pildoras, Tarjeta, Titulo, Txt, Vacio } from '../../src/ui';
+import { edad, fechaCorta, plata, fechasTorneo } from '../../src/util';
 import { pedirBaja } from '../../src/baja';
 import { Redes } from '../../src/ContactoClub';
 import type { ConfigPagos, Pago } from '../../src/types';
@@ -54,7 +54,8 @@ export default function PerfilArquero() {
         {a.alias ? <Txt muted>{a.nombreCompleto}</Txt> : null}
         <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
           {a.esAdmin ? <Chip texto="Admin del club" relleno /> : null}
-          <Chip texto={a.federado ? 'Federado' : 'No federado'} relleno={a.federado} />
+          {etiquetasFunciones(a.funciones).map((f) => <Chip key={f} texto={f} relleno />)}
+          {a.funciones.includes('arquero') ? <Chip texto={a.federado ? 'Federado' : 'No federado'} relleno={a.federado} /> : null}
         </View>
         {a.telefono && !yo ? <BotonWhatsApp tel={a.telefono} nombre={a.alias || a.nombre} /> : null}
         <Redes de={a} centrado />
@@ -67,14 +68,16 @@ export default function PerfilArquero() {
         </Tarjeta>
       ) : null}
 
-      <Tarjeta>
-        <Seccion>Datos de arquero</Seccion>
-        <FilaDato k="Arco" v={a.arco} />
-        <FilaDato k="División" v={a.division} />
-        <FilaDato k="Categoría" v={a.categoria} />
-        <FilaDato k="Lateralidad" v={a.lateralidad} />
-        <FilaDato k="Federado" v={a.federado ? 'Sí' : 'No'} ultima />
-      </Tarjeta>
+      {a.funciones.includes('arquero') ? (
+        <Tarjeta>
+          <Seccion>Datos de arquero</Seccion>
+          <FilaDato k="Arco" v={a.arco} />
+          <FilaDato k="División" v={a.division} />
+          <FilaDato k="Categoría" v={a.categoria} />
+          <FilaDato k="Lateralidad" v={a.lateralidad} />
+          <FilaDato k="Federado" v={a.federado ? 'Sí' : 'No'} ultima />
+        </Tarjeta>
+      ) : null}
 
       <Tarjeta>
         <Seccion>Club</Seccion>
@@ -89,6 +92,7 @@ export default function PerfilArquero() {
           <FilaDato k="Email" v={p.privado.email} />
           {p.privado.telefono ? <FilaDato k="WhatsApp" v={p.privado.telefono} /> : null}
           {p.privado.dni ? <FilaDato k="DNI" v={p.privado.dni} /> : null}
+          {p.privado.nacimiento ? <FilaDato k="Nacimiento" v={`${fechaCorta(p.privado.nacimiento)} · ${edad(p.privado.nacimiento)} años`} /> : null}
           {p.privado.direccion ? <FilaDato k="Dirección" v={p.privado.direccion} ultima /> : null}
           <View style={{ borderTopWidth: 1, borderTopColor: t.border, paddingTop: 10, gap: 6 }}>
             <CampoFederado
@@ -100,6 +104,20 @@ export default function PerfilArquero() {
               }}
             />
             <Txt muted style={{ fontSize: 13 }}>Define qué publicaciones ve (las de federados o las de no federados).</Txt>
+          </View>
+          <View style={{ borderTopWidth: 1, borderTopColor: t.border, paddingTop: 10, gap: 6 }}>
+            <CampoFunciones
+              valor={a.funciones}
+              onChange={async (v) => {
+                setError(null);
+                try {
+                  await repo.cambiarFunciones(a.id, v);
+                  cargar();
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            />
           </View>
           {(() => {
             const ec = cfg ? repo.estadoCuota(cfg, { id: a.id, creadoEl: a.desde, tipoCuota: p.privado?.tipoCuota }, pagos) : null;

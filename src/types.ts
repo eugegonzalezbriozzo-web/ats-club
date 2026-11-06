@@ -52,6 +52,15 @@ export interface DatosArquero {
   lateralidad: Lateralidad;
 }
 
+/** Funciones en el club (un socio puede tener varias). No son permisos: eso es `rol`. */
+export type Funcion = 'arquero' | 'juez' | 'entrenador' | 'tutor';
+export const FUNCIONES: { id: Funcion; nombre: string }[] = [
+  { id: 'arquero', nombre: 'Arquero/a' },
+  { id: 'juez', nombre: 'Juez/a' },
+  { id: 'entrenador', nombre: 'Entrenador/a' },
+  { id: 'tutor', nombre: 'Tutor/a' },
+];
+
 export interface Usuario extends DatosArquero {
   id: string;
   /** Club al que pertenece. null solo para el dueño de la plataforma. */
@@ -75,6 +84,10 @@ export interface Usuario extends DatosArquero {
   direccion: string; // opcional
   /** ¿Es arquero federado? (Sí/No). Lo ven los socios del club. */
   federado?: boolean;
+  /** Qué hace en el club (Arquero/a, Juez/a, Entrenador/a, Tutor/a). Lo ven los socios del club. */
+  funciones: Funcion[];
+  /** Fecha de nacimiento (YYYY-MM-DD), opcional. La ven solo el socio y los admins; la app calcula la edad. */
+  nacimiento?: string;
   /** Redes del arquero (usuario o link, opcionales). Las ven los socios del club. */
   instagram?: string;
   facebook?: string;

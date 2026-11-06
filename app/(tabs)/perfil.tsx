@@ -2,10 +2,11 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../src/auth';
 import * as repo from '../../src/data/repo';
-import { ARCOS, Arco, CATEGORIAS, MAX_SOBRE_MI, Categoria, DIVISIONES, Division, LATERALIDADES, Lateralidad } from '../../src/types';
-import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
+import { ARCOS, Arco, CATEGORIAS, MAX_SOBRE_MI, Categoria, DIVISIONES, Division, Funcion, LATERALIDADES, Lateralidad } from '../../src/types';
+import { CampoFecha } from '../../src/CampoFecha';
+import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
 import { FotoPerfil } from '../../src/FotoPerfil';
-import { armarNombreCompleto, confirmar } from '../../src/util';
+import { armarNombreCompleto, confirmar, edad, hoyISO } from '../../src/util';
 
 const NOMBRE_ROL = { usuario: 'Usuario', admin: 'Admin' } as const;
 
@@ -27,6 +28,8 @@ export default function Perfil() {
   const [categoria, setCategoria] = useState<Categoria>('Senior');
   const [lateralidad, setLateralidad] = useState<Lateralidad>('Derecho');
   const [federado, setFederado] = useState(false);
+  const [funciones, setFunciones] = useState<Funcion[]>(['arquero']);
+  const [nacimiento, setNacimiento] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [guardado, setGuardado] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -48,6 +51,8 @@ export default function Perfil() {
     setCategoria(usuario.categoria);
     setLateralidad(usuario.lateralidad);
     setFederado(!!usuario.federado);
+    setFunciones(usuario.funciones?.length ? usuario.funciones : ['arquero']);
+    setNacimiento(usuario.nacimiento ?? '');
   }, [usuario]);
 
   if (!usuario) return null;
@@ -58,7 +63,7 @@ export default function Perfil() {
     if (!nombre.trim() || !apellido.trim()) return setError('Nombre y apellido son obligatorios.');
     setEnviando(true);
     try {
-      await repo.actualizarPerfil(usuario.id, { nombre: nombre.trim(), apellido: apellido.trim(), alias: alias.trim(), dni: dni.trim(), telefono: telefono.trim(), ciudad: ciudad.trim(), localidad: localidad.trim(), direccion: direccion.trim(), sobreMi: sobreMi.trim(), instagram: redes.instagram.trim(), facebook: redes.facebook.trim(), tiktok: redes.tiktok.trim(), federado, arco, division, categoria, lateralidad });
+      await repo.actualizarPerfil(usuario.id, { nombre: nombre.trim(), apellido: apellido.trim(), alias: alias.trim(), dni: dni.trim(), telefono: telefono.trim(), ciudad: ciudad.trim(), localidad: localidad.trim(), direccion: direccion.trim(), sobreMi: sobreMi.trim(), instagram: redes.instagram.trim(), facebook: redes.facebook.trim(), tiktok: redes.tiktok.trim(), federado, arco, division, categoria, lateralidad, funciones, nacimiento });
       await refrescar();
       setGuardado(true);
     } catch (e) {
@@ -88,6 +93,8 @@ export default function Perfil() {
       <CampoCalculado label="Nombre completo" valor={armarNombreCompleto(nombre, apellido)} vacio="Se completa con nombre y apellido" ayuda="Se arma solo con los dos campos de arriba." />
       <Campo label="Alias (opcional)" value={alias} onChangeText={setAlias} placeholder="Cómo te dicen en el club" autoComplete="nickname" />
       <Campo label="DNI" value={dni} onChangeText={setDni} keyboardType="number-pad" />
+      <CampoFecha label="Fecha de nacimiento (opcional)" valor={nacimiento} onChange={setNacimiento} min="1900-01-01" max={hoyISO()} opcional
+        ayuda={edad(nacimiento) !== null ? `Edad: ${edad(nacimiento)} años · La ven solo vos y los admins del club.` : 'La ven solo vos y los admins del club.'} />
       <Campo label="WhatsApp (opcional)" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
       <Campo label="Ciudad (opcional)" value={ciudad} onChangeText={setCiudad} autoComplete="postal-address-locality" />
       <Campo label="Localidad (opcional)" value={localidad} onChangeText={setLocalidad} />
@@ -106,13 +113,19 @@ export default function Perfil() {
       <Campo label="TikTok (opcional)" value={redes.tiktok} onChangeText={(v) => setRedes((r) => ({ ...r, tiktok: v }))} placeholder="@usuario o el link" autoCapitalize="none" />
       <Txt muted style={{ fontSize: 12 }}>Tus redes las ven los socios de tu club en tu perfil.</Txt>
 
-      <Titulo style={{ marginTop: 8 }}>Datos de arquero</Titulo>
-      <Txt muted>Se cargan por defecto cada vez que te inscribís a un torneo.</Txt>
-      <Pildoras label="Arco" opciones={ARCOS} valor={arco} onChange={setArco} />
-      <Pildoras label="División" opciones={DIVISIONES} valor={division} onChange={setDivision} />
-      <Pildoras label="Categoría" opciones={CATEGORIAS} valor={categoria} onChange={setCategoria} />
-      <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={lateralidad} onChange={setLateralidad} />
-      <CampoFederado valor={federado} onChange={setFederado} />
+      <Titulo style={{ marginTop: 8 }}>En el club</Titulo>
+      <CampoFunciones valor={funciones} onChange={setFunciones} />
+      {funciones.includes('arquero') ? (
+        <>
+          <Titulo style={{ marginTop: 8 }}>Datos de arquero</Titulo>
+          <Txt muted>Se cargan por defecto cada vez que te inscribís a un torneo.</Txt>
+          <Pildoras label="Arco" opciones={ARCOS} valor={arco} onChange={setArco} />
+          <Pildoras label="División" opciones={DIVISIONES} valor={division} onChange={setDivision} />
+          <Pildoras label="Categoría" opciones={CATEGORIAS} valor={categoria} onChange={setCategoria} />
+          <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={lateralidad} onChange={setLateralidad} />
+          <CampoFederado valor={federado} onChange={setFederado} />
+        </>
+      ) : null}
 
       <MensajeError texto={error} />
       {guardado ? <Aviso tipo="ok" texto="Perfil actualizado." /> : null}

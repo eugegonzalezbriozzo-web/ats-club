@@ -15,7 +15,8 @@ import { Text, TextInput } from './texto';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FUENTE_TITULO, useTema } from './theme';
 import { hexValido } from './color';
-import type { Club } from './types';
+import { FUNCIONES } from './types';
+import type { Club, Funcion } from './types';
 
 /* ---------- Pantalla base ---------- */
 
@@ -272,6 +273,45 @@ export function Pildoras<T extends string>({
     </View>
   );
 }
+
+/** Funciones en el club: se pueden elegir varias (al menos una). */
+export function CampoFunciones({ valor, onChange, label = 'Funciones en el club' }: { valor: Funcion[]; onChange: (v: Funcion[]) => void; label?: string }) {
+  const { t } = useTema();
+  return (
+    <View style={{ gap: 8 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{label}</Text>
+        <Text style={{ color: t.muted, fontSize: 12, fontWeight: '600' }}>Podés elegir varias</Text>
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {FUNCIONES.map((f) => {
+          const sel = valor.includes(f.id);
+          return (
+            <Pressable
+              key={f.id}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: sel }}
+              onPress={() => {
+                const nuevo = sel ? valor.filter((x) => x !== f.id) : [...valor, f.id];
+                if (nuevo.length) onChange(FUNCIONES.map((x) => x.id).filter((x) => nuevo.includes(x)));
+              }}
+              style={{
+                minHeight: 40, paddingHorizontal: 14, borderRadius: 20, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 6,
+                backgroundColor: sel ? t.btn : 'transparent', borderWidth: 1, borderColor: sel ? t.btn : t.border,
+              }}
+            >
+              {sel ? <Ionicons name="checkmark" size={16} color={t.onBtn} /> : null}
+              <Text style={{ color: sel ? t.onBtn : t.text, fontSize: 15, fontWeight: '600' }}>{f.nombre}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+/** Nombre corto de las funciones (sin "Arquero/a", que es la de casi todos), para mostrar en tarjetas. */
+export const etiquetasFunciones = (fs: Funcion[]) => FUNCIONES.filter((f) => f.id !== 'arquero' && fs.includes(f.id)).map((f) => f.nombre);
 
 export function Check({ label, valor, onChange }: { label: string; valor: boolean; onChange: (v: boolean) => void }) {
   const { t } = useTema();
