@@ -9,6 +9,7 @@ import { TemaProvider, useTema } from '../src/theme';
 import { BotonIcono, Cargando } from '../src/ui';
 import { FUENTES } from '../src/texto';
 import { registrarServiceWorker } from '../src/push';
+import { AccionesHeader } from '../src/ContactoClub';
 import {
   K2D_400Regular,
   K2D_500Medium,
@@ -67,7 +68,7 @@ function Guardia() {
 
 function Navegacion() {
   const { t, alternar } = useTema();
-  const { cargando } = useAuth();
+  const { cargando, club } = useAuth();
   if (cargando) return <Cargando />;
 
   return (
@@ -80,9 +81,7 @@ function Navegacion() {
           headerTintColor: t.onHeader,
           headerTitleStyle: { fontFamily: FUENTES['800'] },
           contentStyle: { backgroundColor: t.bg },
-          headerRight: () => (
-            <BotonIcono icono={t.oscuro ? 'sunny-outline' : 'moon-outline'} label="Cambiar modo claro u oscuro" onPress={alternar} />
-          ),
+          headerRight: () => <AccionesHeader club={club} />,
         }}
       >
         <Stack.Screen name="login" options={{ headerShown: false }} />

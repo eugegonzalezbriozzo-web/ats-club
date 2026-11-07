@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ANCHO_COMPU, BotonIcono, LogoClub } from '../../src/ui';
 import { FUENTES } from '../../src/texto';
 import { MenuInferior, MenuLateral } from '../../src/MenuLateral';
+import { AccionesHeader } from '../../src/ContactoClub';
 
 export default function TabsLayout() {
   const { t, alternar } = useTema();
@@ -57,9 +58,9 @@ export default function TabsLayout() {
               <LogoClub club={club} size={30} />
             </View>
           ),
-        headerRight: () => (
-          <BotonIcono icono={t.oscuro ? 'sunny-outline' : 'moon-outline'} label="Cambiar modo claro u oscuro" onPress={alternar} />
-        ),
+        headerRight: () => <AccionesHeader club={club} />,
+        // Con los íconos a la derecha, el título largo se corta con "…" en el celular.
+        headerTitleContainerStyle: { flexShrink: 1, maxWidth: lateral ? undefined : width - 200 },
         tabBarActiveTintColor: t.accent,
         tabBarInactiveTintColor: t.muted,
         tabBarPosition: lateral ? 'left' : 'bottom',

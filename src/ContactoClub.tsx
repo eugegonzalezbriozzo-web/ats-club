@@ -59,9 +59,14 @@ export function ContactoClub({ club }: { club: Club }) {
       ) : null}
       {club.telefono && numeroWhatsApp(club.telefono) ? <IconoWhatsApp chico tel={club.telefono} nombre={club.nombre} /> : null}
       {club.email ? (
-        <Text accessibilityRole="link" onPress={() => Linking.openURL(`mailto:${club.email}`)} style={{ color: t.accent, fontSize: 13, fontWeight: '700' }}>
-          {club.email}
-        </Text>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={`Mandarle un mail al club (${club.email})`}
+          onPress={() => Linking.openURL(`mailto:${club.email}`)}
+          style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.chip, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ionicons name="mail-outline" size={18} color={t.accent} />
+        </Pressable>
       ) : null}
       {redes.map((r) => (
         <Pressable
@@ -74,6 +79,31 @@ export function ContactoClub({ club }: { club: Club }) {
           <Ionicons name={r.icono} size={18} color={t.accent} />
         </Pressable>
       ))}
+    </View>
+  );
+}
+
+/**
+ * Header (todas las pantallas): Instagram y mail del club (si los cargó) y el botón de modo claro/oscuro.
+ * Va a la derecha de la barra de arriba.
+ */
+export function AccionesHeader({ club }: { club?: Club | null }) {
+  const { t, alternar } = useTema();
+  const ig = club?.instagram ? linkRed('instagram', club.instagram) : '';
+  const icono = (nombre: keyof typeof Ionicons.glyphMap, label: string, onPress: () => void) => (
+    <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress} hitSlop={4}
+      style={{ width: 36, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+      <Ionicons name={nombre} size={21} color={t.onHeader} />
+    </Pressable>
+  );
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 4 }}>
+      {ig ? icono('logo-instagram', `Instagram de ${club!.nombre}`, () => Linking.openURL(ig)) : null}
+      {club?.email ? icono('mail-outline', `Mandarle un mail a ${club.nombre}`, () => Linking.openURL(`mailto:${club.email}`)) : null}
+      <Pressable accessibilityRole="button" accessibilityLabel="Cambiar modo claro u oscuro" onPress={alternar} hitSlop={4}
+        style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={t.oscuro ? 'sunny-outline' : 'moon-outline'} size={22} color={t.onHeader} />
+      </Pressable>
     </View>
   );
 }
