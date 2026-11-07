@@ -10,6 +10,7 @@ import { BotonIcono, Cargando } from '../src/ui';
 import { FUENTES } from '../src/texto';
 import { registrarServiceWorker } from '../src/push';
 import { AccionesHeader } from '../src/ContactoClub';
+import { BurbujaAyuda } from '../src/BurbujaAyuda';
 import {
   K2D_400Regular,
   K2D_500Medium,
@@ -120,6 +121,8 @@ function Navegacion() {
         <Stack.Screen name="plataforma/index" options={{ title: 'ATS Club', headerLeft: () => <View style={{ marginLeft: 12, marginRight: 8 }}><LogoATS size={28} /></View> }} />
         <Stack.Screen name="plataforma/club" options={{ title: 'Club' }} />
       </Stack>
+      {/* Ayuda flotante (logo de ATS), encima de todas las pantallas del club. */}
+      <BurbujaAyuda />
     </>
   );
 }
