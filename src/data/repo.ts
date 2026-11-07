@@ -604,6 +604,8 @@ export interface DatosRegistro extends DatosArquero {
 export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario | null> {
   if (d.password.length < 6) throw new ErrorApp('La contraseña tiene que tener al menos 6 caracteres.');
   if (!d.funciones.length) throw new ErrorApp('Elegí al menos una función en el club.');
+  const ec = errorContacto(d.telefono, d.direccion);
+  if (ec) throw new ErrorApp(ec);
   if (d.funciones.includes('arquero') && errorArquero(d)) throw new ErrorApp(errorArquero(d)!);
   if (d.nacimiento && (d.nacimiento > hoyISO() || d.nacimiento < '1900-01-01')) throw new ErrorApp('Revisá la fecha de nacimiento.');
   const e = edad(d.nacimiento);
@@ -728,10 +730,21 @@ const COLUMNA: Record<keyof CambiosPerfil, string> = {
  * El propio usuario edita sus datos. Nunca rol, estado, club ni esSuperadmin.
  * La foto nueva se sube a Storage; en el perfil queda la referencia.
  */
+/** Teléfono (WhatsApp) y dirección son obligatorios para quien tiene cuenta (los menores a cargo usan los del tutor/a). */
+export function errorContacto(telefono?: string, direccion?: string): string | null {
+  if ((telefono ?? '').replace(/\D/g, '').length < 8) return 'Completá tu WhatsApp (con código de área, sin 0 ni 15).';
+  if (!(direccion ?? '').trim()) return 'Completá tu dirección.';
+  return null;
+}
+
 export async function actualizarPerfil(usuarioId: string, cambios: CambiosPerfil): Promise<Usuario> {
   if (cambios.foto?.startsWith('data:')) cambios = { ...cambios, foto: await subirFoto(usuarioId, cambios.foto) };
   else if (cambios.foto === '') await borrarFoto(usuarioId);
   if (cambios.funciones && !cambios.funciones.length) throw new ErrorApp('Elegí al menos una función en el club.');
+  if (cambios.telefono !== undefined || cambios.direccion !== undefined) {
+    const ec = errorContacto(cambios.telefono, cambios.direccion);
+    if (ec) throw new ErrorApp(ec);
+  }
   if (cambios.modalidad) {
     const ea = errorArquero(cambios);
     if (ea) throw new ErrorApp(ea);

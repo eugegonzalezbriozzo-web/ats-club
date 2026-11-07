@@ -8,6 +8,7 @@ import { CamposArquero } from '../src/CamposArquero';
 import { FotoPerfil } from '../src/FotoPerfil';
 import { armarNombreCompleto, edad, hoyISO } from '../src/util';
 import { View } from 'react-native';
+import * as repo from '../src/data/repo';
 import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, LogoClub, MensajeError, Pantalla, Titulo, Txt } from '../src/ui';
 
 export default function Registro() {
@@ -51,6 +52,8 @@ export default function Registro() {
     setError(null);
     if (!nombre.trim() || !apellido.trim() || !email.trim()) return setError('Completá nombre, apellido y email.');
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError('El email no parece válido.');
+    const ec = repo.errorContacto(telefono, direccion);
+    if (ec) return setError(ec);
     if (pass.length < 6) return setError('La contraseña tiene que tener al menos 6 caracteres.');
     if (pass !== pass2) return setError('Las contraseñas no coinciden.');
     setEnviando(true);
@@ -103,10 +106,10 @@ export default function Registro() {
       {edad(nacimiento) !== null && edad(nacimiento)! < 16 ? (
         <Aviso icono="people-outline" texto="Con menos de 16 años no se crea cuenta propia: pedile a tu mamá, papá o tutor/a que te sume desde su cuenta, en Mi perfil → Menores a cargo." />
       ) : null}
-      <Campo label="WhatsApp (opcional)" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
+      <Campo label="WhatsApp" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
       <Campo label="Ciudad (opcional)" value={ciudad} onChangeText={setCiudad} autoComplete="postal-address-locality" />
       <Campo label="Localidad (opcional)" value={localidad} onChangeText={setLocalidad} />
-      <Campo label="Dirección (opcional)" value={direccion} onChangeText={setDireccion} autoComplete="street-address" placeholder="Calle y número" />
+      <Campo label="Dirección" value={direccion} onChangeText={setDireccion} autoComplete="street-address" placeholder="Calle y número" />
       <Campo label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
       <Campo label="Contraseña" value={pass} onChangeText={setPass} secureTextEntry />
       <Campo label="Repetir contraseña" value={pass2} onChangeText={setPass2} secureTextEntry />

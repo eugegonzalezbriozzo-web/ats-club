@@ -11,7 +11,7 @@ import { useTema } from '../../src/theme';
 import type { Noticia, Torneo } from '../../src/types';
 import { SeccionNoticias } from '../../src/Noticias';
 import { BannerPush } from '../../src/BannerPush';
-import { Grilla, Pantalla, Titulo, Txt, Vacio } from '../../src/ui';
+import { Aviso, Grilla, Pantalla, Titulo, Txt, Vacio } from '../../src/ui';
 import { hoyISO, finTorneo } from '../../src/util';
 
 /** Inicio: noticias del club + torneos (próximos / pasados). */
@@ -57,6 +57,12 @@ export default function Inicio() {
         </View>
       </View>
 
+      {/* Teléfono y dirección son obligatorios: aviso a quien no los tenga (cuentas anteriores a la regla). */}
+      {usuario && !usuario.esSuperadmin && repo.errorContacto(usuario.telefono, usuario.direccion) ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push('/perfil')}>
+          <Aviso icono="call-outline" texto="Completá tu WhatsApp y tu dirección en Mi perfil: el club los necesita para contactarte." />
+        </Pressable>
+      ) : null}
       <BannerPush />
 
       {esAdmin
