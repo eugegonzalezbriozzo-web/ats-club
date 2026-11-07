@@ -362,3 +362,31 @@ export interface Pago {
   resueltoPor: string | null;
   resueltoEl: string | null;
 }
+
+/* ---------- Calendario del club ---------- */
+export type TipoEvento = 'escuela' | 'practica' | 'reunion' | 'salida' | 'otro';
+export const TIPOS_EVENTO: { valor: TipoEvento; nombre: string; color: string }[] = [
+  { valor: 'escuela', nombre: 'Escuela', color: '#2563EB' },
+  { valor: 'practica', nombre: 'Práctica', color: '#16A34A' },
+  { valor: 'reunion', nombre: 'Reunión', color: '#7C3AED' },
+  { valor: 'salida', nombre: 'Salida', color: '#EA580C' },
+  { valor: 'otro', nombre: 'Otro', color: '#6B7280' },
+];
+/** Evento del calendario. Si `diasSemana` tiene días, se repite cada semana desde `fecha` hasta `hasta`. */
+export interface Evento {
+  id: string;
+  clubId: string;
+  titulo: string;
+  tipo: TipoEvento;
+  fecha: string; // YYYY-MM-DD (único día, o desde cuándo se repite)
+  horaInicio: string; // 'HH:MM' o ''
+  horaFin: string;
+  lugar: string;
+  nota: string;
+  diasSemana: number[]; // 0 = domingo … 6 = sábado; [] = no se repite
+  hasta: string; // '' = sin fin
+  sinFechas: string[]; // días suspendidos
+  audiencia: Audiencia;
+  creadoEl: string;
+}
+export type DatosEvento = Omit<Evento, 'id' | 'clubId' | 'creadoEl' | 'sinFechas'>;

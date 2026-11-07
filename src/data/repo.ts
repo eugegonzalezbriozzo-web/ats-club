@@ -19,7 +19,7 @@ import { RECUPERAR_URL, supabase } from './supabase';
 import { desactivarPush } from '../push';
 import { armarNombreCompleto } from '../util';
 import { MAX_SOBRE_MI, arcoDeClase, errorArquero, fijarListados, type Listados } from '../types';
-import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota } from '../types';
+import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota, Evento, DatosEvento } from '../types';
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
 import { edad, hoyISO } from '../util';
 import { MAX_TIT_NOTICIA, MAX_TXT_NOTICIA } from '../types';
@@ -232,7 +232,7 @@ function aUsuario(p: FilaPerfil, m: FilaMembresia): Usuario {
     nombre: p.nombre ?? '', apellido: p.apellido ?? '', nombreCompleto: p.nombre_completo || armarNombreCompleto(p.nombre ?? '', p.apellido ?? ''),
     alias: p.alias ?? '', sobreMi: p.sobre_mi ?? '', foto: p.foto_url ?? '', dni: p.dni ?? '', telefono: p.telefono ?? '',
     ciudad: p.ciudad ?? '', localidad: p.localidad ?? '', direccion: p.direccion ?? '', federado: !!p.federado,
-    funciones: aFunciones(p.funciones), nacimiento: p.nacimiento ?? undefined, avisos: p.avisos ?? ['torneos', 'noticias', 'cuenta', 'admin'],
+    funciones: aFunciones(p.funciones), nacimiento: p.nacimiento ?? undefined, avisos: p.avisos ?? ['torneos', 'noticias', 'cuenta', 'admin', 'calendario'],
     instagram: p.instagram ?? '', facebook: p.facebook ?? '', tiktok: p.tiktok ?? '',
     tipoCuota: m?.tipo_cuota_id ?? undefined,
     rol: m?.rol ?? 'usuario', estado: m?.estado ?? 'pendiente', creadoEl: m?.creado_el ?? p.creado_el,
@@ -1810,4 +1810,60 @@ export async function cargarListados(): Promise<void> {
   if (error || !data) return;
   const l = data as Listados;
   if (l.arcos?.length && l.categorias?.some((c) => c.modalidad === 'convencional')) fijarListados({ arcos: l.arcos, categorias: l.categorias, clases: l.clases ?? [] });
+}
+
+/* ---------- Calendario ---------- */
+const hhmm = (t?: string | null) => (t ? t.slice(0, 5) : '');
+function aEvento(e: any): Evento {
+  return {
+    id: e.id, clubId: e.club_id, titulo: e.titulo, tipo: e.tipo, fecha: e.fecha,
+    horaInicio: hhmm(e.hora_inicio), horaFin: hhmm(e.hora_fin), lugar: e.lugar ?? '', nota: e.nota ?? '',
+    diasSemana: e.dias_semana ?? [], hasta: e.hasta ?? '', sinFechas: e.sin_fechas ?? [], audiencia: e.audiencia, creadoEl: e.creado_el,
+  };
+}
+
+/** Eventos que ve esta persona (la base ya filtra por audiencia). */
+export async function listarEventos(clubId: string): Promise<Evento[]> {
+  const { data, error } = await supabase.from('eventos').select('*').eq('club_id', clubId).order('fecha');
+  if (error) fallo(error);
+  return (data ?? []).map(aEvento);
+}
+
+const HORA = /^([01]?\d|2[0-3]):[0-5]\d$/;
+function validarEvento(d: DatosEvento) {
+  if (!d.titulo.trim()) throw new ErrorApp('Poné un título.');
+  if (!d.fecha) throw new ErrorApp(d.diasSemana.length ? 'Elegí desde qué día empieza.' : 'Elegí la fecha.');
+  if (d.horaInicio && !HORA.test(d.horaInicio)) throw new ErrorApp('La hora de inicio tiene que ser como 18:00.');
+  if (d.horaFin && !HORA.test(d.horaFin)) throw new ErrorApp('La hora de fin tiene que ser como 19:30.');
+  if (d.horaFin && !d.horaInicio) throw new ErrorApp('Si ponés hora de fin, poné también la de inicio.');
+  if (d.horaInicio && d.horaFin && d.horaFin.padStart(5, '0') <= d.horaInicio.padStart(5, '0')) throw new ErrorApp('La hora de fin tiene que ser después de la de inicio.');
+  if (d.hasta && d.hasta < d.fecha) throw new ErrorApp('La repetición tiene que terminar después de que empieza.');
+}
+const filaEvento = (d: DatosEvento) => ({
+  titulo: d.titulo.trim(), tipo: d.tipo, fecha: d.fecha,
+  hora_inicio: d.horaInicio || null, hora_fin: d.horaFin || null,
+  lugar: d.lugar.trim(), nota: d.nota.trim(),
+  dias_semana: d.diasSemana, hasta: d.diasSemana.length && d.hasta ? d.hasta : null, audiencia: d.audiencia,
+});
+
+/** Admin: crea (sin id) o edita un evento. */
+export async function guardarEvento(clubId: string, d: DatosEvento, id?: string): Promise<void> {
+  validarEvento(d);
+  const yo = (await supabase.auth.getUser()).data.user?.id;
+  const { error } = id
+    ? await supabase.from('eventos').update(filaEvento(d)).eq('id', id).eq('club_id', clubId)
+    : await supabase.from('eventos').insert({ ...filaEvento(d), club_id: clubId, creado_por: yo });
+  if (error) fallo(error);
+}
+
+export async function borrarEvento(id: string): Promise<void> {
+  const { error } = await supabase.from('eventos').delete().eq('id', id);
+  if (error) fallo(error);
+}
+
+/** Admin: suspende (o vuelve a habilitar) un solo día de un evento que se repite. */
+export async function suspenderDia(ev: Evento, dia: string, suspender = true): Promise<void> {
+  const sin = suspender ? [...new Set([...ev.sinFechas, dia])] : ev.sinFechas.filter((x) => x !== dia);
+  const { error } = await supabase.from('eventos').update({ sin_fechas: sin }).eq('id', ev.id);
+  if (error) fallo(error);
 }

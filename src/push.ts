@@ -103,6 +103,7 @@ export async function probarPush(): Promise<void> {
 export const AVISOS = [
   { id: 'torneos', nombre: 'Torneos', detalle: 'Torneo nuevo, abre la inscripción y faltan 3 días para que cierre (si no te inscribiste).' },
   { id: 'noticias', nombre: 'Noticias y encuestas', detalle: 'Las que publica el club para vos.' },
+  { id: 'calendario', nombre: 'Calendario', detalle: 'Eventos nuevos, cambios de horario y días suspendidos.' },
   { id: 'cuenta', nombre: 'Mi cuenta y pagos', detalle: 'Cuando te aprueban en el club y cuando aprueban o rechazan un pago.' },
   { id: 'admin', nombre: 'Avisos de admin', detalle: 'Solicitudes nuevas, comprobantes para revisar y pedidos de baja.', soloAdmin: true },
 ] as const;

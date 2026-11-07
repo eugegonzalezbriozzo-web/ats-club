@@ -11,6 +11,7 @@ import { useTema } from '../../src/theme';
 import type { Noticia, Torneo } from '../../src/types';
 import { SeccionNoticias } from '../../src/Noticias';
 import { BannerPush } from '../../src/BannerPush';
+import { BotonCalendario } from '../../src/BotonCalendario';
 import { Aviso, Grilla, Pantalla, Titulo, Txt, Vacio } from '../../src/ui';
 import { hoyISO, finTorneo } from '../../src/util';
 
@@ -89,6 +90,7 @@ export default function Inicio() {
             ))
         : null}
       <SeccionNoticias noticias={noticias} />
+      {club ? <BotonCalendario clubId={club.id} /> : null}
       <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 8 }}>
         <Titulo>Torneos</Titulo>
         {esAdmin ? (

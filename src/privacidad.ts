@@ -29,7 +29,7 @@ export const PRIVACIDAD: { titulo: string; parrafos: string[] }[] = [
     parrafos: [
       'Solo para que la app funcione: que el club apruebe tu cuenta, te puedas inscribir a torneos, veas las noticias de tu grupo, respondas encuestas y el club pueda revisar tus pagos.',
       'Te mandamos mails solo por tu cuenta: la bienvenida al registrarte, el código para cambiar la contraseña o el email, y el aviso cuando cambia tu email.',
-      'Si activaste las notificaciones, te avisamos de torneos, noticias de tu grupo, tu cuenta y tus pagos (y, si sos admin, de lo que hay que revisar). Las manda la plataforma a través del servicio de notificaciones de tu navegador (Google, Apple o Mozilla), que recibe el aviso cifrado.',
+      'Si activaste las notificaciones, te avisamos de torneos, noticias de tu grupo, el calendario del club, tu cuenta y tus pagos (y, si sos admin, de lo que hay que revisar). Las manda la plataforma a través del servicio de notificaciones de tu navegador (Google, Apple o Mozilla), que recibe el aviso cifrado.',
       'No vendemos ni alquilamos tus datos, no mostramos publicidad y no usamos herramientas de seguimiento ni de análisis.',
     ],
   },
