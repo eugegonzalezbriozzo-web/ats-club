@@ -390,3 +390,44 @@ export interface Evento {
   creadoEl: string;
 }
 export type DatosEvento = Omit<Evento, 'id' | 'clubId' | 'creadoEl' | 'sinFechas'>;
+
+/* ---------- Inventario del club (solo admins) ---------- */
+export type TipoItem = 'arco' | 'flechas' | 'diana' | 'parapeto' | 'accesorio' | 'otro';
+export const TIPOS_ITEM: { valor: TipoItem; nombre: string; icono: string }[] = [
+  { valor: 'arco', nombre: 'Arcos', icono: 'locate-outline' },
+  { valor: 'flechas', nombre: 'Flechas', icono: 'arrow-forward-outline' },
+  { valor: 'diana', nombre: 'Dianas', icono: 'radio-button-on-outline' },
+  { valor: 'parapeto', nombre: 'Parapetos', icono: 'square-outline' },
+  { valor: 'accesorio', nombre: 'Accesorios', icono: 'construct-outline' },
+  { valor: 'otro', nombre: 'Otros', icono: 'cube-outline' },
+];
+export type EstadoItem = 'bueno' | 'reparar' | 'baja';
+export const ESTADOS_ITEM: { valor: EstadoItem; nombre: string }[] = [
+  { valor: 'bueno', nombre: 'Bueno' },
+  { valor: 'reparar', nombre: 'A reparar' },
+  { valor: 'baja', nombre: 'De baja' },
+];
+export interface ItemInventario {
+  id: string;
+  clubId: string;
+  nombre: string;
+  tipo: TipoItem;
+  cantidad: number;
+  estado: EstadoItem;
+  ubicacion: string;
+  nota: string;
+  /** Cuántos están prestados ahora (préstamos sin devolver). */
+  prestados: number;
+}
+export interface Prestamo {
+  id: string;
+  itemId: string;
+  socioId: string | null;
+  /** Nombre a mostrar: el del socio o el que se escribió a mano. */
+  persona: string;
+  cantidad: number;
+  desde: string;
+  devueltoEl: string;
+  nota: string;
+}
+export type DatosItem = Omit<ItemInventario, 'id' | 'clubId' | 'prestados'>;

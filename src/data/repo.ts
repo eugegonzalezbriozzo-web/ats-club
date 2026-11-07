@@ -19,7 +19,7 @@ import { RECUPERAR_URL, supabase } from './supabase';
 import { desactivarPush } from '../push';
 import { armarNombreCompleto } from '../util';
 import { MAX_SOBRE_MI, arcoDeClase, errorArquero, fijarListados, type Listados } from '../types';
-import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota, Evento, DatosEvento } from '../types';
+import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota, Evento, DatosEvento, ItemInventario, Prestamo, DatosItem } from '../types';
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
 import { edad, hoyISO } from '../util';
 import { MAX_TIT_NOTICIA, MAX_TXT_NOTICIA } from '../types';
@@ -1865,5 +1865,81 @@ export async function borrarEvento(id: string): Promise<void> {
 export async function suspenderDia(ev: Evento, dia: string, suspender = true): Promise<void> {
   const sin = suspender ? [...new Set([...ev.sinFechas, dia])] : ev.sinFechas.filter((x) => x !== dia);
   const { error } = await supabase.from('eventos').update({ sin_fechas: sin }).eq('id', ev.id);
+  if (error) fallo(error);
+}
+
+/* ---------- Inventario (solo admins; la base lo impide a los demás) ---------- */
+const nombreDe = (p?: any) => (p ? (p.alias?.trim() || [p.nombre, p.apellido].filter(Boolean).join(' ')) : '');
+
+export async function listarInventario(clubId: string): Promise<ItemInventario[]> {
+  const [{ data: items, error }, { data: prest }] = await Promise.all([
+    supabase.from('inventario_items').select('*').eq('club_id', clubId).order('nombre'),
+    supabase.from('inventario_prestamos').select('item_id, cantidad').eq('club_id', clubId).is('devuelto_el', null),
+  ]);
+  if (error) fallo(error);
+  const porItem = new Map<string, number>();
+  (prest ?? []).forEach((p: any) => porItem.set(p.item_id, (porItem.get(p.item_id) ?? 0) + p.cantidad));
+  return (items ?? []).map((i: any) => ({
+    id: i.id, clubId: i.club_id, nombre: i.nombre, tipo: i.tipo, cantidad: i.cantidad, estado: i.estado,
+    ubicacion: i.ubicacion ?? '', nota: i.nota ?? '', prestados: porItem.get(i.id) ?? 0,
+  }));
+}
+
+/** Préstamos de un ítem (o de todo el club si no se pasa ítem), los activos primero. */
+export async function listarPrestamos(clubId: string, itemId?: string): Promise<Prestamo[]> {
+  let q = supabase.from('inventario_prestamos').select('*, socio:perfiles(nombre, apellido, alias)').eq('club_id', clubId);
+  if (itemId) q = q.eq('item_id', itemId);
+  const { data, error } = await q.order('desde', { ascending: false });
+  if (error) fallo(error);
+  return (data ?? [])
+    .map((p: any) => ({
+      id: p.id, itemId: p.item_id, socioId: p.socio_id, persona: nombreDe(p.socio) || p.persona || 'Sin nombre',
+      cantidad: p.cantidad, desde: p.desde, devueltoEl: p.devuelto_el ?? '', nota: p.nota ?? '',
+    }))
+    .sort((a, b) => Number(!!a.devueltoEl) - Number(!!b.devueltoEl));
+}
+
+export async function guardarItem(clubId: string, d: DatosItem, id?: string): Promise<string> {
+  if (!d.nombre.trim()) throw new ErrorApp('Poné un nombre (p. ej. "Arco recurvo 24 lb").');
+  if (!Number.isInteger(d.cantidad) || d.cantidad < 0) throw new ErrorApp('La cantidad tiene que ser un número entero.');
+  const fila = { nombre: d.nombre.trim(), tipo: d.tipo, cantidad: d.cantidad, estado: d.estado, ubicacion: d.ubicacion.trim(), nota: d.nota.trim() };
+  if (id) {
+    const { error } = await supabase.from('inventario_items').update(fila).eq('id', id).eq('club_id', clubId);
+    if (error) fallo(error);
+    return id;
+  }
+  const { data, error } = await supabase.from('inventario_items').insert({ ...fila, club_id: clubId }).select('id').single();
+  if (error) fallo(error);
+  return data!.id;
+}
+
+export async function borrarItem(id: string): Promise<void> {
+  const { error } = await supabase.from('inventario_items').delete().eq('id', id);
+  if (error) fallo(error);
+}
+
+export async function prestar(clubId: string, itemId: string, p: { socioId: string | null; persona: string; cantidad: number; desde: string; nota: string }): Promise<void> {
+  if (!p.socioId && !p.persona.trim()) throw new ErrorApp('Elegí un socio o escribí a quién se lo prestás.');
+  if (!Number.isInteger(p.cantidad) || p.cantidad < 1) throw new ErrorApp('La cantidad tiene que ser 1 o más.');
+  const { error } = await supabase.from('inventario_prestamos').insert({
+    club_id: clubId, item_id: itemId, socio_id: p.socioId, persona: p.socioId ? '' : p.persona.trim(),
+    cantidad: p.cantidad, desde: p.desde || hoyISO(), nota: p.nota.trim(),
+  });
+  if (error) {
+    if (/No alcanza/.test(error.message)) throw new ErrorApp(error.message);
+    fallo(error);
+  }
+}
+
+export async function marcarDevuelto(prestamoId: string, devuelto = true): Promise<void> {
+  const { error } = await supabase.from('inventario_prestamos').update({ devuelto_el: devuelto ? hoyISO() : null }).eq('id', prestamoId);
+  if (error) {
+    if (/No alcanza/.test(error.message)) throw new ErrorApp(error.message);
+    fallo(error);
+  }
+}
+
+export async function borrarPrestamo(prestamoId: string): Promise<void> {
+  const { error } = await supabase.from('inventario_prestamos').delete().eq('id', prestamoId);
   if (error) fallo(error);
 }

@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import * as XLSX from 'xlsx';
-import { claseSinDivision, type Inscripcion, type Torneo, type Usuario } from './types';
+import { ESTADOS_ITEM, TIPOS_ITEM, claseSinDivision, type Inscripcion, type ItemInventario, type Prestamo, type Torneo, type Usuario } from './types';
 
 type Fila = Inscripcion & { usuario: Usuario };
 
@@ -127,4 +127,24 @@ export async function exportarPagosExcel(
     );
   }
   await guardarLibro(wb, `Pagos - ${club}.xlsx`.replace(/[\\/:*?"<>|]/g, ''));
+}
+
+/** Inventario del club: una hoja con el equipo y otra con los préstamos. */
+export async function exportarInventarioExcel(club: string, items: ItemInventario[], prestamos: Prestamo[]) {
+  const wb = XLSX.utils.book_new();
+  const nombreItem = new Map(items.map((i) => [i.id, i.nombre]));
+  const ws = XLSX.utils.json_to_sheet(items.map((i) => ({
+    Nombre: i.nombre, Tipo: TIPOS_ITEM.find((x) => x.valor === i.tipo)?.nombre ?? '', Cantidad: i.cantidad,
+    Prestados: i.prestados, Disponibles: Math.max(i.cantidad - i.prestados, 0),
+    Estado: ESTADOS_ITEM.find((x) => x.valor === i.estado)?.nombre ?? '', 'Dónde está': i.ubicacion, Nota: i.nota,
+  })));
+  if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
+  XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+  if (prestamos.length) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prestamos.map((p) => ({
+      'Ítem': nombreItem.get(p.itemId) ?? '', 'A quién': p.persona, Cantidad: p.cantidad,
+      Desde: fecha(p.desde + 'T12:00:00'), Devuelto: p.devueltoEl ? fecha(p.devueltoEl + 'T12:00:00') : 'No', Nota: p.nota,
+    }))), 'Préstamos');
+  }
+  await guardarLibro(wb, `Inventario - ${club}.xlsx`.replace(/[\\/:*?"<>|]/g, ''));
 }
