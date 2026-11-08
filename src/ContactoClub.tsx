@@ -53,9 +53,15 @@ export function ContactoClub({ club }: { club: Club }) {
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 4 }}>
       {club.telefono ? (
-        <Text accessibilityRole="link" onPress={() => Linking.openURL(`tel:${club.telefono!.replace(/[^\d+]/g, '')}`)} style={{ color: t.accent, fontSize: 13, fontWeight: '700' }}>
-          {club.telefono}
-        </Text>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={`Llamar al club (${club.telefono})`}
+          onPress={() => Linking.openURL(`tel:${club.telefono!.replace(/[^\d+]/g, '')}`)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: t.chip }}
+        >
+          <Ionicons name="call-outline" size={17} color={t.accent} />
+          <Text style={{ color: t.accent, fontSize: 13, fontWeight: '700' }}>{club.telefono}</Text>
+        </Pressable>
       ) : null}
       {club.telefono && numeroWhatsApp(club.telefono) ? <IconoWhatsApp chico tel={club.telefono} nombre={club.nombre} /> : null}
       {club.email ? (
