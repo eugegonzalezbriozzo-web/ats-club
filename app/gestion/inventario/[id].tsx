@@ -114,7 +114,7 @@ export default function ItemInventarioPantalla() {
       <Stack.Screen options={{ title: nuevo ? 'Agregar al inventario' : item!.nombre }} />
       <NotaObligatorios />
       <Campo label="Nombre *" value={d.nombre} onChangeText={set('nombre')} maxLength={80} placeholder='Ej.: Arco recurvo escuela 24 lb' />
-      <Campo label="Tipo (opcional)" value={d.tipo} onChangeText={set('tipo')} maxLength={40} placeholder="Ej.: Arcos, Flechas, Dianas, Miras…" />
+      <Campo label="Tipo (opcional)" value={d.tipo} onChangeText={set('tipo')} maxLength={40} placeholder="Ej.: Arcos, Flechas, Dianas, Contención…" />
       {/* Los tipos que ya usó el club, para no escribirlos distinto cada vez. */}
       {tipos.filter((x) => x.toLowerCase() !== d.tipo.trim().toLowerCase()).length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: -4 }}>
