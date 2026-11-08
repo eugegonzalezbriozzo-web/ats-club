@@ -1841,13 +1841,14 @@ export function validarEvento(d: DatosEvento) {
   if (d.horaFin && !HORA.test(d.horaFin)) throw new ErrorApp('La hora de fin tiene que ser como 19:30.');
   if (d.horaFin && !d.horaInicio) throw new ErrorApp('Si ponés hora de fin, poné también la de inicio.');
   if (d.horaInicio && d.horaFin && d.horaFin.padStart(5, '0') <= d.horaInicio.padStart(5, '0')) throw new ErrorApp('La hora de fin tiene que ser después de la de inicio.');
-  if (d.hasta && d.hasta < d.fecha) throw new ErrorApp('La repetición tiene que terminar después de que empieza.');
+  if (d.hasta && d.hasta < d.fecha) throw new ErrorApp(d.diasSemana.length ? 'La repetición tiene que terminar después de que empieza.' : 'El último día tiene que ser después del primero.');
 }
 const filaEvento = (d: DatosEvento) => ({
   titulo: d.titulo.trim(), tipo: d.tipo, fecha: d.fecha,
   hora_inicio: d.horaInicio || null, hora_fin: d.horaFin || null,
   lugar: d.lugar.trim(), nota: d.nota.trim(),
-  dias_semana: d.diasSemana, hasta: d.diasSemana.length && d.hasta ? d.hasta : null, audiencia: d.audiencia,
+  // hasta: fin de la repetición semanal, o último día de un evento de varios días seguidos.
+  dias_semana: d.diasSemana, hasta: d.hasta && (d.diasSemana.length || d.hasta > d.fecha) ? d.hasta : null, audiencia: d.audiencia,
 });
 
 /** Texto de la noticia armada desde un evento: cuándo, dónde y la nota. */

@@ -25,6 +25,7 @@ export default function EventoForm() {
     lugar: '', nota: '', diasSemana: [], hasta: '', audiencia: 'todos',
   });
   const [repite, setRepite] = useState(false);
+  const [variosDias, setVariosDias] = useState(false);
   // Noticia: al crear, "publicar también como noticia"; si ya tiene una vinculada, "actualizarla con los cambios".
   const [noticiaId, setNoticiaId] = useState<string | null>(null);
   const [comoNoticia, setComoNoticia] = useState(false);
@@ -47,6 +48,7 @@ export default function EventoForm() {
       setD(datos);
       setNoticiaId(nid);
       setRepite(e.diasSemana.length > 0);
+      setVariosDias(!e.diasSemana.length && !!e.hasta && e.hasta > e.fecha);
     });
   }, [id, club]);
 
@@ -58,8 +60,9 @@ export default function EventoForm() {
 
   const guardar = async () => {
     setError(null);
-    const datos = { ...d, diasSemana: repite ? d.diasSemana : [], hasta: repite ? d.hasta : '' };
+    const datos = { ...d, diasSemana: repite ? d.diasSemana : [], hasta: repite || variosDias ? d.hasta : '' };
     if (repite && !datos.diasSemana.length) return setError('Elegí qué días de la semana se repite.');
+    if (!repite && variosDias && !(datos.hasta > datos.fecha)) return setError('Elegí el último día (después del primero).');
     setEnviando(true);
     try {
       await repo.guardarEvento(club.id, datos, id, {
@@ -99,6 +102,7 @@ export default function EventoForm() {
 
       <Check label="Se repite todas las semanas" valor={repite} onChange={(v) => {
         setRepite(v);
+        if (v) setVariosDias(false);
         if (v && !d.diasSemana.length) set('diasSemana')([diaSemana(d.fecha)]);
       }} />
       {repite ? (
@@ -119,7 +123,20 @@ export default function EventoForm() {
           </View>
         </View>
       ) : null}
-      <CampoFecha label={repite ? 'Desde *' : 'Fecha *'} valor={d.fecha} onChange={set('fecha')} />
+      {!repite ? (
+        <Check label="Dura varios días seguidos" valor={variosDias} onChange={(v) => {
+          setVariosDias(v);
+          if (v && !(d.hasta > d.fecha)) {
+            const f = new Date(`${d.fecha}T12:00:00`); f.setDate(f.getDate() + 1);
+            set('hasta')(`${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`);
+          }
+        }} />
+      ) : null}
+      <CampoFecha label={repite || variosDias ? 'Desde *' : 'Fecha *'} valor={d.fecha} onChange={set('fecha')} />
+      {!repite && variosDias ? (
+        <CampoFecha label="Hasta (último día) *" valor={d.hasta} onChange={set('hasta')} min={d.fecha}
+          ayuda="Por ejemplo, un campamento de viernes a domingo. El horario es el de cada día." />
+      ) : null}
       {repite ? (
         <CampoFecha label="Hasta (opcional)" valor={d.hasta} onChange={set('hasta')} min={d.fecha} opcional
           ayuda="Si no ponés fecha, se repite sin fin. Un día puntual (un feriado) se suspende desde el calendario." />

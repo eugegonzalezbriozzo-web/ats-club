@@ -37,6 +37,7 @@ export default function FormNoticia() {
   const [evento, setEvento] = useState<Evento | null>(null);
   const [conCal, setConCal] = useState(false);
   const [calFecha, setCalFecha] = useState('');
+  const [calUltimo, setCalUltimo] = useState(''); // último día, si dura varios días
   const [calDesde, setCalDesde] = useState('');
   const [calHasta, setCalHasta] = useState('');
   const [calLugar, setCalLugar] = useState('');
@@ -70,6 +71,7 @@ export default function FormNoticia() {
       setEvento(ev);
       setConCal(true);
       setCalFecha(ev.fecha);
+      setCalUltimo(ev.hasta);
       setCalDesde(ev.horaInicio);
       setCalHasta(ev.horaFin);
       setCalLugar(ev.lugar);
@@ -83,7 +85,7 @@ export default function FormNoticia() {
     const repite = !!evento?.diasSemana.length;
     const datosEv: DatosEvento | null = conCal && !repite ? {
       titulo, tipo: evento?.tipo ?? '', fecha: calFecha, horaInicio: calDesde.trim(), horaFin: calHasta.trim(), lugar: calLugar,
-      nota: evento?.nota ?? '', diasSemana: [], hasta: '', audiencia,
+      nota: evento?.nota ?? '', diasSemana: [], hasta: calUltimo > calFecha ? calUltimo : '', audiencia,
     } : null;
     if (datosEv) {
       // Revisamos el evento antes de publicar, para no dejar la noticia a medias.
@@ -229,7 +231,9 @@ export default function FormNoticia() {
               Quitar
             </Text>
           </View>
-          <CampoFecha label="Fecha *" valor={calFecha} onChange={setCalFecha} min={calFecha && calFecha < hoyISO() ? calFecha : hoyISO()} />
+          <CampoFecha label={calUltimo ? 'Desde *' : 'Fecha *'} valor={calFecha} onChange={setCalFecha} min={calFecha && calFecha < hoyISO() ? calFecha : hoyISO()} />
+          <CampoFecha label="Hasta (si dura varios días)" valor={calUltimo} onChange={setCalUltimo} min={calFecha} opcional
+            ayuda={calUltimo ? 'El horario es el de cada día.' : 'Vacío = un solo día.'} />
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}><Campo label="Desde las" value={calDesde} onChangeText={setCalDesde} placeholder="18:00" keyboardType="numbers-and-punctuation" maxLength={5} /></View>
             <View style={{ flex: 1 }}><Campo label="Hasta las (opcional)" value={calHasta} onChangeText={setCalHasta} placeholder="19:30" keyboardType="numbers-and-punctuation" maxLength={5} /></View>

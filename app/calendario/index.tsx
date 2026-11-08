@@ -94,7 +94,7 @@ export default function Calendario() {
               {esAdmin ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 2 }}>
                   <Text accessibilityRole="button" onPress={() => router.push(`/calendario/evento?id=${ev.id}`)} style={{ color: t.accent, fontWeight: '700' }}>Editar</Text>
-                  {ev.diasSemana.length ? (
+                  {ev.diasSemana.length || (ev.hasta && ev.hasta > ev.fecha) ? (
                     <Text accessibilityRole="button" style={{ color: t.accent, fontWeight: '700' }}
                       onPress={() => accion(() => repo.suspenderDia(ev, o.dia, !o.suspendido))}>
                       {o.suspendido ? 'Volver a habilitar este día' : 'Suspender solo este día'}

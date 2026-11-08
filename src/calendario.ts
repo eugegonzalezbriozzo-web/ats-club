@@ -29,10 +29,12 @@ export const diaSemana = (iso: string) => aDate(iso).getDay();
 export const nombreDias = (dias: number[]) => [...dias].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => DIAS_CORTOS[d]).join(', ');
 export const textoHora = (e: { horaInicio: string; horaFin: string }) => (e.horaInicio ? (e.horaFin ? `${e.horaInicio} – ${e.horaFin}` : e.horaInicio) : '');
 
-/** Cuándo es (para listas): "Mar, Jue · 18:00 – 19:30" o "Sáb 15/11 · 10:00". */
+/** Cuándo es (para listas): "Todos los mar, jue · 18:00 – 19:30", "Sáb 15/11 · 10:00" o "Vie 14/11 al Dom 16/11". */
 export function cuandoEvento(e: Evento): string {
   const h = textoHora(e);
-  const base = e.diasSemana.length ? `Todos los ${nombreDias(e.diasSemana).toLowerCase()}` : `${DIAS_CORTOS[diaSemana(e.fecha)]} ${e.fecha.slice(8, 10)}/${e.fecha.slice(5, 7)}`;
+  const dm = (iso: string) => `${DIAS_CORTOS[diaSemana(iso)]} ${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  const base = e.diasSemana.length ? `Todos los ${nombreDias(e.diasSemana).toLowerCase()}`
+    : e.hasta && e.hasta > e.fecha ? `${dm(e.fecha)} al ${dm(e.hasta)}` : dm(e.fecha);
   return h ? `${base} · ${h}` : base;
 }
 
@@ -42,7 +44,13 @@ export function ocurrencias(eventos: Evento[], torneos: Torneo[], desde: string,
   for (const e of eventos) {
     const base = { titulo: e.titulo, hora: textoHora(e), lugar: e.lugar, color: colorEvento(e.tipo), tipoNombre: e.tipo.trim() || 'Evento', evento: e };
     if (!e.diasSemana.length) {
-      if (e.fecha >= desde && e.fecha <= hasta) out.push({ ...base, clave: `${e.id}:${e.fecha}`, dia: e.fecha });
+      // Un día, o varios días seguidos (fecha → hasta).
+      const ult = e.hasta && e.hasta > e.fecha ? e.hasta : e.fecha;
+      for (let d = e.fecha > desde ? e.fecha : desde; d <= ult && d <= hasta; d = sumarDias(d, 1)) {
+        const suspendido = e.sinFechas.includes(d);
+        if (suspendido && !conSuspendidos) continue;
+        out.push({ ...base, clave: `${e.id}:${d}`, dia: d, suspendido });
+      }
       continue;
     }
     let d = e.fecha > desde ? e.fecha : desde;

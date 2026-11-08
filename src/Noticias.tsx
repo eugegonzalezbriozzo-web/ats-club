@@ -271,7 +271,7 @@ export function TarjetaNoticia({ n, enInicio, onCambio }: { n: Noticia; enInicio
                 // Va al próximo día en que pasa (o al primero, si ya pasó).
                 const hoy = hoyISO();
                 let dia = evento.fecha;
-                if (evento.diasSemana.length && dia < hoy) dia = hoy;
+                if ((evento.diasSemana.length || evento.hasta >= hoy) && dia < hoy) dia = hoy;
                 router.push(`/calendario?dia=${dia}`);
               }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: 10, backgroundColor: t.chip }}>
