@@ -1,5 +1,6 @@
 import { LogoATS } from '../src/LogoATS';
-import { View } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
+import { Text } from '../src/texto';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
@@ -70,6 +71,7 @@ function Guardia() {
 function Navegacion() {
   const { t, alternar } = useTema();
   const { cargando, club } = useAuth();
+  const { width } = useWindowDimensions();
   if (cargando) return <Cargando />;
 
   return (
@@ -83,6 +85,12 @@ function Navegacion() {
           headerTitleStyle: { fontFamily: FUENTES['800'] },
           contentStyle: { backgroundColor: t.bg },
           headerRight: () => <AccionesHeader club={club} />,
+          // Título en una línea y cortado con "…", para que siempre entren los íconos de la derecha.
+          headerTitle: ({ children }: { children: string }) => (
+            <Text numberOfLines={1} style={{ color: t.onHeader, fontFamily: FUENTES['800'], fontSize: 18, maxWidth: Math.max(width - (club ? 230 : 150), 120) }}>
+              {children}
+            </Text>
+          ),
         }}
       >
         <Stack.Screen name="login" options={{ headerShown: false }} />
