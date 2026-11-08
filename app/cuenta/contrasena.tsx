@@ -44,9 +44,9 @@ export default function CambiarContrasena() {
   return (
     <Pantalla pie={<Boton titulo="Cambiar contraseña" icono="key-outline" onPress={cambiar} cargando={enviando} />}>
       <Txt muted>Cuenta: {usuario.email}</Txt>
-      <Campo label="Contraseña actual" value={actual} onChangeText={setActual} secureTextEntry autoComplete="current-password" />
-      <Campo label="Contraseña nueva" value={nueva} onChangeText={setNueva} placeholder="Al menos 6 caracteres" secureTextEntry autoComplete="new-password" />
-      <Campo label="Repetí la contraseña nueva" value={nueva2} onChangeText={setNueva2} secureTextEntry autoComplete="new-password" onSubmitEditing={cambiar} />
+      <Campo label="Contraseña actual *" value={actual} onChangeText={setActual} secureTextEntry autoComplete="current-password" />
+      <Campo label="Contraseña nueva *" value={nueva} onChangeText={setNueva} placeholder="Al menos 6 caracteres" secureTextEntry autoComplete="new-password" />
+      <Campo label="Repetí la contraseña nueva *" value={nueva2} onChangeText={setNueva2} secureTextEntry autoComplete="new-password" onSubmitEditing={cambiar} />
       <MensajeError texto={error} />
       <Text
         accessibilityRole="button"

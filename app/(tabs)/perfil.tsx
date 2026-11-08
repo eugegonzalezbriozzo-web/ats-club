@@ -7,7 +7,7 @@ import * as repo from '../../src/data/repo';
 import { ClaseAdaptada, DatosArquero, Modalidad, Arco, MAX_SOBRE_MI, Categoria, Division, Funcion, Lateralidad, Usuario } from '../../src/types';
 import { CampoFecha } from '../../src/CampoFecha';
 import { CamposArquero } from '../../src/CamposArquero';
-import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, Chip, MensajeError, Pantalla, Tarjeta, Titulo, Txt } from '../../src/ui';
+import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, Chip, MensajeError, Pantalla, Tarjeta, Titulo, Txt, NotaObligatorios } from '../../src/ui';
 import { FotoPerfil } from '../../src/FotoPerfil';
 import { armarNombreCompleto, confirmar, edad, hoyISO } from '../../src/util';
 
@@ -112,17 +112,18 @@ export default function Perfil() {
       <Txt muted>
         {usuario.email} · {esSuperadmin ? 'Plataforma' : `${NOMBRE_ROL[usuario.rol]} · ${club?.nombre ?? ''}`}
       </Txt>
-      <Campo label="Nombre" value={nombre} onChangeText={setNombre} />
-      <Campo label="Apellido" value={apellido} onChangeText={setApellido} />
+      <NotaObligatorios />
+      <Campo label="Nombre *" value={nombre} onChangeText={setNombre} />
+      <Campo label="Apellido *" value={apellido} onChangeText={setApellido} />
       <CampoCalculado label="Nombre completo" valor={armarNombreCompleto(nombre, apellido)} vacio="Se completa con nombre y apellido" ayuda="Se arma solo con los dos campos de arriba." />
       <Campo label="Alias (opcional)" value={alias} onChangeText={setAlias} placeholder="Cómo te dicen en el club" autoComplete="nickname" />
       <Campo label="DNI" value={dni} onChangeText={setDni} keyboardType="number-pad" />
       <CampoFecha label="Fecha de nacimiento (opcional)" valor={nacimiento} onChange={setNacimiento} min="1900-01-01" max={hoyISO()} opcional
         ayuda={edad(nacimiento) !== null ? `Edad: ${edad(nacimiento)} años · La ven solo vos y los admins del club.` : 'La ven solo vos y los admins del club.'} />
-      <Campo label="WhatsApp" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
+      <Campo label="WhatsApp *" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
       <Campo label="Ciudad (opcional)" value={ciudad} onChangeText={setCiudad} autoComplete="postal-address-locality" />
       <Campo label="Localidad (opcional)" value={localidad} onChangeText={setLocalidad} />
-      <Campo label="Dirección" value={direccion} onChangeText={setDireccion} autoComplete="street-address" placeholder="Calle y número" />
+      <Campo label="Dirección *" value={direccion} onChangeText={setDireccion} autoComplete="street-address" placeholder="Calle y número" />
       <Campo
         label="Algo sobre mí (opcional)"
         value={sobreMi}

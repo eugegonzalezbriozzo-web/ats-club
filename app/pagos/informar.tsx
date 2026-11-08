@@ -11,7 +11,7 @@ import { tamTexto } from '../../src/Pdf';
 import { Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
 import type { Comprobante, ConceptoPago, ConfigPagos, Inscripcion, Pago, Torneo, Usuario } from '../../src/types';
-import { Boton, Campo, Check, MensajeError, Pantalla, Pildoras, Tarjeta, Txt } from '../../src/ui';
+import { Boton, Campo, Check, MensajeError, Pantalla, Pildoras, Tarjeta, Txt, NotaObligatorios } from '../../src/ui';
 import { hoyISO, plata } from '../../src/util';
 
 const NOMBRE_CONCEPTO: Record<ConceptoPago, string> = { cuota: 'Cuota', inscripcion: 'Inscripción a torneo', otros: 'Otros gastos' };
@@ -130,10 +130,11 @@ export default function InformarPago() {
           ? 'Para pagos en efectivo o transferencias que te llegaron por otro lado. Queda aprobado directamente.'
           : 'Primero transferí desde tu banco y después informalo acá con el comprobante. Ya no hace falta mandarlo al grupo.'}
       </Txt>
+      <NotaObligatorios />
 
       {!porAdmin && menores.length ? (
         <Pildoras
-          label="¿De quién es el pago?"
+          label="¿De quién es el pago? *"
           opciones={['Mío', ...menores.map((m) => m.alias || m.nombre)]}
           valor={uid === usuario?.id || !uid ? 'Mío' : (menores.find((m) => m.id === uid)?.alias || menores.find((m) => m.id === uid)?.nombre) ?? 'Mío'}
           onChange={(v) => {
@@ -157,7 +158,7 @@ export default function InformarPago() {
           </Tarjeta>
         ) : (
           <View style={{ gap: 8 }}>
-            <Campo label="Socio" value={buscar} onChangeText={setBuscar} placeholder="Buscá por nombre o alias" />
+            <Campo label="Socio *" value={buscar} onChangeText={setBuscar} placeholder="Buscá por nombre o alias" />
             {socios
               .filter((s) => !qb || `${s.nombre} ${s.apellido} ${s.alias}`.toLowerCase().includes(qb))
               .slice(0, 8)
@@ -172,7 +173,7 @@ export default function InformarPago() {
       ) : null}
 
       <Pildoras
-        label="¿Qué pagás?"
+        label="¿Qué pagás? *"
         opciones={conceptos.map((c) => NOMBRE_CONCEPTO[c])}
         valor={NOMBRE_CONCEPTO[conc]}
         onChange={(v) => {
@@ -211,7 +212,7 @@ export default function InformarPago() {
           <Txt muted>{porAdmin ? 'Este socio no tiene inscripciones con pago pendiente.' : 'No tenés inscripciones con pago pendiente.'}</Txt>
         ) : (
           <Pildoras
-            label="Torneo"
+            label="Torneo *"
             opciones={insPagables.map((x) => x.tor.nombre)}
             valor={tSel?.tor.nombre ?? ''}
             onChange={(v) => {
@@ -223,15 +224,15 @@ export default function InformarPago() {
       ) : null}
 
       {conc === 'otros' ? (
-        <Campo label="¿Qué pagás?" value={descripcion} onChangeText={setDescripcion} maxLength={80} placeholder="Ej.: remera del club, flechas, viaje al Regional" />
+        <Campo label="¿Qué pagás? *" value={descripcion} onChangeText={setDescripcion} maxLength={80} placeholder="Ej.: remera del club, flechas, viaje al Regional" />
       ) : null}
 
-      <Campo label="Monto ($)" value={monto} onChangeText={(v) => setMontoManual(v.replace(/[^\d]/g, ''))} keyboardType="number-pad" />
-      <CampoFecha label="Fecha de la transferencia" valor={fecha} onChange={setFecha} max={hoyISO()} />
+      <Campo label="Monto ($) *" value={monto} onChangeText={(v) => setMontoManual(v.replace(/[^\d]/g, ''))} keyboardType="number-pad" />
+      <CampoFecha label="Fecha de la transferencia *" valor={fecha} onChange={setFecha} max={hoyISO()} />
 
       {cfg.cuentas.length > 1 ? (
         <Pildoras
-          label="¿A qué cuenta transferiste?"
+          label="¿A qué cuenta transferiste? *"
           opciones={cfg.cuentas.map((c) => c.alias || c.titular)}
           valor={(() => { const c = cfg.cuentas.find((x) => x.id === cuentaId); return c ? c.alias || c.titular : ''; })()}
           onChange={(v) => setCuentaId(cfg.cuentas.find((c) => (c.alias || c.titular) === v)!.id)}

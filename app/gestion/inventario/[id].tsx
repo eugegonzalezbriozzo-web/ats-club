@@ -7,7 +7,7 @@ import * as repo from '../../../src/data/repo';
 import { Text } from '../../../src/texto';
 import { useTema } from '../../../src/theme';
 import { ESTADOS_ITEM, tiposUsados, type DatosItem, type ItemInventario, type Prestamo, type Usuario } from '../../../src/types';
-import { Boton, Campo, Cargando, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../../src/ui';
+import { Boton, Campo, Cargando, MensajeError, Pantalla, Pildoras, Titulo, Txt, NotaObligatorios } from '../../../src/ui';
 import { confirmar, fechaCorta, hoyISO } from '../../../src/util';
 
 const VACIO: DatosItem = { nombre: '', tipo: '', cantidad: 1, estado: 'bueno', ubicacion: '', nota: '' };
@@ -112,7 +112,8 @@ export default function ItemInventarioPantalla() {
   return (
     <Pantalla pie={<Boton titulo={nuevo ? 'Agregar' : 'Guardar cambios'} onPress={guardar} cargando={enviando} />}>
       <Stack.Screen options={{ title: nuevo ? 'Agregar al inventario' : item!.nombre }} />
-      <Campo label="Nombre" value={d.nombre} onChangeText={set('nombre')} maxLength={80} placeholder='Ej.: Arco recurvo escuela 24 lb' />
+      <NotaObligatorios />
+      <Campo label="Nombre *" value={d.nombre} onChangeText={set('nombre')} maxLength={80} placeholder='Ej.: Arco recurvo escuela 24 lb' />
       <Campo label="Tipo (opcional)" value={d.tipo} onChangeText={set('tipo')} maxLength={40} placeholder="Ej.: Arcos, Flechas, Dianas, Miras…" />
       {/* Los tipos que ya usó el club, para no escribirlos distinto cada vez. */}
       {tipos.filter((x) => x.toLowerCase() !== d.tipo.trim().toLowerCase()).length ? (
@@ -125,8 +126,8 @@ export default function ItemInventarioPantalla() {
           ))}
         </View>
       ) : null}
-      <Campo label="Cantidad" value={cant} onChangeText={(v) => setCant(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={4} />
-      <Pildoras label="Estado" opciones={ESTADOS_ITEM.map((x) => x.nombre)} valor={ESTADOS_ITEM.find((x) => x.valor === d.estado)!.nombre}
+      <Campo label="Cantidad *" value={cant} onChangeText={(v) => setCant(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={4} />
+      <Pildoras label="Estado *" opciones={ESTADOS_ITEM.map((x) => x.nombre)} valor={ESTADOS_ITEM.find((x) => x.valor === d.estado)!.nombre}
         onChange={(n) => set('estado')(ESTADOS_ITEM.find((x) => x.nombre === n)!.valor)} />
       <Campo label="Dónde está (opcional)" value={d.ubicacion} onChangeText={set('ubicacion')} maxLength={80} placeholder="Ej.: Depósito, armario 2" />
       <Campo label="Nota (opcional)" value={d.nota} onChangeText={set('nota')} maxLength={500} multiline placeholder="Libraje, largo, qué le falta…" />
@@ -140,7 +141,7 @@ export default function ItemInventarioPantalla() {
           {activos.map(filaPrestamo)}
           {prestando ? (
             <View style={{ gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: t.accent }}>
-              <Campo label="¿A quién?" value={socio ? `${socio.nombre} ${socio.apellido}` : buscar}
+              <Campo label="¿A quién? *" value={socio ? `${socio.nombre} ${socio.apellido}` : buscar}
                 onChangeText={(v) => { setSocio(null); setBuscar(v); }} placeholder="Buscá un socio o escribí un nombre" />
               {sugeridos.map((u) => (
                 <Pressable key={u.id} accessibilityRole="button" onPress={() => { setSocio(u); setBuscar(''); }}
@@ -149,8 +150,8 @@ export default function ItemInventarioPantalla() {
                 </Pressable>
               ))}
               {!socio && texto && !sugeridos.length ? <Txt muted style={{ fontSize: 13 }}>No es socio: se anota con este nombre.</Txt> : null}
-              <Campo label="Cantidad" value={pCant} onChangeText={(v) => setPCant(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={4} />
-              <CampoFecha label="Desde" valor={pDesde} onChange={setPDesde} max={hoyISO()} />
+              <Campo label="Cantidad *" value={pCant} onChangeText={(v) => setPCant(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={4} />
+              <CampoFecha label="Desde *" valor={pDesde} onChange={setPDesde} max={hoyISO()} />
               <Campo label="Nota (opcional)" value={pNota} onChangeText={setPNota} maxLength={300} placeholder="Ej.: para la escuela de los martes" />
               <Boton titulo="Anotar préstamo" icono="checkmark" onPress={confirmarPrestamo} cargando={enviando} />
               <Boton titulo="Cancelar" variante="secundario" onPress={() => setPrestando(false)} />

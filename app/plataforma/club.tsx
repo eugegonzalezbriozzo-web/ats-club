@@ -130,7 +130,7 @@ export default function FormClub() {
       <Stack.Screen options={{ title: id ? 'Editar club' : 'Nuevo club' }} />
       <Titulo>Datos del club</Titulo>
       <Campo
-        label="Nombre del club"
+        label="Nombre del club *"
         value={f.nombre}
         placeholder="Ej.: Arquería Sierras Chicas"
         onChangeText={(v) => setF((x) => ({ ...x, nombre: v, slug: slugTocado ? x.slug : repo.crearSlug(v) }))}
@@ -149,7 +149,7 @@ export default function FormClub() {
       <Campo label="Facebook (opcional)" value={f.facebook ?? ''} onChangeText={set('facebook')} placeholder="Página o link" autoCapitalize="none" />
       <Campo label="TikTok (opcional)" value={f.tiktok ?? ''} onChangeText={set('tiktok')} placeholder="@miclub o link" autoCapitalize="none" />
       <Campo
-        label="Identificador del link"
+        label="Identificador del link *"
         value={f.slug}
         autoCapitalize="none"
         placeholder="sierras-chicas"
@@ -195,7 +195,7 @@ export default function FormClub() {
       <Txt muted style={{ fontSize: 13 }}>
         {id ? 'Hacer admin a otra cuenta (opcional):' : 'Es quien aprueba socios, carga torneos y gestiona los roles del club. No puede cambiar colores ni datos del club.'}
       </Txt>
-      <Campo label="Email de la cuenta del admin" value={emailAdmin} onChangeText={setEmailAdmin} keyboardType="email-address" autoCapitalize="none" placeholder="La persona ya tiene que tener cuenta" />
+      <Campo label="Email de la cuenta del admin *" value={emailAdmin} onChangeText={setEmailAdmin} keyboardType="email-address" autoCapitalize="none" placeholder="La persona ya tiene que tener cuenta" />
       <Txt muted style={{ fontSize: 12 }}>
         La persona primero se crea la cuenta (por ejemplo con el link de registro del club) y después la hacés admin acá. Más adelante esto va a ser una invitación por email.
       </Txt>

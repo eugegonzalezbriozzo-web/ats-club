@@ -177,14 +177,37 @@ export function BotonIcono({
 
 /* ---------- Formularios ---------- */
 
+/** Etiqueta de un campo. Si termina en " *" es obligatorio: el asterisco va en el color del club. */
+export function Etiqueta({ texto, size = 14, peso = '600' }: { texto: string; size?: number; peso?: '600' | '700' }) {
+  const { t } = useTema();
+  const oblig = texto.endsWith(' *');
+  return (
+    <Text style={{ color: t.text, fontSize: size, fontWeight: peso }}>
+      {oblig ? texto.slice(0, -2) : texto}
+      {oblig ? <Text style={{ color: t.accent, fontWeight: '800' }}> *</Text> : null}
+    </Text>
+  );
+}
+/** Para lectores de pantalla: "Nombre *" → "Nombre, obligatorio". */
+export const etiquetaAccesible = (label: string) => (label.endsWith(' *') ? `${label.slice(0, -2)}, obligatorio` : label);
+/** Aclaración al principio de un formulario. */
+export function NotaObligatorios() {
+  const { t } = useTema();
+  return (
+    <Text style={{ color: t.muted, fontSize: 13 }}>
+      Los campos con <Text style={{ color: t.accent, fontWeight: '800' }}>*</Text> son obligatorios.
+    </Text>
+  );
+}
+
 export function Campo({ label, ...props }: TextInputProps & { label: string }) {
   const { t } = useTema();
   return (
     <View style={{ gap: 6 }}>
-      <Text style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{label}</Text>
+      <Etiqueta texto={label} />
       <TextInput
         placeholderTextColor="#8A8A90"
-        accessibilityLabel={label}
+        accessibilityLabel={etiquetaAccesible(label)}
         {...props}
         style={{
           minHeight: 50,
@@ -240,7 +263,7 @@ export function Pildoras<T extends string>({
   return (
     <View style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{label}</Text>
+        <Etiqueta texto={label} size={15} />
         {nota ? (
           <Text style={{ color: notaDestacada ? t.accent : t.muted, fontSize: 12, fontWeight: '600', flexShrink: 1 }}>
             {nota}
@@ -276,12 +299,12 @@ export function Pildoras<T extends string>({
 }
 
 /** Funciones en el club: se pueden elegir varias (al menos una). */
-export function CampoFunciones({ valor, onChange, label = 'Funciones en el club' }: { valor: Funcion[]; onChange: (v: Funcion[]) => void; label?: string }) {
+export function CampoFunciones({ valor, onChange, label = 'Funciones en el club *' }: { valor: Funcion[]; onChange: (v: Funcion[]) => void; label?: string }) {
   const { t } = useTema();
   return (
     <View style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{label}</Text>
+        <Etiqueta texto={label} size={15} />
         <Text style={{ color: t.muted, fontSize: 12, fontWeight: '600' }}>Podés elegir varias</Text>
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>

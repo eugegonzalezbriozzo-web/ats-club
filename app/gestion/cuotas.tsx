@@ -71,10 +71,10 @@ export default function CuentasYCuotas() {
       <Txt muted>Los socios las ven en “Mis pagos” con un botón para copiar el alias o el CBU.</Txt>
       {cuentas.map((c, i) => (
         <Tarjeta key={c.id} style={{ gap: 12 }}>
-          <Campo label="Titular" value={c.titular} onChangeText={(v) => setC(i, 'titular', v)} placeholder="Ej.: Asociación Civil Arquería…" />
+          <Campo label="Titular *" value={c.titular} onChangeText={(v) => setC(i, 'titular', v)} placeholder="Ej.: Asociación Civil Arquería…" />
           <Campo label="Banco o billetera (opcional)" value={c.banco} onChangeText={(v) => setC(i, 'banco', v)} />
-          <Campo label="Alias" value={c.alias} onChangeText={(v) => setC(i, 'alias', v)} autoCapitalize="none" />
-          <Campo label="CBU / CVU" value={c.cbu} onChangeText={(v) => setC(i, 'cbu', soloNumeros(v))} keyboardType="number-pad" maxLength={22} />
+          <Campo label="Alias *" value={c.alias} onChangeText={(v) => setC(i, 'alias', v)} autoCapitalize="none" />
+          <Campo label="CBU / CVU *" value={c.cbu} onChangeText={(v) => setC(i, 'cbu', soloNumeros(v))} keyboardType="number-pad" maxLength={22} />
           <Text accessibilityRole="button" onPress={() => setCuentas((l) => l.filter((_, j) => j !== i))} style={{ color: t.accent, fontWeight: '700' }}>
             Quitar cuenta
           </Text>
@@ -96,7 +96,7 @@ export default function CuentasYCuotas() {
               <View style={{ flex: 1 }}>
                 <CampoFecha label={`Desde (${repo.nombreMes(c.desde)})`} valor={`${c.desde}-01`} onChange={(v) => v && setCambio(i, k, { desde: v.slice(0, 7) })} />
               </View>
-              <View style={{ width: 130 }}><Campo label="Nuevo monto" value={c.monto} onChangeText={(v) => setCambio(i, k, { monto: soloNumeros(v) })} keyboardType="number-pad" /></View>
+              <View style={{ width: 130 }}><Campo label="Nuevo monto *" value={c.monto} onChangeText={(v) => setCambio(i, k, { monto: soloNumeros(v) })} keyboardType="number-pad" /></View>
               <Quitar label="Quitar cambio de precio" onPress={() => setT(i, { cambios: x.cambios.filter((_, h) => h !== k) })} />
             </View>
           ))}

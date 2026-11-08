@@ -6,7 +6,7 @@ import * as repo from '../../src/data/repo';
 import { CampoPdf } from '../../src/Pdf';
 import { JERARQUIAS, Jerarquia, TIPOS_TORNEO, TipoTorneo } from '../../src/types';
 import type { ArchivoPdf } from '../../src/types';
-import { Boton, Campo, MensajeError, Pantalla, Pildoras, Check } from '../../src/ui';
+import { Boton, Campo, MensajeError, Pantalla, Pildoras, Check, NotaObligatorios } from '../../src/ui';
 import { confirmar } from '../../src/util';
 import { CampoFecha } from '../../src/CampoFecha';
 
@@ -84,20 +84,21 @@ export default function FormTorneo() {
   return (
     <Pantalla pie={<Boton titulo={id ? 'Guardar cambios' : 'Publicar torneo'} onPress={guardar} cargando={enviando} />}>
       <Stack.Screen options={{ title: id ? 'Editar torneo' : 'Nuevo torneo' }} />
-      <Campo label="Nombre del torneo" value={nombre} onChangeText={setNombre} placeholder="Ej.: Torneo Aniversario" />
-      <Campo label="Club organizador" value={club} onChangeText={setClub} />
-      <Pildoras label="Tipo" opciones={TIPOS_TORNEO} valor={tipo} onChange={setTipo} />
-      <Pildoras label="Jerarquía" opciones={JERARQUIAS} valor={jerarquia} onChange={setJerarquia} />
-      <Campo label="Valor de inscripción ($)" value={valor} onChangeText={setValor} keyboardType="number-pad" placeholder="0" />
-      <CampoFecha label={variosDias ? 'Primer día del torneo' : 'Fecha del torneo'} valor={fecha} onChange={setFecha} min={cierra || undefined} />
+      <NotaObligatorios />
+      <Campo label="Nombre del torneo *" value={nombre} onChangeText={setNombre} placeholder="Ej.: Torneo Aniversario" />
+      <Campo label="Club organizador *" value={club} onChangeText={setClub} />
+      <Pildoras label="Tipo *" opciones={TIPOS_TORNEO} valor={tipo} onChange={setTipo} />
+      <Pildoras label="Jerarquía *" opciones={JERARQUIAS} valor={jerarquia} onChange={setJerarquia} />
+      <Campo label="Valor de inscripción ($) *" value={valor} onChangeText={setValor} keyboardType="number-pad" placeholder="0" />
+      <CampoFecha label={variosDias ? 'Primer día del torneo *' : 'Fecha del torneo *'} valor={fecha} onChange={setFecha} min={cierra || undefined} />
       <Check label="Dura varios días (ej.: Final Nacional)" valor={variosDias} onChange={setVariosDias} />
-      {variosDias ? <CampoFecha label="Último día del torneo" valor={fechaFin} onChange={setFechaFin} min={fecha || undefined} /> : null}
+      {variosDias ? <CampoFecha label="Último día del torneo *" valor={fechaFin} onChange={setFechaFin} min={fecha || undefined} /> : null}
       <View style={{ flexDirection: 'row', gap: 12 }}>
         <View style={{ flex: 1 }}>
-          <CampoFecha label="Inscripción abre" valor={abre} onChange={setAbre} max={cierra || fecha || undefined} />
+          <CampoFecha label="Inscripción abre *" valor={abre} onChange={setAbre} max={cierra || fecha || undefined} />
         </View>
         <View style={{ flex: 1 }}>
-          <CampoFecha label="Inscripción cierra" valor={cierra} onChange={setCierra} min={abre || undefined} max={fecha || undefined} />
+          <CampoFecha label="Inscripción cierra *" valor={cierra} onChange={setCierra} min={abre || undefined} max={fecha || undefined} />
         </View>
       </View>
       <CampoPdf valor={invitacion} onChange={setInvitacion} />

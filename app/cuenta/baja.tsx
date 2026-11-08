@@ -82,7 +82,7 @@ export default function PedirBaja() {
       ) : (
         <Txt muted style={{ fontSize: 13 }}>Si no lo marcás, tus datos quedan guardados y el club te puede reactivar más adelante.</Txt>
       )}
-      <Campo label="Tu contraseña" value={pass} onChangeText={setPass} secureTextEntry autoComplete="current-password" />
+      <Campo label="Tu contraseña *" value={pass} onChangeText={setPass} secureTextEntry autoComplete="current-password" />
       <MensajeError texto={error} />
     </Pantalla>
   );

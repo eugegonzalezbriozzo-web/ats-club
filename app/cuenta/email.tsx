@@ -55,14 +55,14 @@ export default function CambiarEmail() {
       {paso === 'datos' ? (
         <>
           <Txt muted>Email actual: {usuario.email}</Txt>
-          <Campo label="Email nuevo" value={nuevo} onChangeText={setNuevo} placeholder="nuevo@email.com" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-          <Campo label="Tu contraseña" value={pass} onChangeText={setPass} secureTextEntry autoComplete="current-password" onSubmitEditing={pedir} />
+          <Campo label="Email nuevo *" value={nuevo} onChangeText={setNuevo} placeholder="nuevo@email.com" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+          <Campo label="Tu contraseña *" value={pass} onChangeText={setPass} secureTextEntry autoComplete="current-password" onSubmitEditing={pedir} />
           <Txt muted style={{ fontSize: 13 }}>Te mandamos un código al email nuevo para comprobar que es tuyo.</Txt>
         </>
       ) : (
         <>
           <Aviso icono="mail-outline" texto={`Te mandamos un código a ${nuevo.trim().toLowerCase()}. Revisá también el spam. Vence en 15 minutos.`} />
-          <Campo label="Código del mail" value={codigo} onChangeText={setCodigo} placeholder="123456" keyboardType="number-pad" autoComplete="one-time-code" maxLength={8} onSubmitEditing={confirmar} />
+          <Campo label="Código del mail *" value={codigo} onChangeText={setCodigo} placeholder="123456" keyboardType="number-pad" autoComplete="one-time-code" maxLength={8} onSubmitEditing={confirmar} />
           <Text accessibilityRole="button" onPress={() => { setPaso('datos'); setCodigo(''); setError(null); }}
             style={{ color: t.accent, fontWeight: '600', fontSize: 14, paddingVertical: 6 }}>
             No me llegó o me equivoqué de email

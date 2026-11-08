@@ -8,7 +8,7 @@ import * as repo from '../../src/data/repo';
 import { Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
 import { AUDIENCIAS, TIPOS_EVENTO, type DatosEvento } from '../../src/types';
-import { Boton, Campo, Cargando, Check, MensajeError, Pantalla, Pildoras, Txt } from '../../src/ui';
+import { Boton, Campo, Cargando, Check, Etiqueta, MensajeError, Pantalla, NotaObligatorios, Pildoras, Txt } from '../../src/ui';
 import { confirmar, hoyISO } from '../../src/util';
 
 const ORDEN_DIAS = [1, 2, 3, 4, 5, 6, 0]; // lunes primero
@@ -67,8 +67,9 @@ export default function EventoForm() {
   return (
     <Pantalla pie={<Boton titulo={id ? 'Guardar cambios' : 'Agregar al calendario'} onPress={guardar} cargando={enviando} />}>
       <Stack.Screen options={{ title: id ? 'Editar evento' : 'Nuevo evento' }} />
-      <Campo label="Título" value={d.titulo} onChangeText={set('titulo')} maxLength={80} placeholder="Ej.: Escuela de arquería" />
-      <Pildoras label="Tipo" opciones={TIPOS_EVENTO.map((x) => x.nombre)} valor={tipoNombre}
+      <NotaObligatorios />
+      <Campo label="Título *" value={d.titulo} onChangeText={set('titulo')} maxLength={80} placeholder="Ej.: Escuela de arquería" />
+      <Pildoras label="Tipo *" opciones={TIPOS_EVENTO.map((x) => x.nombre)} valor={tipoNombre}
         onChange={(n) => set('tipo')(TIPOS_EVENTO.find((x) => x.nombre === n)!.valor)} />
       <Txt muted style={{ fontSize: 13, marginTop: -6 }}>Los torneos no se cargan acá: aparecen solos en el calendario.</Txt>
 
@@ -78,7 +79,7 @@ export default function EventoForm() {
       }} />
       {repite ? (
         <View style={{ gap: 6 }}>
-          <Text style={{ color: t.text, fontWeight: '700', fontSize: 15 }}>Días</Text>
+          <Etiqueta texto="Días *" size={15} peso="700" />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {ORDEN_DIAS.map((dia) => {
               const on = d.diasSemana.includes(dia);
@@ -94,7 +95,7 @@ export default function EventoForm() {
           </View>
         </View>
       ) : null}
-      <CampoFecha label={repite ? 'Desde' : 'Fecha'} valor={d.fecha} onChange={set('fecha')} />
+      <CampoFecha label={repite ? 'Desde *' : 'Fecha *'} valor={d.fecha} onChange={set('fecha')} />
       {repite ? (
         <CampoFecha label="Hasta (opcional)" valor={d.hasta} onChange={set('hasta')} min={d.fecha} opcional
           ayuda="Si no ponés fecha, se repite sin fin. Un día puntual (un feriado) se suspende desde el calendario." />
@@ -107,7 +108,7 @@ export default function EventoForm() {
       <Txt muted style={{ fontSize: 13, marginTop: -6 }}>Sin hora = todo el día.</Txt>
       <Campo label="Lugar (opcional)" value={d.lugar} onChangeText={set('lugar')} maxLength={120} placeholder="Ej.: Cancha del club" />
       <Campo label="Nota (opcional)" value={d.nota} onChangeText={set('nota')} maxLength={500} multiline placeholder="Qué llevar, a quién está dirigido…" />
-      <Pildoras label="Lo ven" opciones={AUDIENCIAS.map((a) => a.nombre)} valor={audNombre}
+      <Pildoras label="Lo ven *" opciones={AUDIENCIAS.map((a) => a.nombre)} valor={audNombre}
         onChange={(n) => set('audiencia')(AUDIENCIAS.find((a) => a.nombre === n)!.valor)} />
       <Txt muted style={{ fontSize: 13, marginTop: -6 }}>
         {d.audiencia === 'comision' ? 'Solo los admins del club.' : 'Les llega una notificación a quienes lo ven (si las activaron).'}

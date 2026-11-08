@@ -7,7 +7,7 @@ import * as repo from '../../src/data/repo';
 import { FotoPerfil } from '../../src/FotoPerfil';
 import { MAX_SOBRE_MI, Usuario } from '../../src/types';
 import { CamposArquero } from '../../src/CamposArquero';
-import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, Cargando, Check, MensajeError, Pantalla, Titulo, Txt } from '../../src/ui';
+import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, Cargando, Check, MensajeError, Pantalla, Titulo, Txt, NotaObligatorios } from '../../src/ui';
 import { armarNombreCompleto, confirmar, edad, fechaCorta, hoyISO } from '../../src/util';
 
 const VACIO: repo.DatosMenor = {
@@ -130,13 +130,14 @@ export default function MenorACargo() {
           });
         }}
       />
-      <Campo label="Nombre" value={d.nombre} onChangeText={set('nombre')} />
-      <Campo label="Apellido" value={d.apellido} onChangeText={set('apellido')} />
+      <NotaObligatorios />
+      <Campo label="Nombre *" value={d.nombre} onChangeText={set('nombre')} />
+      <Campo label="Apellido *" value={d.apellido} onChangeText={set('apellido')} />
       <CampoCalculado label="Nombre completo" valor={armarNombreCompleto(d.nombre, d.apellido)} vacio="Se completa con nombre y apellido" />
       <Campo label="Alias (opcional)" value={d.alias} onChangeText={set('alias')} placeholder="Cómo le dicen en el club" />
       <Campo label="DNI (opcional)" value={d.dni} onChangeText={set('dni')} keyboardType="number-pad" />
       <CampoFecha
-        label="Fecha de nacimiento"
+        label="Fecha de nacimiento *"
         valor={d.nacimiento}
         onChange={set('nacimiento')}
         min={`${Number(hoyISO().slice(0, 4)) - 18}${hoyISO().slice(4)}`}

@@ -59,14 +59,14 @@ export default function Recuperar() {
       {paso === 'email' ? (
         <>
           <Txt muted>Escribí el email de tu cuenta. Te mandamos un código para elegir una contraseña nueva.</Txt>
-          <Campo label="Email" value={email} onChangeText={setEmail} placeholder="tu@email.com" keyboardType="email-address" autoCapitalize="none" autoComplete="email" onSubmitEditing={pedir} />
+          <Campo label="Email *" value={email} onChangeText={setEmail} placeholder="tu@email.com" keyboardType="email-address" autoCapitalize="none" autoComplete="email" onSubmitEditing={pedir} />
         </>
       ) : (
         <>
           {aviso ? <Aviso icono="mail-outline" texto={aviso} /> : null}
-          <Campo label="Código del mail" value={codigo} onChangeText={setCodigo} placeholder="123456" keyboardType="number-pad" autoComplete="one-time-code" maxLength={10} />
-          <Campo label="Contraseña nueva" value={pass} onChangeText={setPass} placeholder="Al menos 6 caracteres" secureTextEntry autoComplete="new-password" />
-          <Campo label="Repetí la contraseña nueva" value={pass2} onChangeText={setPass2} secureTextEntry autoComplete="new-password" onSubmitEditing={cambiar} />
+          <Campo label="Código del mail *" value={codigo} onChangeText={setCodigo} placeholder="123456" keyboardType="number-pad" autoComplete="one-time-code" maxLength={10} />
+          <Campo label="Contraseña nueva *" value={pass} onChangeText={setPass} placeholder="Al menos 6 caracteres" secureTextEntry autoComplete="new-password" />
+          <Campo label="Repetí la contraseña nueva *" value={pass2} onChangeText={setPass2} secureTextEntry autoComplete="new-password" onSubmitEditing={cambiar} />
           <Text accessibilityRole="button" onPress={() => { setPaso('email'); setCodigo(''); setAviso(null); setError(null); }}
             style={{ color: t.accent, fontWeight: '600', fontSize: 14, paddingVertical: 6 }}>
             No me llegó: pedir otro código

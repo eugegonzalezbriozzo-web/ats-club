@@ -9,7 +9,7 @@ import { FotoPerfil } from '../src/FotoPerfil';
 import { armarNombreCompleto, edad, hoyISO } from '../src/util';
 import { View } from 'react-native';
 import * as repo from '../src/data/repo';
-import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, LogoClub, MensajeError, Pantalla, Titulo, Txt } from '../src/ui';
+import { Aviso, Boton, Campo, CampoCalculado, CampoFederado, CampoFunciones, LogoClub, MensajeError, Pantalla, Titulo, Txt, NotaObligatorios } from '../src/ui';
 
 export default function Registro() {
   const { registrar, clubDelLink } = useAuth();
@@ -96,8 +96,9 @@ export default function Registro() {
       </View>
       <Titulo>Tus datos</Titulo>
       <FotoPerfil foto={foto} nombre={nombre} apellido={apellido} onChange={setFoto} />
-      <Campo label="Nombre" value={nombre} onChangeText={setNombre} autoComplete="given-name" />
-      <Campo label="Apellido" value={apellido} onChangeText={setApellido} autoComplete="family-name" />
+      <NotaObligatorios />
+      <Campo label="Nombre *" value={nombre} onChangeText={setNombre} autoComplete="given-name" />
+      <Campo label="Apellido *" value={apellido} onChangeText={setApellido} autoComplete="family-name" />
       <CampoCalculado label="Nombre completo" valor={armarNombreCompleto(nombre, apellido)} vacio="Se completa con nombre y apellido" ayuda="Se arma solo con los dos campos de arriba." />
       <Campo label="Alias (opcional)" value={alias} onChangeText={setAlias} placeholder="Cómo te dicen en el club" autoComplete="nickname" />
       <Campo label="DNI" value={dni} onChangeText={setDni} keyboardType="number-pad" />
@@ -106,13 +107,13 @@ export default function Registro() {
       {edad(nacimiento) !== null && edad(nacimiento)! < 16 ? (
         <Aviso icono="people-outline" texto="Con menos de 16 años no se crea cuenta propia: pedile a tu mamá, papá o tutor/a que te sume desde su cuenta, en Mi perfil → Menores a cargo." />
       ) : null}
-      <Campo label="WhatsApp" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
+      <Campo label="WhatsApp *" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
       <Campo label="Ciudad (opcional)" value={ciudad} onChangeText={setCiudad} autoComplete="postal-address-locality" />
       <Campo label="Localidad (opcional)" value={localidad} onChangeText={setLocalidad} />
-      <Campo label="Dirección" value={direccion} onChangeText={setDireccion} autoComplete="street-address" placeholder="Calle y número" />
-      <Campo label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-      <Campo label="Contraseña" value={pass} onChangeText={setPass} secureTextEntry />
-      <Campo label="Repetir contraseña" value={pass2} onChangeText={setPass2} secureTextEntry />
+      <Campo label="Dirección *" value={direccion} onChangeText={setDireccion} autoComplete="street-address" placeholder="Calle y número" />
+      <Campo label="Email *" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+      <Campo label="Contraseña *" value={pass} onChangeText={setPass} secureTextEntry />
+      <Campo label="Repetir contraseña *" value={pass2} onChangeText={setPass2} secureTextEntry />
 
       <Titulo style={{ marginTop: 8 }}>En el club</Titulo>
       <CampoFunciones valor={funciones} onChange={setFunciones} />

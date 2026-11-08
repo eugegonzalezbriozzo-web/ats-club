@@ -29,7 +29,7 @@ export function CamposArquero({
   return (
     <>
       <Pildoras
-        label="Modalidad"
+        label="Modalidad *"
         opciones={MODALIDADES}
         valor={adaptado ? 'Adaptado' : 'Convencional'}
         onChange={(v) =>
@@ -44,7 +44,7 @@ export function CamposArquero({
       {adaptado ? (
         <>
           <Pildoras
-            label="Clase"
+            label="Clase *"
             opciones={opcionesDe(l.clases, d.claseAdaptada)}
             valor={d.claseAdaptada ?? ''}
             onChange={(v) => set('claseAdaptada')(v)}
@@ -54,20 +54,20 @@ export function CamposArquero({
           {claseSinDivision(d.claseAdaptada) ? (
             <Txt muted style={{ fontSize: 13 }}>División: sin distinción de sexo.</Txt>
           ) : (
-            <Pildoras label="División" opciones={DIVISIONES} valor={d.division} onChange={set('division')} {...marca('division')} />
+            <Pildoras label="División *" opciones={DIVISIONES} valor={d.division} onChange={set('division')} {...marca('division')} />
           )}
           {catsAdaptado.some((c) => c.activo) || d.categoria ? (
-            <Pildoras label="Categoría" opciones={opcionesDe(catsAdaptado, d.categoria)} valor={d.categoria ?? ''} onChange={set('categoria')} {...marca('categoria')} />
+            <Pildoras label="Categoría *" opciones={opcionesDe(catsAdaptado, d.categoria)} valor={d.categoria ?? ''} onChange={set('categoria')} {...marca('categoria')} />
           ) : null}
         </>
       ) : (
         <>
-          <Pildoras label="Arco" opciones={opcionesDe(l.arcos, d.arco)} valor={d.arco} onChange={set('arco')} {...marca('arco')} />
-          <Pildoras label="División" opciones={DIVISIONES} valor={d.division} onChange={set('division')} {...marca('division')} />
-          <Pildoras label="Categoría" opciones={opcionesDe(categoriasDe('convencional'), d.categoria)} valor={d.categoria ?? ''} onChange={set('categoria')} {...marca('categoria')} />
+          <Pildoras label="Arco *" opciones={opcionesDe(l.arcos, d.arco)} valor={d.arco} onChange={set('arco')} {...marca('arco')} />
+          <Pildoras label="División *" opciones={DIVISIONES} valor={d.division} onChange={set('division')} {...marca('division')} />
+          <Pildoras label="Categoría *" opciones={opcionesDe(categoriasDe('convencional'), d.categoria)} valor={d.categoria ?? ''} onChange={set('categoria')} {...marca('categoria')} />
         </>
       )}
-      <Pildoras label="Lateralidad" opciones={LATERALIDADES} valor={d.lateralidad} onChange={set('lateralidad')} {...marca('lateralidad')} />
+      <Pildoras label="Lateralidad *" opciones={LATERALIDADES} valor={d.lateralidad} onChange={set('lateralidad')} {...marca('lateralidad')} />
     </>
   );
 }

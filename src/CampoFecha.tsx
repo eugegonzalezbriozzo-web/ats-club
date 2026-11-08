@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Text } from './texto';
 import { useTema } from './theme';
 import { fechaCorta } from './util';
+import { Etiqueta } from './ui';
 
 const aDate = (iso: string) => new Date(`${iso}T12:00:00`);
 const aISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -21,7 +22,7 @@ export function CampoFecha({ label, valor, onChange, min, max, ayuda, opcional }
   const caja = { minHeight: 50, borderRadius: 10, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface, paddingHorizontal: 14 };
   return (
     <View style={{ gap: 6 }}>
-      <Text style={{ color: t.text, fontWeight: '700', fontSize: 15 }}>{label}</Text>
+      <Etiqueta texto={label} size={15} peso="700" />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         {Platform.OS === 'web' ? (
           React.createElement('input', {

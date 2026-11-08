@@ -7,7 +7,7 @@ import * as repo from '../../src/data/repo';
 import { TextInput, Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
 import { AUDIENCIAS, MAX_OPCIONES, MAX_TIT_NOTICIA, MAX_TXT_NOTICIA, type Audiencia } from '../../src/types';
-import { Aviso, Boton, Campo, Check, MensajeError, Pantalla, Pildoras, Tarjeta, Titulo } from '../../src/ui';
+import { Aviso, Boton, Campo, Check, MensajeError, Pantalla, Pildoras, Tarjeta, Titulo, NotaObligatorios } from '../../src/ui';
 import { confirmar, fechaCorta, hoyISO } from '../../src/util';
 import { CampoFecha } from '../../src/CampoFecha';
 
@@ -91,14 +91,15 @@ export default function FormNoticia() {
   return (
     <Pantalla pie={<Boton titulo={id ? 'Guardar cambios' : 'Publicar'} onPress={guardar} cargando={enviando} />}>
       <Stack.Screen options={{ title: id ? 'Editar publicación' : 'Nueva publicación' }} />
+      <NotaObligatorios />
       <Pildoras
-        label="¿Para quién es?"
+        label="¿Para quién es? *"
         opciones={AUDIENCIAS.map((a) => a.nombre)}
         valor={AUDIENCIAS.find((a) => a.valor === audiencia)!.nombre}
         onChange={(v) => setAudiencia(AUDIENCIAS.find((a) => a.nombre === v)!.valor)}
         nota={audiencia === 'comision' ? 'Solo la ven los admins' : audiencia === 'todos' ? 'Todo el club' : 'Según el dato "federado" del perfil'}
       />
-      <Campo label="Título" value={titulo} onChangeText={setTitulo} maxLength={MAX_TIT_NOTICIA} placeholder="Ej.: Asado de fin de año" />
+      <Campo label="Título *" value={titulo} onChangeText={setTitulo} maxLength={MAX_TIT_NOTICIA} placeholder="Ej.: Asado de fin de año" />
       <Campo label={conEncuesta ? 'Texto (opcional)' : 'Texto'} value={texto} onChangeText={setTexto} multiline maxLength={MAX_TXT_NOTICIA} placeholder="Escribí la información para los socios." />
 
       {!conEncuesta ? (
@@ -115,7 +116,7 @@ export default function FormNoticia() {
             <Aviso texto={`Ya tiene ${nVotos} respuesta${nVotos === 1 ? '' : 's'}: el tipo y las opciones no se pueden cambiar. Sí podés cambiar la pregunta, el cupo y el cierre.`} />
           ) : (
             <Pildoras
-              label="Tipo"
+              label="Tipo *"
               opciones={TIPOS}
               valor={tipo === 'asistencia' ? TIPOS[0] : TIPOS[1]}
               onChange={(v) => setTipo(v === TIPOS[0] ? 'asistencia' : 'opciones')}
