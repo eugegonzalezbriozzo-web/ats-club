@@ -85,6 +85,7 @@ export default function Perfil() {
     if (!nombre.trim() || !apellido.trim()) return setError('Nombre y apellido son obligatorios.');
     const ec = repo.errorContacto(telefono, direccion);
     if (ec) return setError(ec);
+    if (!nacimiento) return setError('Completá tu fecha de nacimiento.');
     setEnviando(true);
     try {
       await repo.actualizarPerfil(usuario.id, { nombre: nombre.trim(), apellido: apellido.trim(), alias: alias.trim(), dni: dni.trim(), telefono: telefono.trim(), ciudad: ciudad.trim(), localidad: localidad.trim(), direccion: direccion.trim(), sobreMi: sobreMi.trim(), instagram: redes.instagram.trim(), facebook: redes.facebook.trim(), tiktok: redes.tiktok.trim(), federado, arco, division, categoria, lateralidad, modalidad, claseAdaptada, funciones, nacimiento });
@@ -118,7 +119,7 @@ export default function Perfil() {
       <CampoCalculado label="Nombre completo" valor={armarNombreCompleto(nombre, apellido)} vacio="Se completa con nombre y apellido" ayuda="Se arma solo con los dos campos de arriba." />
       <Campo label="Alias (opcional)" value={alias} onChangeText={setAlias} placeholder="Cómo te dicen en el club" autoComplete="nickname" />
       <Campo label="DNI" value={dni} onChangeText={setDni} keyboardType="number-pad" />
-      <CampoFecha label="Fecha de nacimiento (opcional)" valor={nacimiento} onChange={setNacimiento} min="1900-01-01" max={hoyISO()} opcional
+      <CampoFecha label="Fecha de nacimiento *" valor={nacimiento} onChange={setNacimiento} min="1900-01-01" max={hoyISO()}
         ayuda={edad(nacimiento) !== null ? `Edad: ${edad(nacimiento)} años · La ven solo vos y los admins del club.` : 'La ven solo vos y los admins del club.'} />
       <Campo label="WhatsApp *" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" autoComplete="tel" placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" />
       <Campo label="Ciudad (opcional)" value={ciudad} onChangeText={setCiudad} autoComplete="postal-address-locality" />

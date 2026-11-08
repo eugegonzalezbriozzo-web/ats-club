@@ -54,6 +54,7 @@ export default function Registro() {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError('El email no parece válido.');
     const ec = repo.errorContacto(telefono, direccion);
     if (ec) return setError(ec);
+    if (!nacimiento) return setError('Completá tu fecha de nacimiento.');
     if (pass.length < 6) return setError('La contraseña tiene que tener al menos 6 caracteres.');
     if (pass !== pass2) return setError('Las contraseñas no coinciden.');
     setEnviando(true);
@@ -102,7 +103,7 @@ export default function Registro() {
       <CampoCalculado label="Nombre completo" valor={armarNombreCompleto(nombre, apellido)} vacio="Se completa con nombre y apellido" ayuda="Se arma solo con los dos campos de arriba." />
       <Campo label="Alias (opcional)" value={alias} onChangeText={setAlias} placeholder="Cómo te dicen en el club" autoComplete="nickname" />
       <Campo label="DNI" value={dni} onChangeText={setDni} keyboardType="number-pad" />
-      <CampoFecha label="Fecha de nacimiento (opcional)" valor={nacimiento} onChange={setNacimiento} min="1900-01-01" max={hoyISO()} opcional
+      <CampoFecha label="Fecha de nacimiento *" valor={nacimiento} onChange={setNacimiento} min="1900-01-01" max={hoyISO()}
         ayuda={edad(nacimiento) !== null ? `Edad: ${edad(nacimiento)} años · La ven solo vos y los admins del club.` : 'La ven solo vos y los admins del club.'} />
       {edad(nacimiento) !== null && edad(nacimiento)! < 16 ? (
         <Aviso icono="people-outline" texto="Con menos de 16 años no se crea cuenta propia: pedile a tu mamá, papá o tutor/a que te sume desde su cuenta, en Mi perfil → Menores a cargo." />

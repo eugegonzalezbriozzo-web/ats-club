@@ -607,7 +607,8 @@ export async function registrar(club: Club, d: DatosRegistro): Promise<Usuario |
   const ec = errorContacto(d.telefono, d.direccion);
   if (ec) throw new ErrorApp(ec);
   if (d.funciones.includes('arquero') && errorArquero(d)) throw new ErrorApp(errorArquero(d)!);
-  if (d.nacimiento && (d.nacimiento > hoyISO() || d.nacimiento < '1900-01-01')) throw new ErrorApp('Revisá la fecha de nacimiento.');
+  if (!d.nacimiento) throw new ErrorApp('Completá tu fecha de nacimiento.');
+  if (d.nacimiento > hoyISO() || d.nacimiento < '1900-01-01') throw new ErrorApp('Revisá la fecha de nacimiento.');
   const e = edad(d.nacimiento);
   if (e !== null && e < EDAD_CUENTA_PROPIA)
     throw new ErrorApp(`Con menos de ${EDAD_CUENTA_PROPIA} años no se crea cuenta propia: pedile a tu mamá, papá o tutor/a que te sume desde su cuenta (Mi perfil → Menores a cargo).`);
@@ -754,6 +755,7 @@ export async function actualizarPerfil(usuarioId: string, cambios: CambiosPerfil
     if (a) cambios = { ...cambios, arco: a };
   } else if (cambios.modalidad === 'convencional') cambios = { ...cambios, claseAdaptada: null };
   if (cambios.nacimiento !== undefined) {
+    if (!cambios.nacimiento) throw new ErrorApp('Completá tu fecha de nacimiento.');
     if (cambios.nacimiento && (cambios.nacimiento > hoyISO() || cambios.nacimiento < '1900-01-01')) throw new ErrorApp('Revisá la fecha de nacimiento.');
     cambios = { ...cambios, nacimiento: cambios.nacimiento || (null as unknown as undefined) };
   }

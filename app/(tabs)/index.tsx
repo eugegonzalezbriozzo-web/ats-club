@@ -59,9 +59,9 @@ export default function Inicio() {
       </View>
 
       {/* Teléfono y dirección son obligatorios: aviso a quien no los tenga (cuentas anteriores a la regla). */}
-      {usuario && !usuario.esSuperadmin && repo.errorContacto(usuario.telefono, usuario.direccion) ? (
+      {usuario && !usuario.esSuperadmin && (repo.errorContacto(usuario.telefono, usuario.direccion) || !usuario.nacimiento) ? (
         <Pressable accessibilityRole="button" onPress={() => router.push('/perfil')}>
-          <Aviso icono="call-outline" texto="Completá tu WhatsApp y tu dirección en Mi perfil: el club los necesita para contactarte." />
+          <Aviso icono="person-circle-outline" texto="Completá tu perfil: el club necesita tu WhatsApp, tu dirección y tu fecha de nacimiento." />
         </Pressable>
       ) : null}
       <BannerPush />
