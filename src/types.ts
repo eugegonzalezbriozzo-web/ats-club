@@ -402,6 +402,7 @@ export function iconoItem(tipo: string, nombre = ''): string {
   if (/flecha/.test(s)) return 'arrow-forward-outline';
   if (/diana|blanco/.test(s)) return 'radio-button-on-outline';
   if (/contenci[oó]n|parapeto|paca|fardo/.test(s)) return 'square-outline';
+  if (/caballete/.test(s)) return 'easel-outline';
   if (/mira|estabiliz|dactilera|protector|carcaj|accesorio/.test(s)) return 'construct-outline';
   return 'cube-outline';
 }
