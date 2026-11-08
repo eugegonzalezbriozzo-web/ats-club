@@ -88,6 +88,9 @@ export default function Calendario() {
           {abiertoEste && ev ? (
             <View style={{ gap: 8, marginTop: 4 }}>
               {ev.nota ? <Txt style={{ fontSize: 14 }}>{ev.nota}</Txt> : null}
+              {ev.noticiaId ? (
+                <Text accessibilityRole="button" onPress={() => router.push('/noticias')} style={{ color: t.accent, fontWeight: '700' }}>Ver la noticia</Text>
+              ) : null}
               {esAdmin ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 2 }}>
                   <Text accessibilityRole="button" onPress={() => router.push(`/calendario/evento?id=${ev.id}`)} style={{ color: t.accent, fontWeight: '700' }}>Editar</Text>

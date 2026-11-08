@@ -6,7 +6,8 @@ import { useAuth } from '../../src/auth';
 import * as repo from '../../src/data/repo';
 import { TextInput, Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
-import { AUDIENCIAS, MAX_OPCIONES, MAX_TIT_NOTICIA, MAX_TXT_NOTICIA, type Audiencia } from '../../src/types';
+import { AUDIENCIAS, MAX_OPCIONES, MAX_TIT_NOTICIA, MAX_TXT_NOTICIA, type Audiencia, type DatosEvento, type Evento } from '../../src/types';
+import { cuandoEvento } from '../../src/calendario';
 import { Aviso, Boton, Campo, Check, MensajeError, Pantalla, Pildoras, Tarjeta, Titulo, NotaObligatorios } from '../../src/ui';
 import { confirmar, fechaCorta, hoyISO } from '../../src/util';
 import { CampoFecha } from '../../src/CampoFecha';
@@ -32,6 +33,13 @@ export default function FormNoticia() {
   const [cupo, setCupo] = useState('');
   const [cierra, setCierra] = useState('');
   const [nVotos, setNVotos] = useState(0);
+  // Calendario: un evento de un día vinculado a esta noticia (los que se repiten se editan desde el calendario).
+  const [evento, setEvento] = useState<Evento | null>(null);
+  const [conCal, setConCal] = useState(false);
+  const [calFecha, setCalFecha] = useState('');
+  const [calDesde, setCalDesde] = useState('');
+  const [calHasta, setCalHasta] = useState('');
+  const [calLugar, setCalLugar] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const bloqueada = nVotos > 0; // con respuestas no se cambian tipo ni opciones
@@ -57,15 +65,33 @@ export default function FormNoticia() {
       }
     });
     repo.contarVotos(club.id).then((c) => setNVotos(c[id] ?? 0));
+    repo.eventoDeNoticia(id).then((ev) => {
+      if (!ev) return;
+      setEvento(ev);
+      setConCal(true);
+      setCalFecha(ev.fecha);
+      setCalDesde(ev.horaInicio);
+      setCalHasta(ev.horaFin);
+      setCalLugar(ev.lugar);
+    });
   }, [id, club]);
 
   const guardar = async () => {
     if (!club || !usuario) return;
     setError(null);
     const cierreISO = conEncuesta ? cierra : '';
+    const repite = !!evento?.diasSemana.length;
+    const datosEv: DatosEvento | null = conCal && !repite ? {
+      titulo, tipo: evento?.tipo ?? '', fecha: calFecha, horaInicio: calDesde.trim(), horaFin: calHasta.trim(), lugar: calLugar,
+      nota: evento?.nota ?? '', diasSemana: [], hasta: '', audiencia,
+    } : null;
+    if (datosEv) {
+      // Revisamos el evento antes de publicar, para no dejar la noticia a medias.
+      try { repo.validarEvento(datosEv); } catch (e) { return setError((e as Error).message); }
+    }
     setEnviando(true);
     try {
-      await repo.guardarNoticia(
+      const n = await repo.guardarNoticia(
         club.id,
         usuario.id,
         {
@@ -76,6 +102,14 @@ export default function FormNoticia() {
         },
         id,
       );
+      try {
+        if (datosEv) await repo.guardarEvento(club.id, datosEv, evento?.id, evento ? {} : { noticiaId: n.id });
+        else if (!conCal && evento) await repo.borrarEvento(evento.id);
+      } catch (e) {
+        setError(`La publicación se guardó, pero no se pudo actualizar el calendario: ${(e as Error).message}`);
+        setEnviando(false);
+        return;
+      }
       router.back();
     } catch (e) {
       setError((e as Error).message);
@@ -167,6 +201,41 @@ export default function FormNoticia() {
             opcional
             ayuda={cierra ? `Cierra el ${fechaCorta(cierra)} a la noche.` : 'Sin fecha: queda abierta hasta que la edites.'}
           />
+        </Tarjeta>
+      )}
+
+ {!conCal ? (
+        <Boton titulo="Agregar al calendario" variante="secundario" icono="calendar-outline" onPress={() => {
+          setConCal(true);
+          if (!calFecha) setCalFecha(hoyISO());
+        }} />
+      ) : evento?.diasSemana.length ? (
+        <Tarjeta style={{ gap: 10 }}>
+          <Titulo style={{ fontSize: 18 }}>En el calendario</Titulo>
+          <Text style={{ color: t.text }}>{cuandoEvento(evento)}{evento.lugar ? ` · ${evento.lugar}` : ''}</Text>
+          <Text style={{ color: t.muted, fontSize: 13 }}>Se repite todas las semanas: se cambia desde el calendario.</Text>
+          <Text accessibilityRole="button" onPress={() => router.push(`/calendario/evento?id=${evento.id}`)} style={{ color: t.accent, fontWeight: '700' }}>
+            Editar en el calendario
+          </Text>
+        </Tarjeta>
+      ) : (
+        <Tarjeta style={{ gap: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Titulo style={{ fontSize: 18 }}>En el calendario</Titulo>
+            <Text accessibilityRole="button" style={{ color: t.accent, fontWeight: '700' }} onPress={async () => {
+              if (evento && !(await confirmar('Quitar del calendario', 'Al guardar, se borra del calendario (la publicación queda).', 'Quitar'))) return;
+              setConCal(false);
+            }}>
+              Quitar
+            </Text>
+          </View>
+          <CampoFecha label="Fecha *" valor={calFecha} onChange={setCalFecha} min={calFecha && calFecha < hoyISO() ? calFecha : hoyISO()} />
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flex: 1 }}><Campo label="Desde las" value={calDesde} onChangeText={setCalDesde} placeholder="18:00" keyboardType="numbers-and-punctuation" maxLength={5} /></View>
+            <View style={{ flex: 1 }}><Campo label="Hasta las (opcional)" value={calHasta} onChangeText={setCalHasta} placeholder="19:30" keyboardType="numbers-and-punctuation" maxLength={5} /></View>
+          </View>
+          <Campo label="Lugar (opcional)" value={calLugar} onChangeText={setCalLugar} maxLength={120} placeholder="Ej.: Cancha del club" />
+          <Text style={{ color: t.muted, fontSize: 13 }}>Usa el mismo título y el mismo público que la publicación. Sin hora = todo el día. Llega una sola notificación.</Text>
         </Tarjeta>
       )}
 

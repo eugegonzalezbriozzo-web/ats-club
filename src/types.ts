@@ -395,9 +395,11 @@ export interface Evento {
   hasta: string; // '' = sin fin
   sinFechas: string[]; // días suspendidos
   audiencia: Audiencia;
+  /** Noticia vinculada (se cargó una vez y quedó en los dos lados). */
+  noticiaId: string | null;
   creadoEl: string;
 }
-export type DatosEvento = Omit<Evento, 'id' | 'clubId' | 'creadoEl' | 'sinFechas'>;
+export type DatosEvento = Omit<Evento, 'id' | 'clubId' | 'creadoEl' | 'sinFechas' | 'noticiaId'>;
 
 /* ---------- Inventario del club (solo admins) ---------- */
 /** Tipo de equipo: texto libre que escribe el admin ("Arcos", "Flechas", "Miras"…). */

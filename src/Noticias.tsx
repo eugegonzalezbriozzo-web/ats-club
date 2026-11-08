@@ -9,7 +9,8 @@ import * as repo from './data/repo';
 import { exportarEncuestaExcel } from './excel';
 import { Text } from './texto';
 import { useTema } from './theme';
-import type { Club, Noticia } from './types';
+import type { Club, Evento, Noticia } from './types';
+import { cuandoEvento } from './calendario';
 import { AUDIENCIAS, MAX_ACOMP } from './types';
 import { Boton, Chip, Tarjeta, Titulo, Txt } from './ui';
 import { fechaCorta, hoyISO } from './util';
@@ -199,6 +200,11 @@ export function TarjetaNoticia({ n, enInicio, onCambio }: { n: Noticia; enInicio
   const [abierta, setAbierta] = useState(false);
   const [votos, setVotos] = useState<repo.VotoConPersona[] | null>(null);
   const [lect, setLect] = useState<repo.EstadoLectura | null>(null);
+  const [evento, setEvento] = useState<Evento | null>(null);
+  const router = useRouter();
+  useEffect(() => {
+    if (abierta) repo.eventoDeNoticia(n.id).then(setEvento).catch(() => {});
+  }, [abierta, n.id]);
   const aud = n.audiencia ?? 'todos';
   const cargarLectura = useCallback(() => {
     if (club && usuario) repo.lecturaDeNoticia(club.id, n.id, usuario.id).then(setLect);
@@ -259,6 +265,21 @@ export function TarjetaNoticia({ n, enInicio, onCambio }: { n: Noticia; enInicio
       {abierta ? (
         <>
           {n.texto ? <Txt style={{ lineHeight: 22 }}>{n.texto}</Txt> : null}
+          {evento ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={`Ver en el calendario: ${cuandoEvento(evento)}`}
+              onPress={() => {
+                // Va al próximo día en que pasa (o al primero, si ya pasó).
+                const hoy = hoyISO();
+                let dia = evento.fecha;
+                if (evento.diasSemana.length && dia < hoy) dia = hoy;
+                router.push(`/calendario?dia=${dia}`);
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: 10, backgroundColor: t.chip }}>
+              <Ionicons name="calendar-outline" size={18} color={t.accent} />
+              <Text style={{ flex: 1, color: t.text, fontSize: 14 }}>{cuandoEvento(evento)}</Text>
+              <Text style={{ color: t.accent, fontWeight: '700', fontSize: 14 }}>Ver en el calendario</Text>
+            </Pressable>
+          ) : null}
           {e ? <BloqueEncuesta n={n} /> : null}
           {esAdmin && club && aud !== 'comision' ? <CompartirWhatsApp n={n} club={club} /> : null}
           {lect?.meGustan.length ? (

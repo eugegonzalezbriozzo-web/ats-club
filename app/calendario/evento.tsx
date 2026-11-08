@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/auth';
 import { CampoFecha } from '../../src/CampoFecha';
 import { DIAS_CORTOS, diaSemana } from '../../src/calendario';
@@ -24,6 +25,10 @@ export default function EventoForm() {
     lugar: '', nota: '', diasSemana: [], hasta: '', audiencia: 'todos',
   });
   const [repite, setRepite] = useState(false);
+  // Noticia: al crear, "publicar también como noticia"; si ya tiene una vinculada, "actualizarla con los cambios".
+  const [noticiaId, setNoticiaId] = useState<string | null>(null);
+  const [comoNoticia, setComoNoticia] = useState(false);
+  const [actualizarNoticia, setActualizarNoticia] = useState(true);
   const [tipos, setTipos] = useState<string[]>(['Escuela', 'Trabajo', 'Práctica', 'Reunión']);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -38,8 +43,9 @@ export default function EventoForm() {
     repo.listarEventos(club.id).then((l) => {
       const e = l.find((x) => x.id === id);
       if (!e) return setError('No encontramos este evento.');
-      const { id: _i, clubId: _c, creadoEl: _cr, sinFechas: _s, ...datos } = e;
+      const { id: _i, clubId: _c, creadoEl: _cr, sinFechas: _s, noticiaId: nid, ...datos } = e;
       setD(datos);
+      setNoticiaId(nid);
       setRepite(e.diasSemana.length > 0);
     });
   }, [id, club]);
@@ -56,7 +62,9 @@ export default function EventoForm() {
     if (repite && !datos.diasSemana.length) return setError('Elegí qué días de la semana se repite.');
     setEnviando(true);
     try {
-      await repo.guardarEvento(club.id, datos, id);
+      await repo.guardarEvento(club.id, datos, id, {
+        noticia: noticiaId ? (actualizarNoticia ? 'actualizar' : undefined) : comoNoticia ? 'crear' : undefined,
+      });
       router.back();
     } catch (e) {
       setError((e as Error).message);
@@ -64,7 +72,7 @@ export default function EventoForm() {
     }
   };
   const borrar = async () => {
-    if (!id || !(await confirmar('Borrar', `¿Borrar "${d.titulo}"${repite ? ' de todas las semanas' : ''}?`, 'Borrar'))) return;
+    if (!id || !(await confirmar('Borrar', `¿Borrar "${d.titulo}"${repite ? ' de todas las semanas' : ''}?${noticiaId ? ' La noticia queda publicada (si querés, borrala desde Noticias).' : ''}`, 'Borrar'))) return;
     await repo.borrarEvento(id);
     router.back();
   };
@@ -129,6 +137,28 @@ export default function EventoForm() {
       <Txt muted style={{ fontSize: 13, marginTop: -6 }}>
         {d.audiencia === 'comision' ? 'Solo los admins del club.' : 'Les llega una notificación a quienes lo ven (si las activaron).'}
       </Txt>
+
+      {noticiaId ? (
+        <View style={{ gap: 6, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="newspaper-outline" size={18} color={t.accent} />
+            <Text style={{ flex: 1, color: t.text, fontWeight: '700' }}>Está publicado también como noticia</Text>
+          </View>
+          <Check label="Actualizar la noticia con estos cambios" valor={actualizarNoticia} onChange={setActualizarNoticia} />
+          <Txt muted style={{ fontSize: 13 }}>
+            {actualizarNoticia ? 'Se reescriben el título y el texto de la noticia (cuándo, dónde y la nota).' : 'La noticia queda como está.'}
+          </Txt>
+        </View>
+      ) : (
+        <>
+          <Check label={id ? 'Publicarlo también como noticia' : 'Publicar también como noticia'} valor={comoNoticia} onChange={setComoNoticia} />
+          {comoNoticia ? (
+            <Txt muted style={{ fontSize: 13, marginTop: -6 }}>
+              Se arma sola con el título, cuándo, dónde y la nota, para el mismo público. Llega una sola notificación (la de la noticia). Después la podés editar, por ejemplo para sumar un "¿Venís?".
+            </Txt>
+          ) : null}
+        </>
+      )}
 
       <MensajeError texto={error} />
       {id ? <Boton titulo="Borrar evento" variante="peligro" icono="trash-outline" onPress={borrar} /> : null}

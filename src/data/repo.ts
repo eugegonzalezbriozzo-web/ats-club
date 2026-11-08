@@ -23,6 +23,7 @@ import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Insc
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
 import { edad, hoyISO } from '../util';
 import { MAX_TIT_NOTICIA, MAX_TXT_NOTICIA } from '../types';
+import { cuandoEvento } from '../calendario';
 
 const KEY = 'arqueria-db-v2';
 
@@ -1820,7 +1821,8 @@ function aEvento(e: any): Evento {
   return {
     id: e.id, clubId: e.club_id, titulo: e.titulo, tipo: e.tipo, fecha: e.fecha,
     horaInicio: hhmm(e.hora_inicio), horaFin: hhmm(e.hora_fin), lugar: e.lugar ?? '', nota: e.nota ?? '',
-    diasSemana: e.dias_semana ?? [], hasta: e.hasta ?? '', sinFechas: e.sin_fechas ?? [], audiencia: e.audiencia, creadoEl: e.creado_el,
+    diasSemana: e.dias_semana ?? [], hasta: e.hasta ?? '', sinFechas: e.sin_fechas ?? [], audiencia: e.audiencia,
+    noticiaId: e.noticia_id ?? null, creadoEl: e.creado_el,
   };
 }
 
@@ -1832,7 +1834,7 @@ export async function listarEventos(clubId: string): Promise<Evento[]> {
 }
 
 const HORA = /^([01]?\d|2[0-3]):[0-5]\d$/;
-function validarEvento(d: DatosEvento) {
+export function validarEvento(d: DatosEvento) {
   if (!d.titulo.trim()) throw new ErrorApp('Poné un título.');
   if (!d.fecha) throw new ErrorApp(d.diasSemana.length ? 'Elegí desde qué día empieza.' : 'Elegí la fecha.');
   if (d.horaInicio && !HORA.test(d.horaInicio)) throw new ErrorApp('La hora de inicio tiene que ser como 18:00.');
@@ -1848,14 +1850,57 @@ const filaEvento = (d: DatosEvento) => ({
   dias_semana: d.diasSemana, hasta: d.diasSemana.length && d.hasta ? d.hasta : null, audiencia: d.audiencia,
 });
 
-/** Admin: crea (sin id) o edita un evento. */
-export async function guardarEvento(clubId: string, d: DatosEvento, id?: string): Promise<void> {
+/** Texto de la noticia armada desde un evento: cuándo, dónde y la nota. */
+export function textoNoticiaDeEvento(d: DatosEvento): string {
+  const ev = { ...d, id: '', clubId: '', creadoEl: '', sinFechas: [], noticiaId: null } as Evento;
+  let cuando = cuandoEvento(ev);
+  if (d.diasSemana.length) {
+    const desde = `${d.fecha.slice(8, 10)}/${d.fecha.slice(5, 7)}`;
+    cuando += d.hasta ? ` (del ${desde} al ${d.hasta.slice(8, 10)}/${d.hasta.slice(5, 7)})` : ` (desde el ${desde})`;
+  }
+  return [`📅 ${cuando}`, d.lugar.trim() ? `📍 ${d.lugar.trim()}` : '', d.nota.trim() ? `\n${d.nota.trim()}` : '']
+    .filter(Boolean).join('\n').slice(0, MAX_TXT_NOTICIA);
+}
+
+/**
+ * Admin: crea (sin id) o edita un evento.
+ * noticia: 'crear' = publica también una noticia (con el mismo público) y las vincula;
+ * 'actualizar' = reescribe título y texto de la noticia ya vinculada.
+ * También se puede pasar noticiaId para vincular una noticia que ya existe (desde el formulario de noticia).
+ * La noticia se crea ANTES que el evento: así avisa la noticia y el evento no manda otra notificación.
+ */
+export async function guardarEvento(
+  clubId: string, d: DatosEvento, id?: string,
+  opc: { noticia?: 'crear' | 'actualizar'; noticiaId?: string } = {},
+): Promise<string> {
   validarEvento(d);
   const yo = (await supabase.auth.getUser()).data.user?.id;
-  const { error } = id
-    ? await supabase.from('eventos').update(filaEvento(d)).eq('id', id).eq('club_id', clubId)
-    : await supabase.from('eventos').insert({ ...filaEvento(d), club_id: clubId, creado_por: yo });
-  if (error) fallo(error);
+  let noticiaId = opc.noticiaId;
+  if (opc.noticia === 'crear' && yo) {
+    const n = await guardarNoticia(clubId, yo, { titulo: d.titulo, texto: textoNoticiaDeEvento(d), destacada: false, audiencia: d.audiencia, encuesta: null });
+    noticiaId = n.id;
+  }
+  const fila = { ...filaEvento(d), ...(noticiaId ? { noticia_id: noticiaId } : {}) };
+  const { data, error } = id
+    ? await supabase.from('eventos').update(fila).eq('id', id).eq('club_id', clubId).select('id, noticia_id').single()
+    : await supabase.from('eventos').insert({ ...fila, club_id: clubId, creado_por: yo }).select('id, noticia_id').single();
+  if (error) {
+    // Si el evento falló, no dejamos una noticia suelta.
+    if (opc.noticia === 'crear' && noticiaId) await supabase.from('noticias').delete().eq('id', noticiaId);
+    fallo(error);
+  }
+  if (opc.noticia === 'actualizar' && data?.noticia_id) {
+    await supabase.from('noticias')
+      .update({ titulo: d.titulo.trim().slice(0, MAX_TIT_NOTICIA), texto: textoNoticiaDeEvento(d), audiencia: d.audiencia, editado_el: new Date().toISOString() })
+      .eq('id', data.noticia_id).eq('club_id', clubId);
+  }
+  return data!.id;
+}
+
+/** El evento vinculado a una noticia (si lo hay y esta persona lo puede ver). */
+export async function eventoDeNoticia(noticiaId: string): Promise<Evento | null> {
+  const { data } = await supabase.from('eventos').select('*').eq('noticia_id', noticiaId).maybeSingle();
+  return data ? aEvento(data) : null;
 }
 
 export async function borrarEvento(id: string): Promise<void> {
