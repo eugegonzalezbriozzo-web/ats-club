@@ -7,10 +7,10 @@ import { DIAS_CORTOS, MESES, Ocurrencia, aISO, diaSemana, ocurrencias, semanasDe
 import * as repo from '../../src/data/repo';
 import { Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
-import type { Evento, Torneo } from '../../src/types';
+import type { Evento, Torneo, Usuario } from '../../src/types';
 import { AUDIENCIAS } from '../../src/types';
 import { Boton, Cargando, Chip, Pantalla, Titulo, Txt, Vacio } from '../../src/ui';
-import { confirmar, hoyISO } from '../../src/util';
+import { avisar, confirmar, hoyISO } from '../../src/util';
 
 const DIAS_GRILLA = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 const DIAS_LARGOS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -20,7 +20,8 @@ const tituloDia = (iso: string) => `${DIAS_LARGOS[diaSemana(iso)]} ${Number(iso.
 export default function Calendario() {
   const { t } = useTema();
   const router = useRouter();
-  const { club, esAdmin } = useAuth();
+  const { club, esAdmin, usuario } = useAuth();
+  const staff = repo.tomaLista(usuario, esAdmin);
   const params = useLocalSearchParams<{ dia?: string }>();
   const hoy = hoyISO();
   const [elegido, setElegido] = useState(params.dia || hoy);
@@ -28,13 +29,42 @@ export default function Calendario() {
   const [eventos, setEventos] = useState<Evento[] | null>(null);
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [abierto, setAbierto] = useState<string | null>(null);
+  // Asistencia: yo (si soy arquero/a) y mis menores a cargo; qué clases ya marcamos.
+  const [mios, setMios] = useState<Usuario[]>([]);
+  const [vinimos, setVinimos] = useState<Set<string>>(new Set());
+  const [marcando, setMarcando] = useState<string | null>(null);
+  const claveA = (eventoId: string, dia: string, arqueroId: string) => `${eventoId}|${dia}|${arqueroId}`;
 
   const cargar = useCallback(() => {
     if (!club) return;
     Promise.all([repo.listarEventos(club.id), repo.listarTorneos(club.id)])
       .then(([e, tor]) => { setEventos(e); setTorneos(tor); })
       .catch(() => setEventos([]));
-  }, [club]);
+    if (usuario) {
+      repo.menoresACargo(usuario.id).catch(() => [] as Usuario[]).then(async (ms) => {
+        const personas = [
+          ...(usuario.funciones.includes('arquero') ? [usuario] : []),
+          ...ms.filter((m) => m.estado === 'aprobado' && m.clubId === club.id),
+        ];
+        setMios(personas);
+        const as = await repo.listarAsistencias(club.id, { arqueros: personas.map((p) => p.id), desde: sumarDias(hoyISO(), -120) }).catch(() => []);
+        setVinimos(new Set(as.map((a) => claveA(a.eventoId, a.dia, a.arqueroId))));
+      });
+    }
+  }, [club, usuario]);
+
+  const marcar = async (ev: Evento, dia: string, p: Usuario, vino: boolean) => {
+    const k = claveA(ev.id, dia, p.id);
+    setMarcando(k);
+    try {
+      await repo.marcarAsistencia(ev, dia, p.id, vino);
+      setVinimos((s) => { const n = new Set(s); if (vino) n.add(k); else n.delete(k); return n; });
+    } catch (e) {
+      await avisar('No se pudo', (e as Error).message);
+    } finally {
+      setMarcando(null);
+    }
+  };
   useFocusEffect(cargar);
 
   const semanas = useMemo(() => semanasDelMes(mes.a, mes.m), [mes]);
@@ -85,6 +115,47 @@ export default function Calendario() {
             {[conDia ? `${DIAS_CORTOS[diaSemana(o.dia)]} ${o.dia.slice(8, 10)}/${o.dia.slice(5, 7)}` : null, o.hora, o.lugar].filter(Boolean).join(' · ') || 'Todo el día'}
           </Txt>
           {aud ? <View style={{ flexDirection: 'row' }}><Chip texto={aud === 'Comisión' ? 'Solo comisión' : `Para ${aud.toLowerCase()}`} /></View> : null}
+          {ev?.asistencia && !o.suspendido ? (
+            <View style={{ gap: 6, marginTop: 4 }}>
+              {o.dia === hoy && mios.length ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {mios.map((p) => {
+                    const yo = p.id === usuario?.id;
+                    const k = claveA(ev.id, o.dia, p.id);
+                    const vino = vinimos.has(k);
+                    const nombre = p.alias || p.nombre;
+                    return (
+                      <Pressable key={p.id} accessibilityRole="checkbox" accessibilityState={{ checked: vino, busy: marcando === k }}
+                        disabled={marcando === k}
+                        onPress={() => marcar(ev, o.dia, p, !vino)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 20,
+                          borderWidth: 1.5, borderColor: vino ? '#2E9E5B' : t.accent, backgroundColor: vino ? '#2E9E5B' : 'transparent', opacity: marcando === k ? 0.6 : 1 }}>
+                        <Ionicons name={vino ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={vino ? '#fff' : t.accent} />
+                        <Text style={{ color: vino ? '#fff' : t.accent, fontWeight: '700', fontSize: 14 }}>
+                          {yo ? (vino ? 'Vine' : 'Marcar que vine') : vino ? `${nombre} vino` : `Marcar a ${nombre}`}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : o.dia < hoy ? (() => {
+                const vinieron = mios.filter((p) => vinimos.has(claveA(ev.id, o.dia, p.id)));
+                return vinieron.length ? (
+                  <Text style={{ color: '#2E9E5B', fontWeight: '700', fontSize: 13 }}>
+                    ✓ {vinieron.map((p) => (p.id === usuario?.id ? 'Viniste' : `${p.alias || p.nombre} vino`)).join(' · ')}
+                  </Text>
+                ) : null;
+              })() : (
+                <Txt muted style={{ fontSize: 12 }}>Se toma asistencia{mios.length ? ': el día de la clase marcás "Vine".' : '.'}</Txt>
+              )}
+              {staff && o.dia <= hoy ? (
+                <Text accessibilityRole="button" onPress={() => router.push(`/calendario/asistencia?id=${ev.id}&dia=${o.dia}`)}
+                  style={{ color: t.accent, fontWeight: '700', fontSize: 14 }}>
+                  Tomar lista
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
           {abiertoEste && ev ? (
             <View style={{ gap: 8, marginTop: 4 }}>
               {ev.nota ? <Txt style={{ fontSize: 14 }}>{ev.nota}</Txt> : null}
@@ -102,7 +173,7 @@ export default function Calendario() {
                   ) : null}
                   <Text accessibilityRole="button" style={{ color: t.accent, fontWeight: '700' }}
                     onPress={async () => {
-                      const ok = await confirmar('Borrar', ev.diasSemana.length ? `¿Borrar "${ev.titulo}" de todas las semanas?` : `¿Borrar "${ev.titulo}"?`, 'Borrar');
+                      const ok = await confirmar('Borrar', (ev.diasSemana.length ? `¿Borrar "${ev.titulo}" de todas las semanas?` : `¿Borrar "${ev.titulo}"?`) + (ev.asistencia ? ' También se borra la asistencia registrada.' : ''), 'Borrar');
                       if (ok) await accion(() => repo.borrarEvento(ev.id));
                     }}>
                     Borrar

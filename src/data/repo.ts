@@ -19,7 +19,7 @@ import { RECUPERAR_URL, supabase } from './supabase';
 import { desactivarPush } from '../push';
 import { armarNombreCompleto } from '../util';
 import { MAX_SOBRE_MI, arcoDeClase, errorArquero, fijarListados, type Listados } from '../types';
-import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota, Evento, DatosEvento, ItemInventario, Prestamo, DatosItem } from '../types';
+import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota, Evento, DatosEvento, ItemInventario, Prestamo, DatosItem, Asistencia, ArqueroLista } from '../types';
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
 import { edad, hoyISO } from '../util';
 import { MAX_TIT_NOTICIA, MAX_TXT_NOTICIA } from '../types';
@@ -1822,7 +1822,7 @@ function aEvento(e: any): Evento {
     id: e.id, clubId: e.club_id, titulo: e.titulo, tipo: e.tipo, fecha: e.fecha,
     horaInicio: hhmm(e.hora_inicio), horaFin: hhmm(e.hora_fin), lugar: e.lugar ?? '', nota: e.nota ?? '',
     diasSemana: e.dias_semana ?? [], hasta: e.hasta ?? '', sinFechas: e.sin_fechas ?? [], audiencia: e.audiencia,
-    noticiaId: e.noticia_id ?? null, creadoEl: e.creado_el,
+    noticiaId: e.noticia_id ?? null, asistencia: !!e.asistencia, creadoEl: e.creado_el,
   };
 }
 
@@ -1849,6 +1849,7 @@ const filaEvento = (d: DatosEvento) => ({
   lugar: d.lugar.trim(), nota: d.nota.trim(),
   // hasta: fin de la repetición semanal, o último día de un evento de varios días seguidos.
   dias_semana: d.diasSemana, hasta: d.hasta && (d.diasSemana.length || d.hasta > d.fecha) ? d.hasta : null, audiencia: d.audiencia,
+  asistencia: !!d.asistencia,
 });
 
 /** Texto de la noticia armada desde un evento: cuándo, dónde y la nota. */
@@ -1990,4 +1991,53 @@ export async function marcarDevuelto(prestamoId: string, devuelto = true): Promi
 export async function borrarPrestamo(prestamoId: string): Promise<void> {
   const { error } = await supabase.from('inventario_prestamos').delete().eq('id', prestamoId);
   if (error) fallo(error);
+}
+
+
+// ---------- Asistencia a clases ----------
+// El arquero (o su tutor/a) marca "Vine" el día de la clase; admins y entrenadores/as marcan o corrigen cualquier día que ya pasó.
+// Las reglas las controla la base (puede_marcar_asistencia).
+
+/** ¿Puede tomar lista y ver la asistencia de todos? (admin o entrenador/a del club) */
+export const tomaLista = (u: Usuario | null | undefined, esAdmin: boolean) =>
+  esAdmin || !!u?.funciones?.includes('entrenador');
+
+const aAsistencia = (a: any): Asistencia => ({ eventoId: a.evento_id, dia: a.dia, arqueroId: a.arquero_id });
+
+/**
+ * Asistencias del club. Admins y entrenadores ven todas; los demás, solo las suyas y las de sus menores (la base filtra).
+ * Opcional: un evento, un rango de días o ciertos arqueros.
+ */
+export async function listarAsistencias(clubId: string, f: { eventoId?: string; desde?: string; hasta?: string; arqueros?: string[] } = {}): Promise<Asistencia[]> {
+  let q = supabase.from('asistencias').select('evento_id, dia, arquero_id').eq('club_id', clubId);
+  if (f.eventoId) q = q.eq('evento_id', f.eventoId);
+  if (f.desde) q = q.gte('dia', f.desde);
+  if (f.hasta) q = q.lte('dia', f.hasta);
+  if (f.arqueros) q = q.in('arquero_id', f.arqueros.length ? f.arqueros : ['00000000-0000-0000-0000-000000000000']);
+  const { data, error } = await q.order('dia').limit(5000);
+  if (error) fallo(error);
+  return (data ?? []).map(aAsistencia);
+}
+
+/** Marca (vino = true) o desmarca la asistencia de un arquero a una clase. */
+export async function marcarAsistencia(ev: Evento, dia: string, arqueroId: string, vino: boolean) {
+  if (vino) {
+    const yo = (await supabase.auth.getUser()).data.user?.id;
+    const { error } = await supabase.from('asistencias')
+      .upsert({ evento_id: ev.id, dia, arquero_id: arqueroId, club_id: ev.clubId, marcado_por: yo }, { onConflict: 'evento_id,dia,arquero_id', ignoreDuplicates: true });
+    if (error) {
+      if (error.code === '42501') throw new ErrorApp(dia === hoyISO() ? 'No se pudo marcar: revisá que la clase sea hoy.' : 'Solo el admin o un entrenador/a puede marcar días anteriores.');
+      fallo(error);
+    }
+  } else {
+    const { error } = await supabase.from('asistencias').delete().eq('evento_id', ev.id).eq('dia', dia).eq('arquero_id', arqueroId);
+    if (error) fallo(error);
+  }
+}
+
+/** Admin/entrenador: arqueros del club para tomar lista (socios aprobados con función Arquero/a, incluye menores). */
+export async function listaAsistencia(clubId: string): Promise<ArqueroLista[]> {
+  const { data, error } = await supabase.rpc('lista_asistencia', { p_club: clubId });
+  if (error) fallo(error);
+  return ((data ?? []) as any[]).map((a) => ({ id: a.id, nombre: a.nombre, apellido: a.apellido, alias: a.alias ?? '', menor: !!a.menor }));
 }

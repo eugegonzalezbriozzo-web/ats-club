@@ -397,6 +397,8 @@ export interface Evento {
   audiencia: Audiencia;
   /** Noticia vinculada (se cargó una vez y quedó en los dos lados). */
   noticiaId: string | null;
+  /** Se toma asistencia (clases de la escuela, por ejemplo). */
+  asistencia: boolean;
   creadoEl: string;
 }
 export type DatosEvento = Omit<Evento, 'id' | 'clubId' | 'creadoEl' | 'sinFechas' | 'noticiaId'>;
@@ -451,3 +453,18 @@ export interface Prestamo {
   nota: string;
 }
 export type DatosItem = Omit<ItemInventario, 'id' | 'clubId' | 'prestados'>;
+
+/** Un arquero vino a una clase (evento con asistencia) un día. */
+export interface Asistencia {
+  eventoId: string;
+  dia: string; // YYYY-MM-DD
+  arqueroId: string;
+}
+/** Para la lista de la clase. */
+export interface ArqueroLista {
+  id: string;
+  nombre: string;
+  apellido: string;
+  alias: string;
+  menor: boolean;
+}

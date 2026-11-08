@@ -84,6 +84,16 @@ export function confirmar(titulo: string, mensaje: string, textoOk = 'Aceptar'):
   });
 }
 
+/** Aviso con un solo botón (web y celular). */
+export function avisar(titulo: string, mensaje: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    // eslint-disable-next-line no-alert
+    if (typeof window !== 'undefined') window.alert(`${titulo}\n\n${mensaje}`);
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => Alert.alert(titulo, mensaje, [{ text: 'Entendido', onPress: () => resolve() }]));
+}
+
 /** Último día del torneo (si dura varios días, su fecha de fin). */
 export function finTorneo(t: { fecha: string; fechaFin?: string }): string {
   return t.fechaFin && t.fechaFin > t.fecha ? t.fechaFin : t.fecha;

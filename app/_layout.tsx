@@ -117,6 +117,8 @@ function Navegacion() {
         <Stack.Screen name="noticias" options={{ title: 'Noticias' }} />
         <Stack.Screen name="calendario/index" options={{ title: 'Calendario' }} />
         <Stack.Screen name="calendario/evento" options={{ title: 'Evento' }} />
+        <Stack.Screen name="calendario/asistencia" options={{ title: 'Tomar lista' }} />
+        <Stack.Screen name="asistencia" options={{ title: 'Asistencia a clases' }} />
         <Stack.Screen name="pagos/index" options={{ title: 'Mis pagos' }} />
         <Stack.Screen name="pagos/informar" options={{ title: 'Informar pago' }} />
         <Stack.Screen name="pagos/comprobante/[id]" options={{ title: 'Comprobante' }} />

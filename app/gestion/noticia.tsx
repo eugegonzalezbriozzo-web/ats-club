@@ -85,7 +85,7 @@ export default function FormNoticia() {
     const repite = !!evento?.diasSemana.length;
     const datosEv: DatosEvento | null = conCal && !repite ? {
       titulo, tipo: evento?.tipo ?? '', fecha: calFecha, horaInicio: calDesde.trim(), horaFin: calHasta.trim(), lugar: calLugar,
-      nota: evento?.nota ?? '', diasSemana: [], hasta: calUltimo > calFecha ? calUltimo : '', audiencia,
+      nota: evento?.nota ?? '', diasSemana: [], hasta: calUltimo > calFecha ? calUltimo : '', audiencia, asistencia: evento?.asistencia ?? false,
     } : null;
     if (datosEv) {
       // Revisamos el evento antes de publicar, para no dejar la noticia a medias.

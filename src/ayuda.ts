@@ -26,6 +26,8 @@ export function atajosPara(ruta: string, { esAdmin, esTutor }: Quien): { titulo:
     titulo: 'En el calendario',
     atajos: [
       { texto: 'Ver lo de un día', icono: 'calendar-outline', ayuda: 'Tocá un día del mes. Los puntitos de colores indican que hay algo: escuela, trabajo, práctica, reunión, salida o torneo.' },
+      { texto: 'Marcar que vine a la clase', icono: 'checkbox-outline', ayuda: 'El día de la clase, en el calendario, tocá "Marcar que vine" (el tutor/a también marca a sus menores). Solo en clases que toman asistencia.' },
+      { texto: 'Ver mi asistencia', icono: 'stats-chart-outline', ir: '/asistencia' },
       ...(esAdmin ? [
         { texto: 'Cargar un evento', icono: 'add-circle-outline', ir: '/calendario/evento' },
         { texto: 'Suspender un día (feriado)', icono: 'close-circle-outline', ayuda: 'Tocá el evento en ese día y elegí "Suspender solo este día". A los socios les llega un aviso.' },
@@ -99,6 +101,8 @@ export const PREGUNTAS: Pregunta[] = [
   { p: '¿Cómo me inscribo a un torneo?', r: 'En Inicio, en "Torneos", tocá el torneo y después "Inscribirme". Tus datos de arquero se completan solos con los de tu perfil; si para ese torneo usás otro arco o categoría, lo cambiás ahí.' },
   { p: '¿Cómo informo un pago?', r: 'Más → Mis pagos → Informar un pago. Elegís qué pagaste (cuota, inscripción u otro), cargás el monto y subís el comprobante. Un admin lo revisa y te llega un aviso.' },
   { p: '¿Cómo inscribo a mi hijo/a o a un menor a cargo?', r: 'Primero sumalo en Mi perfil → Menores a cargo (el club lo aprueba). Después, al tocar "Inscribirme" en un torneo, elegís a quién inscribir.' },
+  { p: '¿Cómo marco la asistencia a una clase?', r: 'El día de la clase, abrí el Calendario y en la clase tocá "Marcar que vine". Si sos tutor/a, aparece un botón por cada menor a cargo. Solo se puede ese mismo día; si te olvidaste, pedíselo al entrenador/a o a un admin. Tu resumen está en Más → Asistencia a clases.' },
+  { p: '¿Cómo tomo lista? (entrenadores y admins)', r: 'En el Calendario tocá "Tomar lista" en la clase, y marcá a los que vinieron. Con las flechas pasás a clases anteriores para corregir. En Más → Asistencia a clases ves el resumen por arquero y bajás el Excel. Para tomar lista tenés que tener la función Entrenador/a (la agrega un admin en tus datos de socio).' },
   { p: 'No me llegan las notificaciones', r: 'Revisá en Más → Notificaciones que estén activadas en este dispositivo y que el tipo de aviso esté marcado. En iPhone solo funcionan con la app instalada en la pantalla de inicio.' },
   { p: 'Me olvidé la contraseña', r: 'En la pantalla de ingreso tocá "Olvidé mi contraseña": te llega un código por mail para elegir una nueva.' },
   { p: '¿Quién ve mis datos?', r: 'Los socios del club ven tu nombre, alias, foto y datos de arquero. Tu DNI, fecha de nacimiento y dirección los ven solo los admins. El detalle está en Más → Privacidad.' },

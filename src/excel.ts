@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import * as XLSX from 'xlsx';
-import { ESTADOS_ITEM, claseSinDivision, type Inscripcion, type ItemInventario, type Prestamo, type Torneo, type Usuario } from './types';
+import { ESTADOS_ITEM, claseSinDivision, type ArqueroLista, type Asistencia, type Inscripcion, type ItemInventario, type Prestamo, type Torneo, type Usuario } from './types';
 
 type Fila = Inscripcion & { usuario: Usuario };
 
@@ -147,4 +147,25 @@ export async function exportarInventarioExcel(club: string, items: ItemInventari
     }))), 'Préstamos');
   }
   await guardarLibro(wb, `Inventario - ${club}.xlsx`.replace(/[\\/:*?"<>|]/g, ''));
+}
+
+/** Asistencia a una clase: una fila por arquero, una columna por día de clase (✓ = vino), total y porcentaje. */
+export async function exportarAsistenciaExcel(clase: string, periodo: string, dias: string[], arqueros: ArqueroLista[], asistencias: Asistencia[]) {
+  const vino = new Set(asistencias.map((a) => `${a.arqueroId}|${a.dia}`));
+  const col = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+  const filas = arqueros.map((a) => {
+    const f: Record<string, string | number> = { Apellido: a.apellido, Nombre: a.nombre, Alias: a.alias };
+    let n = 0;
+    for (const d of dias) { const v = vino.has(`${a.id}|${d}`); if (v) n++; f[col(d)] = v ? '✓' : ''; }
+    f.Vino = n;
+    f.Clases = dias.length;
+    f['%'] = dias.length ? Math.round((n / dias.length) * 100) : 0;
+    return f;
+  });
+  const total: Record<string, string | number> = { Apellido: 'Total por clase', Nombre: '', Alias: '' };
+  for (const d of dias) total[col(d)] = arqueros.filter((a) => vino.has(`${a.id}|${d}`)).length;
+  const ws = XLSX.utils.json_to_sheet([...filas, total]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
+  await guardarLibro(wb, `Asistencia - ${clase} - ${periodo}.xlsx`.replace(/[\\/:*?"<>|]/g, ''));
 }

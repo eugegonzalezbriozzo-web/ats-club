@@ -112,6 +112,14 @@ export default function Mas() {
           onPress={() => router.push('/pagos')}
         />
       ) : null}
+      {club && usuario.clubId === club.id ? (
+        <FilaMenu
+          icono="checkbox-outline"
+          titulo="Asistencia a clases"
+          detalle={repo.tomaLista(usuario, esAdmin) ? 'Tomar lista, resumen por arquero y Excel' : 'Cuántas clases viniste (y tus menores a cargo)'}
+          onPress={() => router.push('/asistencia')}
+        />
+      ) : null}
       {esAdmin ? (
         <>
           <Seccion texto="Administración" />

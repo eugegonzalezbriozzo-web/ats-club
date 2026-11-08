@@ -22,7 +22,7 @@ export default function EventoForm() {
   const { id, fecha } = useLocalSearchParams<{ id?: string; fecha?: string }>();
   const [d, setD] = useState<DatosEvento | null>(id ? null : {
     titulo: '', tipo: '', fecha: fecha && fecha >= hoyISO() ? fecha : hoyISO(), horaInicio: '', horaFin: '',
-    lugar: '', nota: '', diasSemana: [], hasta: '', audiencia: 'todos',
+    lugar: '', nota: '', diasSemana: [], hasta: '', audiencia: 'todos', asistencia: false,
   });
   const [repite, setRepite] = useState(false);
   const [variosDias, setVariosDias] = useState(false);
@@ -75,7 +75,7 @@ export default function EventoForm() {
     }
   };
   const borrar = async () => {
-    if (!id || !(await confirmar('Borrar', `¿Borrar "${d.titulo}"${repite ? ' de todas las semanas' : ''}?${noticiaId ? ' La noticia queda publicada (si querés, borrala desde Noticias).' : ''}`, 'Borrar'))) return;
+    if (!id || !(await confirmar('Borrar', `¿Borrar "${d.titulo}"${repite ? ' de todas las semanas' : ''}?${noticiaId ? ' La noticia queda publicada (si querés, borrala desde Noticias).' : ''}${d.asistencia ? ' También se borra la asistencia registrada.' : ''}`, 'Borrar'))) return;
     await repo.borrarEvento(id);
     router.back();
   };
@@ -153,6 +153,13 @@ export default function EventoForm() {
         onChange={(n) => set('audiencia')(AUDIENCIAS.find((a) => a.nombre === n)!.valor)} />
       <Txt muted style={{ fontSize: 13, marginTop: -6 }}>
         {d.audiencia === 'comision' ? 'Solo los admins del club.' : 'Les llega una notificación a quienes lo ven (si las activaron).'}
+      </Txt>
+
+      <Check label="Tomar asistencia" valor={d.asistencia} onChange={set('asistencia')} />
+      <Txt muted style={{ fontSize: 13, marginTop: -6 }}>
+        {d.asistencia
+          ? 'El día de la clase cada arquero marca "Vine" (el tutor/a, por sus menores). Admins y entrenadores/as toman lista y corrigen días anteriores.'
+          : 'Para clases de la escuela, por ejemplo.'}
       </Txt>
 
       {noticiaId ? (
