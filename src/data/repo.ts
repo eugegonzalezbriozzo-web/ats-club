@@ -1902,7 +1902,7 @@ export async function listarPrestamos(clubId: string, itemId?: string): Promise<
 export async function guardarItem(clubId: string, d: DatosItem, id?: string): Promise<string> {
   if (!d.nombre.trim()) throw new ErrorApp('Poné un nombre (p. ej. "Arco recurvo 24 lb").');
   if (!Number.isInteger(d.cantidad) || d.cantidad < 0) throw new ErrorApp('La cantidad tiene que ser un número entero.');
-  const fila = { nombre: d.nombre.trim(), tipo: d.tipo, cantidad: d.cantidad, estado: d.estado, ubicacion: d.ubicacion.trim(), nota: d.nota.trim() };
+  const fila = { nombre: d.nombre.trim(), tipo: d.tipo.trim(), cantidad: d.cantidad, estado: d.estado, ubicacion: d.ubicacion.trim(), nota: d.nota.trim() };
   if (id) {
     const { error } = await supabase.from('inventario_items').update(fila).eq('id', id).eq('club_id', clubId);
     if (error) fallo(error);

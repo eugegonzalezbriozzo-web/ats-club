@@ -6,11 +6,11 @@ import { CampoFecha } from '../../../src/CampoFecha';
 import * as repo from '../../../src/data/repo';
 import { Text } from '../../../src/texto';
 import { useTema } from '../../../src/theme';
-import { ESTADOS_ITEM, TIPOS_ITEM, type DatosItem, type ItemInventario, type Prestamo, type Usuario } from '../../../src/types';
+import { ESTADOS_ITEM, tiposUsados, type DatosItem, type ItemInventario, type Prestamo, type Usuario } from '../../../src/types';
 import { Boton, Campo, Cargando, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../../src/ui';
 import { confirmar, fechaCorta, hoyISO } from '../../../src/util';
 
-const VACIO: DatosItem = { nombre: '', tipo: 'arco', cantidad: 1, estado: 'bueno', ubicacion: '', nota: '' };
+const VACIO: DatosItem = { nombre: '', tipo: '', cantidad: 1, estado: 'bueno', ubicacion: '', nota: '' };
 
 /** Admin: un ítem del inventario (o uno nuevo con id "nuevo") y sus préstamos. */
 export default function ItemInventarioPantalla() {
@@ -24,6 +24,7 @@ export default function ItemInventarioPantalla() {
   const [cant, setCant] = useState('1');
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [socios, setSocios] = useState<Usuario[]>([]);
+  const [tipos, setTipos] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -36,8 +37,10 @@ export default function ItemInventarioPantalla() {
   const [pNota, setPNota] = useState('');
 
   const cargar = useCallback(async () => {
-    if (!club || nuevo) return;
+    if (!club) return;
+    if (nuevo) { repo.listarInventario(club.id).then((l) => setTipos(tiposUsados(l))).catch(() => {}); return; }
     const [items, ps] = await Promise.all([repo.listarInventario(club.id), repo.listarPrestamos(club.id, id)]);
+    setTipos(tiposUsados(items));
     const i = items.find((x) => x.id === id) ?? null;
     setItem(i);
     setPrestamos(ps);
@@ -110,8 +113,18 @@ export default function ItemInventarioPantalla() {
     <Pantalla pie={<Boton titulo={nuevo ? 'Agregar' : 'Guardar cambios'} onPress={guardar} cargando={enviando} />}>
       <Stack.Screen options={{ title: nuevo ? 'Agregar al inventario' : item!.nombre }} />
       <Campo label="Nombre" value={d.nombre} onChangeText={set('nombre')} maxLength={80} placeholder='Ej.: Arco recurvo escuela 24 lb' />
-      <Pildoras label="Tipo" opciones={TIPOS_ITEM.map((x) => x.nombre)} valor={TIPOS_ITEM.find((x) => x.valor === d.tipo)!.nombre}
-        onChange={(n) => set('tipo')(TIPOS_ITEM.find((x) => x.nombre === n)!.valor)} />
+      <Campo label="Tipo (opcional)" value={d.tipo} onChangeText={set('tipo')} maxLength={40} placeholder="Ej.: Arcos, Flechas, Dianas, Miras…" />
+      {/* Los tipos que ya usó el club, para no escribirlos distinto cada vez. */}
+      {tipos.filter((x) => x.toLowerCase() !== d.tipo.trim().toLowerCase()).length ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: -4 }}>
+          {tipos.filter((x) => x.toLowerCase() !== d.tipo.trim().toLowerCase()).map((x) => (
+            <Pressable key={x} accessibilityRole="button" accessibilityLabel={`Usar el tipo ${x}`} onPress={() => set('tipo')(x)}
+              style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, backgroundColor: t.chip }}>
+              <Text style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{x}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <Campo label="Cantidad" value={cant} onChangeText={(v) => setCant(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={4} />
       <Pildoras label="Estado" opciones={ESTADOS_ITEM.map((x) => x.nombre)} valor={ESTADOS_ITEM.find((x) => x.valor === d.estado)!.nombre}
         onChange={(n) => set('estado')(ESTADOS_ITEM.find((x) => x.nombre === n)!.valor)} />

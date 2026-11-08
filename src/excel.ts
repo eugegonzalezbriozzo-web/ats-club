@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import * as XLSX from 'xlsx';
-import { ESTADOS_ITEM, TIPOS_ITEM, claseSinDivision, type Inscripcion, type ItemInventario, type Prestamo, type Torneo, type Usuario } from './types';
+import { ESTADOS_ITEM, claseSinDivision, type Inscripcion, type ItemInventario, type Prestamo, type Torneo, type Usuario } from './types';
 
 type Fila = Inscripcion & { usuario: Usuario };
 
@@ -134,7 +134,7 @@ export async function exportarInventarioExcel(club: string, items: ItemInventari
   const wb = XLSX.utils.book_new();
   const nombreItem = new Map(items.map((i) => [i.id, i.nombre]));
   const ws = XLSX.utils.json_to_sheet(items.map((i) => ({
-    Nombre: i.nombre, Tipo: TIPOS_ITEM.find((x) => x.valor === i.tipo)?.nombre ?? '', Cantidad: i.cantidad,
+    Nombre: i.nombre, Tipo: i.tipo, Cantidad: i.cantidad,
     Prestados: i.prestados, Disponibles: Math.max(i.cantidad - i.prestados, 0),
     Estado: ESTADOS_ITEM.find((x) => x.valor === i.estado)?.nombre ?? '', 'Dónde está': i.ubicacion, Nota: i.nota,
   })));

@@ -392,15 +392,24 @@ export interface Evento {
 export type DatosEvento = Omit<Evento, 'id' | 'clubId' | 'creadoEl' | 'sinFechas'>;
 
 /* ---------- Inventario del club (solo admins) ---------- */
-export type TipoItem = 'arco' | 'flechas' | 'diana' | 'parapeto' | 'accesorio' | 'otro';
-export const TIPOS_ITEM: { valor: TipoItem; nombre: string; icono: string }[] = [
-  { valor: 'arco', nombre: 'Arcos', icono: 'locate-outline' },
-  { valor: 'flechas', nombre: 'Flechas', icono: 'arrow-forward-outline' },
-  { valor: 'diana', nombre: 'Dianas', icono: 'radio-button-on-outline' },
-  { valor: 'parapeto', nombre: 'Parapetos', icono: 'square-outline' },
-  { valor: 'accesorio', nombre: 'Accesorios', icono: 'construct-outline' },
-  { valor: 'otro', nombre: 'Otros', icono: 'cube-outline' },
-];
+/** Tipo de equipo: texto libre que escribe el admin ("Arcos", "Flechas", "Miras"…). */
+export type TipoItem = string;
+/** Ícono según lo que diga el tipo (o el nombre). */
+export function iconoItem(tipo: string, nombre = ''): string {
+  const s = `${tipo} ${nombre}`.toLowerCase();
+  if (/arco/.test(s)) return 'locate-outline';
+  if (/flecha/.test(s)) return 'arrow-forward-outline';
+  if (/diana|blanco/.test(s)) return 'radio-button-on-outline';
+  if (/parapeto|paca|fardo/.test(s)) return 'square-outline';
+  if (/mira|estabiliz|dactilera|protector|carcaj|accesorio/.test(s)) return 'construct-outline';
+  return 'cube-outline';
+}
+/** Tipos distintos ya usados (sin repetir mayúsculas/minúsculas), para sugerir y filtrar. */
+export function tiposUsados(items: { tipo: string }[]): string[] {
+  const vistos = new Map<string, string>();
+  items.forEach((i) => { const t = i.tipo.trim(); if (t && !vistos.has(t.toLowerCase())) vistos.set(t.toLowerCase(), t); });
+  return [...vistos.values()].sort((x, y) => x.localeCompare(y));
+}
 export type EstadoItem = 'bueno' | 'reparar' | 'baja';
 export const ESTADOS_ITEM: { valor: EstadoItem; nombre: string }[] = [
   { valor: 'bueno', nombre: 'Bueno' },
