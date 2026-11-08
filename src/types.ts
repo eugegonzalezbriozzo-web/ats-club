@@ -364,15 +364,22 @@ export interface Pago {
 }
 
 /* ---------- Calendario del club ---------- */
-export type TipoEvento = 'escuela' | 'trabajo' | 'practica' | 'reunion' | 'salida' | 'otro';
-export const TIPOS_EVENTO: { valor: TipoEvento; nombre: string; color: string }[] = [
-  { valor: 'escuela', nombre: 'Escuela', color: '#2563EB' },
-  { valor: 'trabajo', nombre: 'Trabajo', color: '#A16207' },
-  { valor: 'practica', nombre: 'Práctica', color: '#16A34A' },
-  { valor: 'reunion', nombre: 'Reunión', color: '#7C3AED' },
-  { valor: 'salida', nombre: 'Salida', color: '#EA580C' },
-  { valor: 'otro', nombre: 'Otro', color: '#6B7280' },
-];
+/** Tipo de evento: texto libre que escribe el admin ("Escuela", "Trabajo", "Clínica"…). */
+export type TipoEvento = string;
+const COLORES_EVENTO = ['#2563EB', '#16A34A', '#7C3AED', '#EA580C', '#0891B2', '#DB2777', '#65A30D', '#9333EA'];
+/** Color del tipo: los conocidos tienen el suyo; el resto, uno fijo según el texto (el mismo tipo, siempre el mismo color). */
+export function colorEvento(tipo: string): string {
+  const s = tipo.trim().toLowerCase();
+  if (!s) return '#6B7280';
+  if (/escuela|clase/.test(s)) return '#2563EB';
+  if (/trabajo|manten/.test(s)) return '#A16207';
+  if (/pr[aá]ctica|entren/.test(s)) return '#16A34A';
+  if (/reuni[oó]n|comisi[oó]n|asamblea/.test(s)) return '#7C3AED';
+  if (/salida|viaje|3d/.test(s)) return '#EA580C';
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return COLORES_EVENTO[h % COLORES_EVENTO.length];
+}
 /** Evento del calendario. Si `diasSemana` tiene días, se repite cada semana desde `fecha` hasta `hasta`. */
 export interface Evento {
   id: string;

@@ -7,7 +7,7 @@ import { DIAS_CORTOS, diaSemana } from '../../src/calendario';
 import * as repo from '../../src/data/repo';
 import { Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
-import { AUDIENCIAS, TIPOS_EVENTO, type DatosEvento } from '../../src/types';
+import { AUDIENCIAS, colorEvento, tiposUsados, type DatosEvento } from '../../src/types';
 import { Boton, Campo, Cargando, Check, Etiqueta, MensajeError, Pantalla, NotaObligatorios, Pildoras, Txt } from '../../src/ui';
 import { confirmar, hoyISO } from '../../src/util';
 
@@ -20,13 +20,19 @@ export default function EventoForm() {
   const { club, esAdmin } = useAuth();
   const { id, fecha } = useLocalSearchParams<{ id?: string; fecha?: string }>();
   const [d, setD] = useState<DatosEvento | null>(id ? null : {
-    titulo: '', tipo: 'escuela', fecha: fecha && fecha >= hoyISO() ? fecha : hoyISO(), horaInicio: '', horaFin: '',
+    titulo: '', tipo: '', fecha: fecha && fecha >= hoyISO() ? fecha : hoyISO(), horaInicio: '', horaFin: '',
     lugar: '', nota: '', diasSemana: [], hasta: '', audiencia: 'todos',
   });
   const [repite, setRepite] = useState(false);
+  const [tipos, setTipos] = useState<string[]>(['Escuela', 'Trabajo', 'Práctica', 'Reunión']);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
+  useEffect(() => {
+    if (!club) return;
+    // Sugerencias: los tipos ya usados (o unos de ejemplo si todavía no hay).
+    repo.listarEventos(club.id).then((l) => { const u = tiposUsados(l); if (u.length) setTipos(u); }).catch(() => {});
+  }, [club]);
   useEffect(() => {
     if (!id || !club) return;
     repo.listarEventos(club.id).then((l) => {
@@ -42,7 +48,6 @@ export default function EventoForm() {
   if (!d) return error ? <Pantalla><MensajeError texto={error} /></Pantalla> : <Cargando />;
 
   const set = <K extends keyof DatosEvento>(k: K) => (v: DatosEvento[K]) => setD((x) => (x ? { ...x, [k]: v } : x));
-  const tipoNombre = TIPOS_EVENTO.find((x) => x.valor === d.tipo)?.nombre ?? 'Otro';
   const audNombre = AUDIENCIAS.find((a) => a.valor === d.audiencia)?.nombre ?? 'Todos';
 
   const guardar = async () => {
@@ -69,8 +74,19 @@ export default function EventoForm() {
       <Stack.Screen options={{ title: id ? 'Editar evento' : 'Nuevo evento' }} />
       <NotaObligatorios />
       <Campo label="Título *" value={d.titulo} onChangeText={set('titulo')} maxLength={80} placeholder="Ej.: Escuela de arquería" />
-      <Pildoras label="Tipo *" opciones={TIPOS_EVENTO.map((x) => x.nombre)} valor={tipoNombre}
-        onChange={(n) => set('tipo')(TIPOS_EVENTO.find((x) => x.nombre === n)!.valor)} />
+      <Campo label="Tipo (opcional)" value={d.tipo} onChangeText={set('tipo')} maxLength={40} placeholder="Ej.: Escuela, Trabajo, Práctica, Reunión…" />
+      {/* Los tipos que ya usó el club (con su color), para no escribirlos distinto cada vez. */}
+      {tipos.filter((x) => x.toLowerCase() !== d.tipo.trim().toLowerCase()).length ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: -4 }}>
+          {tipos.filter((x) => x.toLowerCase() !== d.tipo.trim().toLowerCase()).map((x) => (
+            <Pressable key={x} accessibilityRole="button" accessibilityLabel={`Usar el tipo ${x}`} onPress={() => set('tipo')(x)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, backgroundColor: t.chip }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colorEvento(x) }} />
+              <Text style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{x}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <Txt muted style={{ fontSize: 13, marginTop: -6 }}>Los torneos no se cargan acá: aparecen solos en el calendario.</Txt>
 
       <Check label="Se repite todas las semanas" valor={repite} onChange={(v) => {

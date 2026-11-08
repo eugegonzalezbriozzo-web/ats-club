@@ -1,4 +1,4 @@
-import { TIPOS_EVENTO, type Evento, type Torneo } from './types';
+import { colorEvento, type Evento, type Torneo } from './types';
 import { finTorneo } from './util';
 
 /** Un día puntual del calendario: una vez de un evento (los que se repiten generan una por semana) o un torneo. */
@@ -40,8 +40,7 @@ export function cuandoEvento(e: Evento): string {
 export function ocurrencias(eventos: Evento[], torneos: Torneo[], desde: string, hasta: string, conSuspendidos = false): Ocurrencia[] {
   const out: Ocurrencia[] = [];
   for (const e of eventos) {
-    const tipo = TIPOS_EVENTO.find((t) => t.valor === e.tipo) ?? TIPOS_EVENTO[TIPOS_EVENTO.length - 1];
-    const base = { titulo: e.titulo, hora: textoHora(e), lugar: e.lugar, color: tipo.color, tipoNombre: tipo.nombre, evento: e };
+    const base = { titulo: e.titulo, hora: textoHora(e), lugar: e.lugar, color: colorEvento(e.tipo), tipoNombre: e.tipo.trim() || 'Evento', evento: e };
     if (!e.diasSemana.length) {
       if (e.fecha >= desde && e.fecha <= hasta) out.push({ ...base, clave: `${e.id}:${e.fecha}`, dia: e.fecha });
       continue;
