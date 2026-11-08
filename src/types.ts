@@ -364,9 +364,10 @@ export interface Pago {
 }
 
 /* ---------- Calendario del club ---------- */
-export type TipoEvento = 'escuela' | 'practica' | 'reunion' | 'salida' | 'otro';
+export type TipoEvento = 'escuela' | 'trabajo' | 'practica' | 'reunion' | 'salida' | 'otro';
 export const TIPOS_EVENTO: { valor: TipoEvento; nombre: string; color: string }[] = [
   { valor: 'escuela', nombre: 'Escuela', color: '#2563EB' },
+  { valor: 'trabajo', nombre: 'Trabajo', color: '#A16207' },
   { valor: 'practica', nombre: 'Práctica', color: '#16A34A' },
   { valor: 'reunion', nombre: 'Reunión', color: '#7C3AED' },
   { valor: 'salida', nombre: 'Salida', color: '#EA580C' },

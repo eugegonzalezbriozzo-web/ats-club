@@ -25,7 +25,7 @@ export function atajosPara(ruta: string, { esAdmin, esTutor }: Quien): { titulo:
   if (ruta.startsWith('/calendario')) return {
     titulo: 'En el calendario',
     atajos: [
-      { texto: 'Ver lo de un día', icono: 'calendar-outline', ayuda: 'Tocá un día del mes. Los puntitos de colores indican que hay algo: escuela, práctica, reunión, salida o torneo.' },
+      { texto: 'Ver lo de un día', icono: 'calendar-outline', ayuda: 'Tocá un día del mes. Los puntitos de colores indican que hay algo: escuela, trabajo, práctica, reunión, salida o torneo.' },
       ...(esAdmin ? [
         { texto: 'Cargar un evento', icono: 'add-circle-outline', ir: '/calendario/evento' },
         { texto: 'Suspender un día (feriado)', icono: 'close-circle-outline', ayuda: 'Tocá el evento en ese día y elegí "Suspender solo este día". A los socios les llega un aviso.' },
