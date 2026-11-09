@@ -80,7 +80,7 @@ export function BurbujaAyuda() {
   if (!usuario || !club || RUTAS_SIN_BURBUJA.some((r) => ruta.startsWith(r)) || ruta.startsWith('/c/')) return null;
 
   const esTutor = usuario.funciones.includes('tutor');
-  const { titulo, atajos } = atajosPara(ruta, { esAdmin, esTutor });
+  const { titulo, atajos } = atajosPara(ruta, { esAdmin, esTutor, tomaLista: esAdmin || usuario.funciones.includes('entrenador') });
   const ir = (destino: string) => { setAbierta(false); router.push(destino as never); };
   const wa = club.telefono && numeroWhatsApp(club.telefono);
 
@@ -122,7 +122,18 @@ export function BurbujaAyuda() {
             {atajos.map((a) => <FilaAtajo key={a.texto} {...a} onIr={ir} />)}
 
             <Seccion texto="Preguntas frecuentes" />
-            {PREGUNTAS.filter((q) => !q.soloAdmin || esAdmin).map((q) => <FilaPregunta key={q.p} {...q} />)}
+            {PREGUNTAS.filter((q) => !q.soloAdmin && !q.paraLista).map((q) => <FilaPregunta key={q.p} {...q} />)}
+            {esAdmin ? (
+              <>
+                <Seccion texto="Para admins" />
+                {PREGUNTAS.filter((q) => q.soloAdmin || q.paraLista).map((q) => <FilaPregunta key={q.p} {...q} />)}
+              </>
+            ) : usuario.funciones.includes('entrenador') ? (
+              <>
+                <Seccion texto="Para entrenadores/as" />
+                {PREGUNTAS.filter((q) => q.paraLista).map((q) => <FilaPregunta key={q.p} {...q} />)}
+              </>
+            ) : null}
 
             <Seccion texto="¿Necesitás más ayuda?" />
             {wa ? <FilaAtajo texto={`Escribirle a ${club.nombre} por WhatsApp`} icono="logo-whatsapp"
