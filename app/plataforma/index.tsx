@@ -7,7 +7,7 @@ import { useAuth } from '../../src/auth';
 import * as repo from '../../src/data/repo';
 import { useTema } from '../../src/theme';
 import { Aviso, Boton, Campo, Chip, Grilla, LogoClub, MensajeError, Pantalla, Tarjeta, Titulo, Txt } from '../../src/ui';
-import { Linking } from 'react-native';
+import { Image, Linking } from 'react-native';
 import { MODULOS, tieneModulo } from '../../src/types';
 
 // Límites del plan gratis de Supabase.
@@ -34,7 +34,7 @@ function TarjetaSolicitud({ s, onListo }: { s: repo.SolicitudClub; onListo: (clu
   const hacer = async () => {
     setError(null); setEnviando(true);
     try {
-      if (modo === 'aprobar') onListo(await repo.aprobarSolicitudClub(s.id, slug, nombre));
+      if (modo === 'aprobar') onListo(await repo.aprobarSolicitudClub(s, slug, nombre));
       else { await repo.rechazarSolicitudClub(s.id, motivo); onListo(); }
     } catch (e) { setError((e as Error).message); } finally { setEnviando(false); }
   };
@@ -45,6 +45,15 @@ function TarjetaSolicitud({ s, onListo }: { s: repo.SolicitudClub; onListo: (clu
         <Chip texto={haceTexto(s.creadoEl)} />
       </View>
       <Txt>{s.localidad}{s.sociosAprox ? ` · unos ${s.sociosAprox} socios` : ''}</Txt>
+      {s.logo || s.colorPrincipal ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {s.logo ? <Image source={{ uri: s.logo }} style={{ width: 44, height: 44 }} resizeMode="contain" accessibilityLabel="Logo que mandaron" /> : null}
+          {[s.colorPrincipal, s.colorSecundario, s.colorAcento].filter(Boolean).map((h, i) => (
+            <View key={i} style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: h, borderWidth: 1, borderColor: t.border }} />
+          ))}
+          <Txt muted style={{ fontSize: 12 }}>{s.logo ? 'Logo' : ''}{s.logo && s.colorPrincipal ? ' y ' : ''}{s.colorPrincipal ? 'colores elegidos' : ''}</Txt>
+        </View>
+      ) : null}
       <Txt>Pide: <Text style={{ fontWeight: '700', color: t.text }}>{s.persona}</Text> · {s.email}</Txt>
       {wa ? <Text accessibilityRole="link" onPress={() => Linking.openURL(`https://wa.me/${wa.startsWith('54') ? wa : `549${wa}`}`)} style={{ color: t.accent, fontWeight: '700' }}>WhatsApp: {s.telefono}</Text> : null}
       {s.mensaje ? <Txt muted style={{ fontStyle: 'italic' }}>"{s.mensaje}"</Txt> : null}
@@ -58,7 +67,7 @@ function TarjetaSolicitud({ s, onListo }: { s: repo.SolicitudClub; onListo: (clu
           <Campo label="Nombre del club *" value={nombre} onChangeText={setNombre} maxLength={80} />
           <Campo label="Identificador del link *" value={slug} onChangeText={(v) => setSlug(v.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} autoCapitalize="none" />
           <Txt muted style={{ fontSize: 13, marginTop: -6 }}>El link de registro va a ser .../c/{repo.crearSlug(slug) || '…'}</Txt>
-          <Txt muted style={{ fontSize: 13 }}>Se crea el club con todos los módulos y colores por defecto, y {s.persona} queda como admin. Después podés cambiar colores, logo y módulos en Editar.</Txt>
+          <Txt muted style={{ fontSize: 13 }}>Se crea el club con todos los módulos, {s.logo || s.colorPrincipal ? 'el logo y los colores que mandaron' : 'colores por defecto'}, y {s.persona} queda como admin. Después podés cambiar colores, logo y módulos en Editar.</Txt>
           <MensajeError texto={error} />
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <View style={{ flex: 1 }}><Boton titulo="Crear club" icono="business-outline" cargando={enviando} onPress={hacer} /></View>

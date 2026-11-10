@@ -2074,16 +2074,22 @@ export async function listaAsistencia(clubId: string): Promise<ArqueroLista[]> {
 export interface SolicitudClub {
   id: string; nombreClub: string; localidad: string; sociosAprox: number | null; mensaje: string;
   estado: 'pendiente' | 'aprobada' | 'rechazada'; motivo: string; clubId: string | null; creadoEl: string;
+  /** Logo (data URI PNG) y colores que eligió quien pide (opcionales). */
+  logo: string; colorPrincipal?: string; colorSecundario?: string; colorAcento?: string;
   /** Solo para la plataforma. */
   persona?: string; email?: string; telefono?: string;
 }
 const aSolicitudClub = (s: any): SolicitudClub => ({
   id: s.id, nombreClub: s.nombre_club, localidad: s.localidad, sociosAprox: s.socios_aprox ?? null, mensaje: s.mensaje ?? '',
   estado: s.estado, motivo: s.motivo ?? '', clubId: s.club_id ?? null, creadoEl: s.creado_el,
+  logo: s.logo ?? '', colorPrincipal: s.color_principal ?? undefined, colorSecundario: s.color_secundario ?? undefined, colorAcento: s.color_acento ?? undefined,
   persona: s.persona, email: s.email, telefono: s.telefono,
 });
 
-export interface DatosSolicitudClub { nombreClub: string; localidad: string; sociosAprox?: string; mensaje?: string }
+export interface DatosSolicitudClub {
+  nombreClub: string; localidad: string; sociosAprox?: string; mensaje?: string;
+  logo?: string; colorPrincipal?: string; colorSecundario?: string; colorAcento?: string;
+}
 function validarSolicitudClub(d: DatosSolicitudClub) {
   if (d.nombreClub.trim().length < 2) throw new ErrorApp('Completá el nombre del club.');
   if (d.localidad.trim().length < 2) throw new ErrorApp('Completá la localidad del club.');
@@ -2092,6 +2098,10 @@ const filaSolicitudClub = (uid: string, d: DatosSolicitudClub) => ({
   usuario_id: uid, nombre_club: d.nombreClub.trim().slice(0, 80), localidad: d.localidad.trim().slice(0, 80),
   socios_aprox: d.sociosAprox && /^\d+$/.test(d.sociosAprox.trim()) ? Math.min(Number(d.sociosAprox.trim()), 100000) : null,
   mensaje: (d.mensaje ?? '').trim().slice(0, 500),
+  logo: d.logo?.startsWith('data:image/png;base64,') && d.logo.length <= 400000 ? d.logo : '',
+  color_principal: /^#[0-9A-Fa-f]{6}$/.test(d.colorPrincipal ?? '') ? d.colorPrincipal : null,
+  color_secundario: /^#[0-9A-Fa-f]{6}$/.test(d.colorSecundario ?? '') ? d.colorSecundario : null,
+  color_acento: /^#[0-9A-Fa-f]{6}$/.test(d.colorAcento ?? '') ? d.colorAcento : null,
 });
 
 /**
@@ -2143,7 +2153,8 @@ export async function listarSolicitudesClub(): Promise<SolicitudClub[]> {
 }
 
 /** Plataforma: crea el club y deja a quien lo pidió como admin. Devuelve el id del club. */
-export async function aprobarSolicitudClub(id: string, slugPedido: string, nombre: string): Promise<string> {
+export async function aprobarSolicitudClub(sol: SolicitudClub, slugPedido: string, nombre: string): Promise<string> {
+  const id = sol.id;
   const slug = crearSlug(slugPedido);
   if (!slug) throw new ErrorApp('Completá el identificador del link (por ejemplo: arqueros-del-lago).');
   if (SLUGS_RESERVADOS.includes(slug)) throw new ErrorApp('Ese identificador está reservado. Elegí otro.');
@@ -2152,7 +2163,15 @@ export async function aprobarSolicitudClub(id: string, slugPedido: string, nombr
     if (error.code === '23505') throw new ErrorApp('Ya hay un club con ese identificador de link. Elegí otro.');
     fallo(error, 'No se pudo aprobar.');
   }
-  return data as string;
+  const clubId = data as string;
+  // El logo que mandaron: se sube al bucket de logos (si falla, el club queda igual, sin logo).
+  if (sol.logo) {
+    try {
+      const logo_url = await subirLogo(clubId, sol.logo);
+      await supabase.from('clubes').update({ logo_url }).eq('id', clubId);
+    } catch { /* se puede subir después desde Editar */ }
+  }
+  return clubId;
 }
 
 export async function rechazarSolicitudClub(id: string, motivo: string) {

@@ -1,8 +1,13 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
+import { elegirLogo } from '../src/CampoLogo';
+import { avisosColores } from '../src/color';
+import { sugerirColores, type Combinacion } from '../src/coloresLogo';
+import { CampoColor, VistaPrevia } from '../src/EditorColores';
 import * as repo from '../src/data/repo';
 import { LogoATSClub, PieATS } from '../src/LogoATS';
 import { Text } from '../src/texto';
@@ -20,6 +25,30 @@ export default function SumarClub() {
   const { usuario, refrescar } = useAuth();
   const conCuenta = !!usuario;
   const [d, setD] = useState({ nombreClub: '', localidad: '', sociosAprox: '', mensaje: '' });
+  // Identidad (opcional): logo y colores. Los colores se sugieren a partir del logo.
+  const [logo, setLogo] = useState('');
+  const [colores, setColores] = useState<Combinacion>({ colorPrincipal: '#1F4FA0', colorSecundario: '#111111', colorAcento: '#FFFFFF' });
+  const [tocoColores, setTocoColores] = useState(false);
+  const [sugeridas, setSugeridas] = useState<Combinacion[]>([]);
+  const [aMano, setAMano] = useState(false);
+  const [errLogo, setErrLogo] = useState<string | null>(null);
+  const subirLogo = async () => {
+    setErrLogo(null);
+    try {
+      const l = await elegirLogo();
+      if (!l) return;
+      if (l.length > 400000) return setErrLogo('El logo es muy pesado. Probá con una imagen más simple o más chica.');
+      setLogo(l);
+      const sug = await sugerirColores(l);
+      setSugeridas(sug);
+      if (sug[0]) { setColores(sug[0]); setTocoColores(true); }
+    } catch (e) {
+      setErrLogo((e as Error).message || 'No se pudo cargar el logo.');
+    }
+  };
+  const setColor = (k: keyof Combinacion) => (v: string) => { setColores((c) => ({ ...c, [k]: v })); setTocoColores(true); };
+  const iguales = (a: Combinacion, b: Combinacion) => a.colorPrincipal === b.colorPrincipal && a.colorSecundario === b.colorSecundario && a.colorAcento === b.colorAcento;
+  const datosClub = { ...d, logo, ...(tocoColores ? colores : {}) };
   const [p, setP] = useState({ nombre: '', apellido: '', telefono: '', email: '', password: '' });
   const [acepto, setAcepto] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,10 +63,10 @@ export default function SumarClub() {
     setEnviando(true);
     try {
       if (conCuenta) {
-        await repo.pedirClub(usuario!.id, d);
+        await repo.pedirClub(usuario!.id, datosClub);
         setListo('ok');
       } else {
-        const conSesion = await repo.pedirClubNuevo(p, d);
+        const conSesion = await repo.pedirClubNuevo(p, datosClub);
         setListo(conSesion ? 'ok' : 'confirmar');
       }
     } catch (e) {
@@ -87,6 +116,55 @@ export default function SumarClub() {
           <Campo label="Localidad *" value={d.localidad} onChangeText={setDd('localidad')} maxLength={80} placeholder="Ej.: Villa Carlos Paz, Córdoba" />
           <Campo label="¿Cuántos socios tienen, más o menos?" value={d.sociosAprox} onChangeText={(v) => setDd('sociosAprox')(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={6} placeholder="Ej.: 30" />
           <Campo label="Algo más que quieras contarnos" value={d.mensaje} onChangeText={setDd('mensaje')} maxLength={500} multiline placeholder="Ej.: tenemos escuela los sábados y vamos a 4 torneos por año" />
+
+          <Titulo style={{ fontSize: 20, marginTop: 6 }}>Logo y colores (opcional)</Titulo>
+          <Txt muted style={{ fontSize: 13, marginTop: -6 }}>Subí el logo y te sugerimos colores para la app. Si no, los elegimos con vos después.</Txt>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <View style={{ width: 84, height: 84, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: t.border, backgroundColor: t.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              {logo ? <Image source={{ uri: logo }} style={{ width: 80, height: 80 }} resizeMode="contain" accessibilityLabel="Logo del club" /> : <Ionicons name="image-outline" size={30} color={t.muted} />}
+            </View>
+            <View style={{ flex: 1, gap: 8, alignItems: 'flex-start' }}>
+              <Boton titulo={logo ? 'Cambiar logo' : 'Subir logo'} variante="secundario" icono="image-outline" onPress={subirLogo} />
+              {logo ? <Text accessibilityRole="button" onPress={() => { setLogo(''); setSugeridas([]); }} style={{ color: t.muted, fontSize: 13, textDecorationLine: 'underline' }}>Quitar</Text> : null}
+            </View>
+          </View>
+          <MensajeError texto={errLogo} />
+          {sugeridas.length ? (
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: t.text, fontWeight: '700' }}>Colores sugeridos a partir del logo</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                {sugeridas.map((c, i) => {
+                  const on = iguales(c, colores);
+                  return (
+                    <Pressable key={i} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={`Opción ${i + 1}`}
+                      onPress={() => { setColores(c); setTocoColores(true); }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8, borderRadius: 12, borderWidth: on ? 2.5 : 1, borderColor: on ? t.accent : t.border, backgroundColor: t.surface }}>
+                      {[c.colorPrincipal, c.colorSecundario, c.colorAcento].map((h, j) => (
+                        <View key={j} style={{ width: 24, height: 24, borderRadius: 6, backgroundColor: h, borderWidth: 1, borderColor: t.border }} />
+                      ))}
+                      <Text style={{ color: t.text, fontSize: 13, marginLeft: 4 }}>Opción {i + 1}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+          {logo || tocoColores ? (
+            <>
+              <VistaPrevia club={{ nombre: d.nombreClub, logo, ...colores }} />
+              {avisosColores(colores).map((a) => <Txt key={a} muted style={{ fontSize: 12 }}>• {a}</Txt>)}
+            </>
+          ) : null}
+          <Text accessibilityRole="button" onPress={() => setAMano((x) => !x)} style={{ color: t.accent, fontWeight: '700' }}>
+            {aMano ? 'Ocultar colores' : 'Elegir los colores a mano'}
+          </Text>
+          {aMano ? (
+            <View style={{ gap: 14 }}>
+              <CampoColor label="Principal" valor={colores.colorPrincipal} onChange={setColor('colorPrincipal')} ayuda="Botones, selección, banda de la cabecera y links." />
+              <CampoColor label="Secundario" valor={colores.colorSecundario} onChange={setColor('colorSecundario')} ayuda="Fondo de la cabecera y de los bloques destacados." />
+              <CampoColor label="Acento" valor={colores.colorAcento} onChange={setColor('colorAcento')} ayuda="Texto y detalles sobre el color secundario." />
+            </View>
+          ) : null}
 
           {conCuenta ? (
             <Txt muted>Lo pedís con tu cuenta ({usuario!.email}). Cuando lo aprobemos, vas a ser admin del club.</Txt>
