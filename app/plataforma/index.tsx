@@ -198,6 +198,7 @@ export default function Clubes() {
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={{ color: t.text, fontSize: 17, fontWeight: '700' }}>{c.nombre}</Text>
                   <Txt muted style={{ fontSize: 13 }}>{c.localidad || 'Sin localidad'}</Txt>
+                  {c.creadoEl ? <Txt muted style={{ fontSize: 12 }}>Alta: {new Date(c.creadoEl).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })} ({haceTexto(c.creadoEl)})</Txt> : null}
                 </View>
                 <Chip texto={c.estado === 'activo' ? 'Activo' : 'Inactivo'} relleno={c.estado === 'activo'} />
               </View>
