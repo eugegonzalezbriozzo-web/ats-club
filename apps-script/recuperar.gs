@@ -10,6 +10,8 @@
  *  - { accion: 'eliminar_socio', token, usuario_id }: el admin del club procesa el pedido de baja de un socio
  *    que pidió borrar sus datos. Borra la foto, los comprobantes y la cuenta (la base borra en cascada
  *    perfil, membresía, inscripciones, votos y pagos) y le avisa por mail.
+ *  - { accion: 'codigo_club', token }: "Sumá tu club". Manda un código al email de ESA cuenta (no a cualquiera)
+ *    y guarda en Supabase solo su hash (tabla codigos_email). La base lo exige para aceptar la solicitud.
  *  - { accion: 'bienvenida', token }: al registrarse. Con el token de la sesión nueva, el script
  *    comprueba en Supabase quién es (cuenta creada hace menos de 15 minutos) y le manda la bienvenida
  *    una sola vez. Así nadie puede usarlo para mandar mails a cualquier dirección.
@@ -30,6 +32,7 @@ function doPost(e) {
     if (datos.accion === 'cambiar_email') return responder(cambiarEmail(datos));
     if (datos.accion === 'confirmar_email') return responder(confirmarEmail(datos));
     if (datos.accion === 'eliminar_socio') return responder(eliminarSocio(datos));
+    if (datos.accion === 'codigo_club') return responder(codigoClub(datos));
     if (datos.accion !== 'recuperar') return responder({ ok: false, error: 'accion' });
     var email = String(datos.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return responder({ ok: false, error: 'email' });
@@ -183,6 +186,53 @@ function confirmarEmail(datos) {
       });
     }
   } catch (err) { console.warn(err); }
+  return { ok: true };
+}
+
+/* ---------- "Sumá tu club": código para confirmar el email ---------- */
+
+function codigoClub(datos) {
+  var c = config();
+  var u = usuarioDeToken(c, String(datos.token || ''));
+  if (!u || !u.email) return { ok: false, error: 'token' };
+  var cache = CacheService.getScriptCache();
+  if (cache.get('cc:' + u.id)) return { ok: false, error: 'esperar' };
+  var q = cuotaDiaria(c);
+  if (!q.hay) return { ok: false, error: 'limite_diario' };
+
+  var codigo = String(Math.floor(100000 + Math.random() * 900000));
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, codigo + u.id, Utilities.Charset.UTF_8);
+  var hash = '';
+  for (var i = 0; i < bytes.length; i++) hash += ('0' + (bytes[i] & 0xff).toString(16)).slice(-2);
+  var headers = { Prefer: 'resolution=merge-duplicates,return=minimal' };
+  for (var k in c.h) headers[k] = c.h[k];
+  var r = UrlFetchApp.fetch(c.url + '/rest/v1/codigos_email?on_conflict=usuario_id', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: headers,
+    payload: JSON.stringify({ usuario_id: u.id, codigo_hash: hash, expira: new Date(Date.now() + 15 * 60 * 1000).toISOString(), intentos: 0, verificado_el: null }),
+    muteHttpExceptions: true,
+  });
+  if (r.getResponseCode() >= 300) {
+    console.warn('codigos_email ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 200));
+    return { ok: false, error: 'error' };
+  }
+  cache.put('cc:' + u.id, '1', ESPERA_SEGUNDOS);
+  MailApp.sendEmail({
+    to: u.email,
+    name: 'ATS Club',
+    subject: 'Tu código para sumar tu club: ' + codigo,
+    htmlBody: plantilla({
+      resumen: 'Tu código es ' + codigo + '. Vence en 15 minutos.',
+      titulo: 'Sumá tu club',
+      parrafos: ['Para enviar la solicitud de tu club a <b>ATS Club</b>, escribí este código en la app:'],
+      codigo: codigo,
+      vence: 'Vence en 15 minutos.',
+      pie: 'Si no lo pediste, ignorá este mail.',
+    }),
+    body: 'Tu código para sumar tu club a ATS Club es: ' + codigo + '\nVence en 15 minutos. Si no lo pediste, ignorá este mail.',
+  });
+  contarEnvio(c, q);
   return { ok: true };
 }
 

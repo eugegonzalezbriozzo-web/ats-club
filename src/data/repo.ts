@@ -2112,12 +2112,8 @@ const filaSolicitudClub = (uid: string, d: DatosSolicitudClub) => ({
   color_acento: /^#[0-9A-Fa-f]{6}$/.test(d.colorAcento ?? '') ? d.colorAcento : null,
 });
 
-/**
- * Sin cuenta: crea la cuenta (sin club) y deja la solicitud del club.
- * Devuelve false si la cuenta quedó esperando confirmar el email (sin sesión).
- */
-export async function pedirClubNuevo(persona: { nombre: string; apellido: string; telefono: string; email: string; password: string }, d: DatosSolicitudClub): Promise<boolean> {
-  validarSolicitudClub(d);
+/** "Sumá tu club", sin cuenta: crea la cuenta (sin club). Después hay que confirmar el email con el código. */
+export async function crearCuentaParaClub(persona: { nombre: string; apellido: string; telefono: string; email: string; password: string }): Promise<boolean> {
   if (!persona.nombre.trim() || !persona.apellido.trim()) throw new ErrorApp('Completá tu nombre y apellido.');
   if (persona.telefono.replace(/\D/g, '').length < 8) throw new ErrorApp('Completá tu WhatsApp (con característica).');
   if (!/^\S+@\S+\.\S+$/.test(persona.email.trim())) throw new ErrorApp('El email no parece válido.');
@@ -2131,9 +2127,35 @@ export async function pedirClubNuevo(persona: { nombre: string; apellido: string
     throw new ErrorApp('Ya existe una cuenta con ese email. Ingresá con ella y pedí sumar tu club desde ahí.');
   if (!data.session || !data.user) return false;
   await supabase.from('perfiles').update({ funciones: ['arquero'] }).eq('id', data.user.id);
-  const { error: e2 } = await supabase.from('solicitudes_club').insert(filaSolicitudClub(data.user.id, d));
-  if (e2) fallo(e2, 'La cuenta se creó, pero no se pudo enviar la solicitud. Ingresá y probá de nuevo.');
   return true;
+}
+
+/** "Sumá tu club": manda un código al email de la cuenta (vence en 15 minutos). */
+export async function pedirCodigoClub() {
+  const r = await llamarScript({ accion: 'codigo_club', token: await tokenActual() });
+  if (r.ok) return;
+  const m: Record<string, string> = {
+    esperar: 'Ya te mandamos un código hace menos de un minuto. Revisá tu mail (y el spam).',
+    limite_diario: 'Hoy se mandaron demasiados mails. Probá mañana o escribí a ats.archery@gmail.com.',
+    token: 'Tu sesión venció. Ingresá de nuevo.',
+  };
+  throw new ErrorApp(m[r.error ?? ''] ?? 'No se pudo mandar el código. Probá de nuevo en un rato.');
+}
+
+/** "Sumá tu club": comprueba el código del mail. */
+export async function verificarCodigoClub(codigo: string) {
+  if (codigo.replace(/\D/g, '').length !== 6) throw new ErrorApp('Escribí el código de 6 números que te llegó.');
+  const { data, error } = await supabase.rpc('verificar_codigo_club', { p_codigo: codigo });
+  if (error) fallo(error);
+  if (data === 'codigo') throw new ErrorApp('El código no es correcto. Revisalo.');
+  if (data !== 'ok') throw new ErrorApp('El código venció o hubo demasiados intentos. Pedí uno nuevo.');
+}
+
+/** Id de la cuenta con sesión (o error si no hay). */
+export async function idSesion(): Promise<string> {
+  const id = (await supabase.auth.getUser()).data.user?.id;
+  if (!id) throw new ErrorApp('Tu sesión venció. Ingresá de nuevo.');
+  return id;
 }
 
 /** Con cuenta y sin club: deja la solicitud. */
@@ -2142,6 +2164,7 @@ export async function pedirClub(usuarioId: string, d: DatosSolicitudClub) {
   const { error } = await supabase.from('solicitudes_club').insert(filaSolicitudClub(usuarioId, d));
   if (error) {
     if (error.code === '23505') throw new ErrorApp('Ya tenés una solicitud en revisión.');
+    if (error.code === 'P0001') throw new ErrorApp(error.message);
     if (error.code === '42501') throw new ErrorApp('Tu cuenta ya está en un club: no podés pedir otro.');
     fallo(error);
   }

@@ -54,27 +54,48 @@ export default function SumarClub() {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [listo, setListo] = useState<'ok' | 'confirmar' | null>(null);
+  // Paso 2: confirmar el email con el código que manda ATS.
+  const [paso, setPaso] = useState<'datos' | 'codigo'>('datos');
+  const [codigo, setCodigo] = useState('');
+  const [reenviado, setReenviado] = useState(false);
   const setDd = (k: keyof typeof d) => (v: string) => setD((x) => ({ ...x, [k]: v }));
   const setPp = (k: keyof typeof p) => (v: string) => setP((x) => ({ ...x, [k]: v }));
 
-  const enviar = async () => {
+  // Paso 1: datos → (crea la cuenta si no hay) → manda el código al email.
+  const seguir = async () => {
     setError(null);
+    if (d.nombreClub.trim().length < 2) return setError('Completá el nombre del club.');
+    if (d.localidad.trim().length < 2) return setError('Completá la localidad del club.');
     if (!conCuenta && !acepto) return setError('Para seguir, aceptá la política de privacidad.');
     setEnviando(true);
     try {
-      if (conCuenta) {
-        await repo.pedirClub(usuario!.id, datosClub);
-        setListo('ok');
-      } else {
-        const conSesion = await repo.pedirClubNuevo(p, datosClub);
-        setListo(conSesion ? 'ok' : 'confirmar');
+      if (!conCuenta) {
+        const conSesion = await repo.crearCuentaParaClub(p);
+        if (!conSesion) { setListo('confirmar'); return; }
       }
+      await repo.pedirCodigoClub();
+      setPaso('codigo');
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setEnviando(false);
     }
   };
+  // Paso 2: código → solicitud.
+  const enviar = async () => {
+    setError(null);
+    setEnviando(true);
+    try {
+      await repo.verificarCodigoClub(codigo);
+      await repo.pedirClub(usuario?.id ?? (await repo.idSesion()), datosClub);
+      setListo('ok');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setEnviando(false);
+    }
+  };
+  const emailCuenta = usuario?.email || p.email.trim().toLowerCase();
 
   if (listo) {
     return (
@@ -88,6 +109,30 @@ export default function SumarClub() {
           </Txt>
           <Boton titulo="Listo" onPress={async () => { await refrescar(); router.replace(listo === 'ok' ? '/pendiente' : '/login'); }} />
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (paso === 'codigo') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
+        <ScrollView contentContainerStyle={{ padding: 28, gap: 16, width: '100%', maxWidth: 480, alignSelf: 'center', flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
+          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: t.chip, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="mail-unread-outline" size={34} color={t.accent} />
+          </View>
+          <Text style={{ color: t.text, fontSize: 28, ...FUENTE_TITULO }}>Confirmá tu email</Text>
+          <Txt muted>Te mandamos un código de 6 números a <Text style={{ fontWeight: '700', color: t.text }}>{emailCuenta}</Text>. Escribilo para enviar la solicitud de {d.nombreClub.trim()}. Vence en 15 minutos (revisá también el spam).</Txt>
+          <Campo label="Código" value={codigo} onChangeText={(v) => setCodigo(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} placeholder="123456" autoComplete="one-time-code" />
+          <MensajeError texto={error} />
+          <Boton titulo="Confirmar y enviar solicitud" icono="send-outline" onPress={enviar} cargando={enviando} />
+          <Text accessibilityRole="button" onPress={async () => {
+            setError(null);
+            try { await repo.pedirCodigoClub(); setReenviado(true); } catch (e) { setError((e as Error).message); }
+          }} style={{ color: t.accent, fontWeight: '700', textAlign: 'center' }}>
+            {reenviado ? 'Te mandamos otro código' : 'No me llegó: mandar otro código'}
+          </Text>
+          <Text accessibilityRole="button" onPress={() => { setPaso('datos'); setError(null); }} style={{ color: t.muted, textAlign: 'center' }}>Volver a los datos del club</Text>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -184,7 +229,8 @@ export default function SumarClub() {
           )}
 
           <MensajeError texto={error} />
-          <Boton titulo="Enviar solicitud" icono="send-outline" onPress={enviar} cargando={enviando} />
+          <Boton titulo="Seguir" icono="arrow-forward" onPress={seguir} cargando={enviando} />
+          <Txt muted style={{ textAlign: 'center', fontSize: 13, marginTop: -6 }}>Te vamos a mandar un código a tu email para confirmarlo.</Txt>
           {!conCuenta ? (
             <Txt muted style={{ textAlign: 'center', fontSize: 13 }}>
               ¿Ya tenés cuenta? <Link href="/login" style={{ color: t.accent, fontWeight: '700' }}>Ingresá</Link> y pedilo desde ahí.
