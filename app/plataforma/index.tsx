@@ -186,6 +186,7 @@ export default function Clubes() {
         </Tarjeta>
       ) : null}
 
+      <Boton titulo="Prueba y pagos de los clubes" variante="secundario" icono="calendar-outline" onPress={() => router.push('/plataforma/abonos')} />
       <Boton titulo="Nuevo club" icono="add" onPress={() => router.push('/plataforma/club')} />
       <Txt muted style={{ fontSize: 13 }}>Los clubes también pueden pedir sumarse solos desde la pantalla de ingreso ("Sumá tu club"): .../sumar-club</Txt>
       <Grilla>

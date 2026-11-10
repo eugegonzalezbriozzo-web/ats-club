@@ -248,7 +248,8 @@ function aClub(c: Record<string, any>): Club {
     id: c.id, slug: c.slug, nombre: c.nombre, localidad: c.localidad ?? '', email: c.email ?? '', telefono: c.telefono ?? '',
     instagram: c.instagram ?? '', facebook: c.facebook ?? '', tiktok: c.tiktok ?? '', logo: c.logo_url ?? '',
     colorPrincipal: c.color_principal, colorSecundario: c.color_secundario, colorAcento: c.color_acento,
-    estado: c.estado ?? 'activo', modulos: Array.isArray(c.modulos) ? c.modulos : undefined, creadoEl: c.creado_el ?? '',
+    estado: c.estado ?? 'activo', modulos: Array.isArray(c.modulos) ? c.modulos : undefined,
+    pruebaHasta: c.prueba_hasta ?? undefined, pagaDesde: c.paga_desde ?? undefined, creadoEl: c.creado_el ?? '',
   };
 }
 /** Errores de Supabase → mensajes para el usuario. */
@@ -879,12 +880,15 @@ export async function guardarClub(datos: DatosClub, clubId?: string, emailAdmin?
     instagram: (datos.instagram ?? '').trim(), facebook: (datos.facebook ?? '').trim(), tiktok: (datos.tiktok ?? '').trim(),
     color_principal: datos.colorPrincipal, color_secundario: datos.colorSecundario, color_acento: datos.colorAcento, estado: datos.estado,
     ...(datos.modulos ? { modulos: datos.modulos } : {}),
+    ...(datos.pruebaHasta ? { prueba_hasta: datos.pruebaHasta } : {}),
+    ...(datos.pagaDesde ? { paga_desde: datos.pagaDesde } : {}),
   };
   const r = clubId
     ? await supabase.from('clubes').update(fila).eq('id', clubId).select('*').single()
     : await supabase.from('clubes').insert(fila).select('*').single();
   if (r.error) {
     if (r.error.code === '23505') throw new ErrorApp('Ya hay un club con ese identificador de link.');
+    if (/clubes_paga_desde_check/.test(r.error.message ?? '')) throw new ErrorApp('"Empieza a pagar" no puede ser antes de la fecha de alta.');
     fallo(r.error, 'No se pudo guardar el club.');
   }
   let club = aClub(r.data);

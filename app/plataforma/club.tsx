@@ -6,6 +6,9 @@ import { LinkClub } from '../../src/LinkClub';
 import { Text, TextInput } from '../../src/texto';
 import { avisosColores, hexValido } from '../../src/color';
 import { CampoColor, VistaPrevia } from '../../src/EditorColores';
+import { CampoFecha } from '../../src/CampoFecha';
+
+const sumarUnDia = (iso: string) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
 import * as repo from '../../src/data/repo';
 import { FUENTE_TITULO, useTema } from '../../src/theme';
 import { MODULOS, type Club, type EstadoClub, type Modulo } from '../../src/types';
@@ -108,6 +111,20 @@ export default function FormClub() {
         onChange={(v) => set('estado')((v === 'Activo' ? 'activo' : 'inactivo') as EstadoClub)}
       />
       {f.estado === 'inactivo' ? <Aviso icono="lock-closed-outline" texto="Con el club inactivo, sus socios no pueden entrar ni registrarse. Los datos se conservan." /> : null}
+
+      {id && f.pruebaHasta ? (
+        <>
+          <Titulo style={{ marginTop: 8 }}>Prueba y pago</Titulo>
+          <CampoFecha label="Fin del mes de prueba" valor={f.pruebaHasta} onChange={(v) => setF((x) => ({
+            ...x, pruebaHasta: v,
+            // Si "empieza a pagar" venía pegado al fin de la prueba, se mueve con él.
+            pagaDesde: x.pagaDesde && x.pruebaHasta && x.pagaDesde === sumarUnDia(x.pruebaHasta) ? sumarUnDia(v) : x.pagaDesde,
+          }))} ayuda="Para extender la prueba, cambiá esta fecha." />
+          <CampoFecha label="Empieza a pagar" valor={f.pagaDesde ?? ''} onChange={set('pagaDesde')} />
+        </>
+      ) : !id ? (
+        <Txt muted style={{ fontSize: 13, marginTop: 8 }}>Prueba: un mes desde hoy. Empieza a pagar al día siguiente. Se puede cambiar después.</Txt>
+      ) : null}
 
       <Titulo style={{ marginTop: 8 }}>Módulos</Titulo>
       <Txt muted style={{ fontSize: 13 }}>Qué funciones tiene este club. Socios, arqueros, torneos e inscripciones están siempre. Si apagás algo, se oculta en la app (los datos no se borran).</Txt>

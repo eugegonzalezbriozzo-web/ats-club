@@ -42,6 +42,9 @@ export interface Club {
   estado: EstadoClub;
   /** Funciones prendidas para el club (las prende o apaga la plataforma). */
   modulos?: Modulo[];
+  /** Plataforma: último día del mes de prueba y desde cuándo paga (YYYY-MM-DD). */
+  pruebaHasta?: string;
+  pagaDesde?: string;
   creadoEl: string;
 }
 
