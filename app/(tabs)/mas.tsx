@@ -56,9 +56,12 @@ export default function Mas() {
   const [nNoticias, setNNoticias] = useState(0);
   const [cuota, setCuota] = useState<repo.EstadoCuota | null>(null);
   const [enRevision, setEnRevision] = useState(0);
+  const [abono, setAbono] = useState<ReturnType<typeof repo.estadoAbono> | null>(null);
 
   useFocusEffect(
     useCallback(() => {
+      if (club && esAdmin && !usuario?.esSuperadmin)
+        repo.listarAbonos(club.id).then((ps) => setAbono(repo.estadoAbono(club, ps))).catch(() => setAbono(null));
       if (club && esAdmin)
         repo.listarSocios(club.id).then((us) => {
           setPendientes(us.filter((u) => u.estado === 'pendiente').length);
@@ -149,7 +152,16 @@ export default function Mas() {
           {tieneModulo(club, 'noticias') ? <FilaMenu principal icono="megaphone-outline" titulo="Noticias y encuestas" detalle="Publicar para todos, federados, no federados o comisión" onPress={() => router.push('/gestion/noticias')} /> : null}
           {tieneModulo(club, 'inventario') ? <FilaMenu principal icono="cube-outline" titulo="Inventario" detalle="Equipo del club y préstamos (solo admins)" onPress={() => router.push('/gestion/inventario')} /> : null}
           <FilaMenu principal icono="key-outline" titulo="Socios y roles" detalle="Quién es usuario y quién es admin" onPress={() => router.push('/gestion/usuarios')} />
-          {!usuario.esSuperadmin ? <FilaMenu principal icono="card-outline" titulo="Abono de ATS Club" detalle="Prueba, pagos del club a ATS y comprobantes" onPress={() => router.push('/gestion/abono')} /> : null}
+          {!usuario.esSuperadmin ? (
+            <FilaMenu principal icono="card-outline" titulo="Abono de ATS Club"
+              badge={abono && !abono.exento && !abono.enPrueba ? abono.debe.length : 0}
+              detalle={!abono ? 'Prueba, pagos del club a ATS y comprobantes'
+                : abono.exento ? 'Sin cargo'
+                : abono.enPrueba ? `En período de prueba hasta el ${club?.pruebaHasta ? `${club.pruebaHasta.slice(8, 10)}/${club.pruebaHasta.slice(5, 7)}` : ''}`
+                : abono.debe.length ? `Debés ${abono.debe.length} mes${abono.debe.length === 1 ? '' : 'es'}`
+                : abono.revision.size ? 'Pago en revisión' : 'Al día · pagos y comprobantes'}
+              onPress={() => router.push('/gestion/abono')} />
+          ) : null}
           <FilaMenu principal icono="share-social-outline" titulo="Datos del club" detalle="Logo, teléfono, email, Instagram, Facebook y TikTok" onPress={() => router.push('/gestion/club')} />
         </>
       ) : null}
