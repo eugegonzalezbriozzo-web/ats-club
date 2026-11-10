@@ -813,6 +813,32 @@ export async function listarClubes(): Promise<ResumenClub[]> {
   });
 }
 
+/** Actividad de un club (panel de plataforma). */
+export interface ActividadClub {
+  activos30: number; ultimoUso: string | null; pendienteDesde: string | null; eventos: number; noticias30: number;
+  torneosProximos: number; pagosRevision: number; asistencias30: number; espacio: number;
+}
+export interface PanelPlataforma {
+  porClub: Record<string, ActividadClub>;
+  usuarios: number; activos30: number; sinClub: number; baseBytes: number; archivosBytes: number;
+}
+/** Solo plataforma: actividad y espacio (una sola consulta a la base). */
+export async function panelPlataforma(): Promise<PanelPlataforma> {
+  const { data, error } = await supabase.rpc('panel_plataforma');
+  if (error) fallo(error);
+  const d = (data ?? {}) as any;
+  const porClub: Record<string, ActividadClub> = {};
+  for (const c of d.clubes ?? []) {
+    porClub[c.id] = {
+      activos30: Number(c.activos30) || 0, ultimoUso: c.ultimo_uso ?? null, pendienteDesde: c.pendiente_desde ?? null,
+      eventos: Number(c.eventos) || 0, noticias30: Number(c.noticias30) || 0, torneosProximos: Number(c.torneos_proximos) || 0,
+      pagosRevision: Number(c.pagos_revision) || 0, asistencias30: Number(c.asistencias30) || 0, espacio: Number(c.espacio) || 0,
+    };
+  }
+  return { porClub, usuarios: Number(d.usuarios) || 0, activos30: Number(d.activos30) || 0, sinClub: Number(d.sin_club) || 0,
+    baseBytes: Number(d.base_bytes) || 0, archivosBytes: Number(d.archivos_bytes) || 0 };
+}
+
 export type DatosClub = Omit<Club, 'id' | 'creadoEl'>;
 
 /** Admin del club: solo email y redes. Nombre, colores, logo, link y estado siguen siendo de la plataforma. */
