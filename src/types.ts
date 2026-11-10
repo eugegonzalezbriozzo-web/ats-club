@@ -45,6 +45,10 @@ export interface Club {
   /** Plataforma: último día del mes de prueba y desde cuándo paga (YYYY-MM-DD). */
   pruebaHasta?: string;
   pagaDesde?: string;
+  /** Plataforma: club exceptuado del abono (siempre, o meses sueltos YYYY-MM) y por qué. */
+  exentoIndefinido?: boolean;
+  exentoMeses?: string[];
+  exentoNota?: string;
   creadoEl: string;
 }
 

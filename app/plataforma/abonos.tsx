@@ -82,10 +82,12 @@ export default function Abonos() {
   const pagosDe = (id: string) => abonos.filter((a) => a.clubId === id);
   const textoPago = (c: repo.ResumenClub) => {
     const e = repo.estadoAbono(c, pagosDe(c.id));
+    if (e.exento) return { texto: 'Exento', color: '#1F6FB2' };
     if (e.enPrueba) return { texto: '—', color: t.muted };
     if (e.debe.length) return { texto: `Debe ${e.debe.length} mes${e.debe.length === 1 ? '' : 'es'}`, color: '#C0392B' };
     if (e.revision.size) return { texto: 'Pago en revisión', color: '#C77700' };
-    return { texto: 'Al día', color: '#2E9E5B' };
+    const sinCargo = e.corresponden.filter((m) => e.exentos.has(m)).length;
+    return { texto: sinCargo ? `Al día (${sinCargo} sin cargo)` : 'Al día', color: '#2E9E5B' };
   };
   const revisar = abonos.filter((a) => a.estado === 'revision');
   const hoy = hoyISO();

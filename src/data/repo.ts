@@ -249,7 +249,8 @@ function aClub(c: Record<string, any>): Club {
     instagram: c.instagram ?? '', facebook: c.facebook ?? '', tiktok: c.tiktok ?? '', logo: c.logo_url ?? '',
     colorPrincipal: c.color_principal, colorSecundario: c.color_secundario, colorAcento: c.color_acento,
     estado: c.estado ?? 'activo', modulos: Array.isArray(c.modulos) ? c.modulos : undefined,
-    pruebaHasta: c.prueba_hasta ?? undefined, pagaDesde: c.paga_desde ?? undefined, creadoEl: c.creado_el ?? '',
+    pruebaHasta: c.prueba_hasta ?? undefined, pagaDesde: c.paga_desde ?? undefined,
+    exentoIndefinido: !!c.exento_indefinido, exentoMeses: c.exento_meses ?? [], exentoNota: c.exento_nota ?? '', creadoEl: c.creado_el ?? '',
   };
 }
 /** Errores de Supabase → mensajes para el usuario. */
@@ -882,6 +883,9 @@ export async function guardarClub(datos: DatosClub, clubId?: string, emailAdmin?
     ...(datos.modulos ? { modulos: datos.modulos } : {}),
     ...(datos.pruebaHasta ? { prueba_hasta: datos.pruebaHasta } : {}),
     ...(datos.pagaDesde ? { paga_desde: datos.pagaDesde } : {}),
+    ...(datos.exentoIndefinido !== undefined ? { exento_indefinido: !!datos.exentoIndefinido } : {}),
+    ...(datos.exentoMeses ? { exento_meses: [...datos.exentoMeses].sort() } : {}),
+    ...(datos.exentoNota !== undefined ? { exento_nota: (datos.exentoNota ?? '').trim().slice(0, 200) } : {}),
   };
   const r = clubId
     ? await supabase.from('clubes').update(fila).eq('id', clubId).select('*').single()
@@ -2208,7 +2212,7 @@ export async function listarAbonos(clubId?: string): Promise<AbonoPago[]> {
 }
 
 /** Estado del abono de un club: meses que corresponde pagar (desde "paga desde" hasta este mes), pagados, en revisión y adeudados. */
-export function estadoAbono(club: Pick<Club, 'pagaDesde' | 'pruebaHasta'>, pagos: AbonoPago[]) {
+export function estadoAbono(club: Pick<Club, 'pagaDesde' | 'pruebaHasta' | 'exentoIndefinido' | 'exentoMeses'>, pagos: AbonoPago[]) {
   const hoy = hoyISO();
   const enPrueba = !!club.pruebaHasta && hoy <= club.pruebaHasta;
   const desde = (club.pagaDesde ?? hoy).slice(0, 7);
@@ -2217,8 +2221,10 @@ export function estadoAbono(club: Pick<Club, 'pagaDesde' | 'pruebaHasta'>, pagos
   for (let m = desde; m <= actual && corresponden.length < 120; m = sumarMes(m, 1)) corresponden.push(m);
   const pagados = new Set(pagos.filter((p) => p.estado === 'aprobado').flatMap((p) => p.meses));
   const revision = new Set(pagos.filter((p) => p.estado === 'revision').flatMap((p) => p.meses));
-  const debe = corresponden.filter((m) => !pagados.has(m) && !revision.has(m));
-  return { enPrueba, desde, corresponden, pagados, revision, debe, alDia: !debe.length };
+  const exentos = new Set(club.exentoMeses ?? []);
+  const exento = !!club.exentoIndefinido;
+  const debe = exento ? [] : corresponden.filter((m) => !pagados.has(m) && !revision.has(m) && !exentos.has(m));
+  return { enPrueba, exento, exentos, desde, corresponden, pagados, revision, debe, alDia: !debe.length };
 }
 
 export async function informarAbono(clubId: string, d: { meses: string[]; monto: number; fecha: string; comprobante: Comprobante | null; nota: string }) {

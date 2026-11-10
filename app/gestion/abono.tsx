@@ -45,7 +45,7 @@ export default function Abono() {
   // Meses para elegir: los adeudados y los próximos 3 que no estén pagos ni en revisión.
   const proximos: string[] = [];
   for (let m = repo.mesActual(); proximos.length < 3; m = repo.sumarMes(m, 1)) {
-    if (m >= est.desde && !est.pagados.has(m) && !est.revision.has(m) && !est.debe.includes(m)) proximos.push(m);
+    if (m >= est.desde && !est.pagados.has(m) && !est.revision.has(m) && !est.debe.includes(m) && !est.exentos.has(m)) proximos.push(m);
     if (proximos.length > 12) break;
   }
   const opciones = [...est.debe, ...proximos];
@@ -72,28 +72,33 @@ export default function Abono() {
       {/* Estado */}
       <Tarjeta style={{ gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name={est.enPrueba ? 'gift-outline' : est.alDia ? 'checkmark-circle' : 'alert-circle'} size={24} color={est.enPrueba ? t.accent : est.alDia ? '#2E9E5B' : '#C77700'} />
+          <Ionicons name={est.exento || est.enPrueba ? 'gift-outline' : est.alDia ? 'checkmark-circle' : 'alert-circle'} size={24} color={est.exento || est.enPrueba ? t.accent : est.alDia ? '#2E9E5B' : '#C77700'} />
           <Titulo style={{ fontSize: 18, flex: 1 }}>
-            {est.enPrueba ? 'Mes de prueba' : est.alDia ? 'Abono al día' : `Debés ${est.debe.length} mes${est.debe.length === 1 ? '' : 'es'}`}
+            {est.exento ? 'Sin cargo' : est.enPrueba ? 'Mes de prueba' : est.alDia ? 'Abono al día' : `Debés ${est.debe.length} mes${est.debe.length === 1 ? '' : 'es'}`}
           </Titulo>
         </View>
         <Txt muted>
-          {est.enPrueba
+          {est.exento
+            ? 'ATS exceptuó a tu club del pago del abono. No tenés que pagar nada por ahora.'
+            : est.enPrueba
             ? `La prueba termina el ${fechaAR(club2.pruebaHasta)}. El abono empieza el ${fechaAR(club2.pagaDesde)}.`
             : est.alDia
               ? est.revision.size ? 'Tenés pagos en revisión.' : '¡Gracias! No hay meses pendientes.'
               : `Pendiente: ${est.debe.map(repo.nombreMes).join(', ')}.`}
         </Txt>
+        {!est.exento && est.exentos.size ? (
+          <Txt style={{ fontSize: 13, color: t.accent }}>Meses sin cargo: {[...est.exentos].sort().map(repo.nombreMes).join(', ')}.</Txt>
+        ) : null}
       </Tarjeta>
 
-      {datosATS ? (
+      {est.exento ? null : datosATS ? (
         <View style={{ gap: 6, padding: 14, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.accent, backgroundColor: t.chip }}>
           <Text style={{ color: t.text, fontWeight: '700' }}>Datos para transferir a ATS</Text>
           <Text selectable style={{ color: t.text }}>{datosATS}</Text>
         </View>
       ) : <Aviso icono="information-circle-outline" texto="Para los datos de transferencia, escribile a ATS: ats.archery@gmail.com" />}
 
-      {!informando ? (
+      {est.exento ? null : !informando ? (
         <Boton titulo="Informar un pago" icono="cash-outline" onPress={() => { setInformando(true); setMeses(est.debe.slice(0, 1).length ? est.debe : opciones.slice(0, 1)); }} />
       ) : (
         <Tarjeta style={{ gap: 12 }}>

@@ -8,6 +8,12 @@ import { avisosColores, hexValido } from '../../src/color';
 import { CampoColor, VistaPrevia } from '../../src/EditorColores';
 import { CampoFecha } from '../../src/CampoFecha';
 
+/** Meses para elegir: de 6 meses atrás a 12 adelante (más los que ya estén elegidos). */
+const mesesParaExentar = (elegidos: string[]) => {
+  const out = new Set<string>(elegidos);
+  for (let i = -6; i <= 12; i++) out.add(repo.sumarMes(repo.mesActual(), i));
+  return [...out].sort();
+};
 const sumarUnDia = (iso: string) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
 import * as repo from '../../src/data/repo';
 import { FUENTE_TITULO, useTema } from '../../src/theme';
@@ -121,6 +127,29 @@ export default function FormClub() {
             pagaDesde: x.pagaDesde && x.pruebaHasta && x.pagaDesde === sumarUnDia(x.pruebaHasta) ? sumarUnDia(v) : x.pagaDesde,
           }))} ayuda="Para extender la prueba, cambiá esta fecha." />
           <CampoFecha label="Empieza a pagar" valor={f.pagaDesde ?? ''} onChange={set('pagaDesde')} />
+
+          <Text style={{ color: t.text, fontWeight: '700', marginTop: 6 }}>Exceptuar del pago</Text>
+          <Check label="Exento de pago por tiempo indefinido" valor={!!f.exentoIndefinido} onChange={(v) => set('exentoIndefinido')(v)} />
+          {!f.exentoIndefinido ? (
+            <View style={{ gap: 6 }}>
+              <Txt muted style={{ fontSize: 13 }}>O elegí meses sueltos sin cargo:</Txt>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {mesesParaExentar(f.exentoMeses ?? []).map((m) => {
+                  const on = (f.exentoMeses ?? []).includes(m);
+                  return (
+                    <Pressable key={m} accessibilityRole="checkbox" accessibilityState={{ checked: on }}
+                      onPress={() => set('exentoMeses')(on ? (f.exentoMeses ?? []).filter((x) => x !== m) : [...(f.exentoMeses ?? []), m])}
+                      style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1.5, borderColor: t.accent, backgroundColor: on ? t.accent : 'transparent' }}>
+                      <Text style={{ color: on ? '#fff' : t.accent, fontWeight: '700', fontSize: 13 }}>{repo.nombreMes(m)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+          {f.exentoIndefinido || (f.exentoMeses ?? []).length ? (
+            <Campo label="Motivo (opcional, solo lo ves vos)" value={f.exentoNota ?? ''} onChangeText={set('exentoNota')} maxLength={200} placeholder="Ej.: convenio con la federación" />
+          ) : null}
         </>
       ) : !id ? (
         <Txt muted style={{ fontSize: 13, marginTop: 8 }}>Prueba: un mes desde hoy. Empieza a pagar al día siguiente. Se puede cambiar después.</Txt>
