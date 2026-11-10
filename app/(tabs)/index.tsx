@@ -12,6 +12,7 @@ import type { Noticia, Torneo } from '../../src/types';
 import { SeccionNoticias } from '../../src/Noticias';
 import { BannerPush } from '../../src/BannerPush';
 import { BotonCalendario } from '../../src/BotonCalendario';
+import { PrimerosPasos } from '../../src/PrimerosPasos';
 import { Aviso, Grilla, Pantalla, Titulo, Txt, Vacio } from '../../src/ui';
 import { hoyISO, finTorneo } from '../../src/util';
 import { tieneModulo } from '../../src/types';
@@ -66,6 +67,7 @@ export default function Inicio() {
         </Pressable>
       ) : null}
       <BannerPush />
+      <PrimerosPasos />
 
       {esAdmin
         ? (

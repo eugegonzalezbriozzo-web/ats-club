@@ -38,7 +38,7 @@ function Guardia() {
     if (cargando) return;
     const raiz = seg[0] as string | undefined;
     if (raiz === 'privacidad') return; // pública: con o sin sesión
-    const enAcceso = raiz === 'login' || raiz === 'registro' || raiz === 'recuperar' || raiz === 'c';
+    const enAcceso = raiz === 'login' || raiz === 'registro' || raiz === 'recuperar' || raiz === 'c' || raiz === 'sumar-club';
 
     if (!usuario) {
       if (!enAcceso) router.replace('/login');
@@ -54,7 +54,8 @@ function Guardia() {
       return;
     }
     if (!club || club.estado !== 'activo' || usuario.estado !== 'aprobado') {
-      if (raiz !== 'pendiente') router.replace('/pendiente');
+      // Sin club: puede pedir sumar el suyo ("Sumá tu club").
+      if (raiz !== 'pendiente' && !(raiz === 'sumar-club' && !usuario.clubId)) router.replace('/pendiente');
       return;
     }
     if (enAcceso || raiz === 'pendiente') {
@@ -104,6 +105,7 @@ function Navegacion() {
         <Stack.Screen name="cuenta/notificaciones" options={{ title: 'Notificaciones' }} />
         <Stack.Screen name="privacidad" options={{ title: 'Privacidad' }} />
         <Stack.Screen name="pendiente" options={{ headerShown: false }} />
+        <Stack.Screen name="sumar-club" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="torneo/[id]" options={{ title: 'Torneo' }} />
         <Stack.Screen name="arquero/[id]" options={{ title: 'Arquero' }} />

@@ -81,7 +81,13 @@ export default function Login() {
               </Txt>
             </>
           ) : (
-            <Txt muted style={{ textAlign: 'center', fontSize: 13 }}>¿Primera vez? Pedile a tu club el link de registro.</Txt>
+            <>
+              <Txt muted style={{ textAlign: 'center', fontSize: 13 }}>¿Primera vez? Pedile a tu club el link de registro.</Txt>
+              <Txt muted style={{ textAlign: 'center', fontSize: 13 }}>
+                ¿Tu club todavía no usa ATS Club?{' '}
+                <Link href="/sumar-club" style={{ color: t.accent, fontWeight: '700' }}>Sumá tu club</Link>
+              </Txt>
+            </>
           )}
 
           {club ? (

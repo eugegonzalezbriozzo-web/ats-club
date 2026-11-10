@@ -2068,3 +2068,94 @@ export async function listaAsistencia(clubId: string): Promise<ArqueroLista[]> {
   if (error) fallo(error);
   return ((data ?? []) as any[]).map((a) => ({ id: a.id, nombre: a.nombre, apellido: a.apellido, alias: a.alias ?? '', menor: !!a.menor }));
 }
+
+// ---------- "Sumá tu club": solicitudes de clubes nuevos ----------
+
+export interface SolicitudClub {
+  id: string; nombreClub: string; localidad: string; sociosAprox: number | null; mensaje: string;
+  estado: 'pendiente' | 'aprobada' | 'rechazada'; motivo: string; clubId: string | null; creadoEl: string;
+  /** Solo para la plataforma. */
+  persona?: string; email?: string; telefono?: string;
+}
+const aSolicitudClub = (s: any): SolicitudClub => ({
+  id: s.id, nombreClub: s.nombre_club, localidad: s.localidad, sociosAprox: s.socios_aprox ?? null, mensaje: s.mensaje ?? '',
+  estado: s.estado, motivo: s.motivo ?? '', clubId: s.club_id ?? null, creadoEl: s.creado_el,
+  persona: s.persona, email: s.email, telefono: s.telefono,
+});
+
+export interface DatosSolicitudClub { nombreClub: string; localidad: string; sociosAprox?: string; mensaje?: string }
+function validarSolicitudClub(d: DatosSolicitudClub) {
+  if (d.nombreClub.trim().length < 2) throw new ErrorApp('Completá el nombre del club.');
+  if (d.localidad.trim().length < 2) throw new ErrorApp('Completá la localidad del club.');
+}
+const filaSolicitudClub = (uid: string, d: DatosSolicitudClub) => ({
+  usuario_id: uid, nombre_club: d.nombreClub.trim().slice(0, 80), localidad: d.localidad.trim().slice(0, 80),
+  socios_aprox: d.sociosAprox && /^\d+$/.test(d.sociosAprox.trim()) ? Math.min(Number(d.sociosAprox.trim()), 100000) : null,
+  mensaje: (d.mensaje ?? '').trim().slice(0, 500),
+});
+
+/**
+ * Sin cuenta: crea la cuenta (sin club) y deja la solicitud del club.
+ * Devuelve false si la cuenta quedó esperando confirmar el email (sin sesión).
+ */
+export async function pedirClubNuevo(persona: { nombre: string; apellido: string; telefono: string; email: string; password: string }, d: DatosSolicitudClub): Promise<boolean> {
+  validarSolicitudClub(d);
+  if (!persona.nombre.trim() || !persona.apellido.trim()) throw new ErrorApp('Completá tu nombre y apellido.');
+  if (persona.telefono.replace(/\D/g, '').length < 8) throw new ErrorApp('Completá tu WhatsApp (con característica).');
+  if (!/^\S+@\S+\.\S+$/.test(persona.email.trim())) throw new ErrorApp('El email no parece válido.');
+  if (persona.password.length < 6) throw new ErrorApp('La contraseña tiene que tener al menos 6 caracteres.');
+  const { data, error } = await supabase.auth.signUp({
+    email: persona.email.trim().toLowerCase(), password: persona.password,
+    options: { data: { nombre: persona.nombre.trim(), apellido: persona.apellido.trim(), telefono: persona.telefono.trim() } },
+  });
+  if (error) fallo(error, 'No se pudo crear la cuenta. Probá de nuevo.');
+  if (data.user && (data.user.identities ?? []).length === 0)
+    throw new ErrorApp('Ya existe una cuenta con ese email. Ingresá con ella y pedí sumar tu club desde ahí.');
+  if (!data.session || !data.user) return false;
+  await supabase.from('perfiles').update({ funciones: ['arquero'] }).eq('id', data.user.id);
+  const { error: e2 } = await supabase.from('solicitudes_club').insert(filaSolicitudClub(data.user.id, d));
+  if (e2) fallo(e2, 'La cuenta se creó, pero no se pudo enviar la solicitud. Ingresá y probá de nuevo.');
+  return true;
+}
+
+/** Con cuenta y sin club: deja la solicitud. */
+export async function pedirClub(usuarioId: string, d: DatosSolicitudClub) {
+  validarSolicitudClub(d);
+  const { error } = await supabase.from('solicitudes_club').insert(filaSolicitudClub(usuarioId, d));
+  if (error) {
+    if (error.code === '23505') throw new ErrorApp('Ya tenés una solicitud en revisión.');
+    if (error.code === '42501') throw new ErrorApp('Tu cuenta ya está en un club: no podés pedir otro.');
+    fallo(error);
+  }
+}
+
+/** La última solicitud de esta persona (si hizo alguna). */
+export async function miSolicitudClub(usuarioId: string): Promise<SolicitudClub | null> {
+  const { data } = await supabase.from('solicitudes_club').select('*').eq('usuario_id', usuarioId).order('creado_el', { ascending: false }).limit(1).maybeSingle();
+  return data ? aSolicitudClub(data) : null;
+}
+
+/** Plataforma: solicitudes (las pendientes primero) con los datos de contacto. */
+export async function listarSolicitudesClub(): Promise<SolicitudClub[]> {
+  const { data, error } = await supabase.rpc('solicitudes_club_plataforma');
+  if (error) fallo(error);
+  return ((data ?? []) as any[]).map(aSolicitudClub);
+}
+
+/** Plataforma: crea el club y deja a quien lo pidió como admin. Devuelve el id del club. */
+export async function aprobarSolicitudClub(id: string, slugPedido: string, nombre: string): Promise<string> {
+  const slug = crearSlug(slugPedido);
+  if (!slug) throw new ErrorApp('Completá el identificador del link (por ejemplo: arqueros-del-lago).');
+  if (SLUGS_RESERVADOS.includes(slug)) throw new ErrorApp('Ese identificador está reservado. Elegí otro.');
+  const { data, error } = await supabase.rpc('aprobar_solicitud_club', { p_id: id, p_slug: slug, p_nombre: nombre.trim() });
+  if (error) {
+    if (error.code === '23505') throw new ErrorApp('Ya hay un club con ese identificador de link. Elegí otro.');
+    fallo(error, 'No se pudo aprobar.');
+  }
+  return data as string;
+}
+
+export async function rechazarSolicitudClub(id: string, motivo: string) {
+  const { error } = await supabase.rpc('rechazar_solicitud_club', { p_id: id, p_motivo: motivo.trim() });
+  if (error) fallo(error, 'No se pudo rechazar.');
+}
