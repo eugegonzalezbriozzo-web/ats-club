@@ -8,7 +8,7 @@ import * as repo from '../../src/data/repo';
 import { Etiqueta, elegirComprobante, tipoEtiquetaPago } from '../../src/Pagos';
 import { Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
-import type { Comprobante } from '../../src/types';
+import { montoSugerido, planQueCorresponde, precioMensual, type Comprobante, type Plan } from '../../src/types';
 import { Aviso, Boton, Campo, Cargando, Check, MensajeError, Pantalla, Tarjeta, Titulo, Txt } from '../../src/ui';
 import { avisar, confirmar, hoyISO } from '../../src/util';
 
@@ -22,6 +22,10 @@ export default function Abono() {
   const { club } = useAuth();
   const [pagos, setPagos] = useState<repo.AbonoPago[] | null>(null);
   const [datosATS, setDatosATS] = useState('');
+  const [planes, setPlanes] = useState<Plan[]>([]);
+  const [cfg, setCfg] = useState<repo.ConfigAbono | null>(null);
+  const [socios, setSocios] = useState<number | null>(null);
+  const [montoManual, setMontoManual] = useState(false);
   const [club2, setClub2] = useState(club);
   const [informando, setInformando] = useState(false);
   const [meses, setMeses] = useState<string[]>([]);
@@ -36,6 +40,9 @@ export default function Abono() {
     if (!club) return;
     repo.listarAbonos(club.id).then(setPagos).catch(() => setPagos([]));
     repo.datosPagoATS().then(setDatosATS).catch(() => {});
+    repo.listarPlanes().then(setPlanes).catch(() => {});
+    repo.configAbono().then(setCfg).catch(() => {});
+    repo.sociosActivos(club.id).then(setSocios).catch(() => {});
     repo.obtenerClub(club.id).then((c) => c && setClub2(c)).catch(() => {});
   }, [club]);
   useFocusEffect(cargar);
@@ -48,7 +55,21 @@ export default function Abono() {
     if (m >= est.desde && !est.pagados.has(m) && !est.revision.has(m) && !est.debe.includes(m) && !est.exentos.has(m)) proximos.push(m);
     if (proximos.length > 12) break;
   }
-  const opciones = [...est.debe, ...proximos];
+  const opciones = [...new Set([...est.debe, ...proximos, ...meses])].sort();
+  const plan = planes.find((p) => p.id === (club2.plan ?? 'mini'));
+  const precio = precioMensual(club2, planes);
+  const regalo = cfg?.mesesRegaloAnual ?? 2;
+  const sugerido = montoSugerido(precio, meses.length, regalo);
+  const corresponde = socios !== null && planes.length ? planQueCorresponde(planes, socios) : undefined;
+  // Pago anual: 12 meses seguidos desde el primero que falta.
+  const elegirAnio = () => {
+    const desde = est.debe[0] ?? opciones[0] ?? repo.mesActual();
+    const ms: string[] = [];
+    for (let m = desde; ms.length < 12 && m < repo.sumarMes(desde, 36); m = repo.sumarMes(m, 1))
+      if (!est.pagados.has(m) && !est.revision.has(m) && !est.exentos.has(m)) ms.push(m);
+    setMeses(ms); setMontoManual(false);
+  };
+  const montoMostrado = montoManual ? monto : sugerido !== null ? String(sugerido) : monto;
 
   const adjuntar = async (cual: 'foto' | 'pdf') => {
     setError(null);
@@ -57,8 +78,8 @@ export default function Abono() {
   const enviar = async () => {
     setError(null); setEnviando(true);
     try {
-      await repo.informarAbono(club2.id, { meses, monto: Number(monto.replace(/\D/g, '')), fecha, comprobante: comp, nota });
-      setInformando(false); setMeses([]); setMonto(''); setComp(null); setNota('');
+      await repo.informarAbono(club2.id, { meses, monto: Number(montoMostrado.replace(/\D/g, '')), fecha, comprobante: comp, nota });
+      setInformando(false); setMeses([]); setMonto(''); setMontoManual(false); setComp(null); setNota('');
       await avisar('Pago informado', 'ATS lo revisa y te avisa cuando esté aprobado.');
       cargar();
     } catch (e) { setError((e as Error).message); } finally { setEnviando(false); }
@@ -91,6 +112,24 @@ export default function Abono() {
         ) : null}
       </Tarjeta>
 
+      {plan && !est.exento ? (
+        <Tarjeta style={{ gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+            <Text style={{ flex: 1, color: t.text, fontWeight: '800', fontSize: 16 }}>Plan {plan.nombre}</Text>
+            {precio !== null ? <Text style={{ color: t.text, fontWeight: '800' }}>{plata(precio)}/mes</Text> : null}
+          </View>
+          <Txt muted style={{ fontSize: 13 }}>
+            {club2.precioEspecial !== null && club2.precioEspecial !== undefined ? 'Precio especial para tu club. ' : ''}
+            {plan.sociosHasta ? `Hasta ${plan.sociosHasta} socios activos. ` : ''}Todas las funciones incluidas.
+            {precio !== null ? ` Pago anual: ${plata(precio * (12 - regalo))} (12 meses al precio de ${12 - regalo}).` : ''}
+          </Txt>
+          {cfg?.preciosHasta ? <Txt muted style={{ fontSize: 12 }}>Precios vigentes hasta el {fechaAR(cfg.preciosHasta)}.</Txt> : null}
+          {corresponde && corresponde.id !== plan.id && corresponde.orden > plan.orden ? (
+            <Txt style={{ fontSize: 13, color: '#C77700' }}>Tu club tiene {socios} socios activos: le corresponde el plan {corresponde.nombre}. ATS te va a avisar el cambio.</Txt>
+          ) : null}
+        </Tarjeta>
+      ) : null}
+
       {est.exento ? null : datosATS ? (
         <View style={{ gap: 6, padding: 14, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.accent, backgroundColor: t.chip }}>
           <Text style={{ color: t.text, fontWeight: '700' }}>Datos para transferir a ATS</Text>
@@ -104,13 +143,19 @@ export default function Abono() {
         <Tarjeta style={{ gap: 12 }}>
           <Titulo style={{ fontSize: 18 }}>Informar un pago</Titulo>
           <Text style={{ color: t.text, fontWeight: '600' }}>Meses que pagás *</Text>
+          {precio !== null ? (
+            <Text accessibilityRole="button" onPress={elegirAnio} style={{ color: t.accent, fontWeight: '700' }}>
+              Pagar el año: 12 meses al precio de {12 - regalo} ({plata(precio * (12 - regalo))})
+            </Text>
+          ) : null}
           {opciones.map((m) => (
             <View key={m} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ flex: 1 }}><Check label={repo.nombreMes(m)} valor={meses.includes(m)} onChange={(v) => setMeses(v ? [...meses, m] : meses.filter((x) => x !== m))} /></View>
+              <View style={{ flex: 1 }}><Check label={repo.nombreMes(m)} valor={meses.includes(m)} onChange={(v) => { setMeses(v ? [...meses, m] : meses.filter((x) => x !== m)); setMontoManual(false); }} /></View>
               {est.debe.includes(m) ? <Etiqueta texto="Adeudado" tipo="aviso" /> : <Txt muted style={{ fontSize: 12 }}>adelantado</Txt>}
             </View>
           ))}
-          <Campo label="Monto transferido ($) *" value={monto} onChangeText={(v) => setMonto(v.replace(/\D/g, ''))} keyboardType="number-pad" placeholder="Ej.: 15000" />
+          <Campo label="Monto transferido ($) *" value={montoMostrado} onChangeText={(v) => { setMonto(v.replace(/\D/g, '')); setMontoManual(true); }} keyboardType="number-pad" placeholder="Ej.: 20000" />
+          {sugerido !== null ? <Txt muted style={{ fontSize: 12, marginTop: -6 }}>Sugerido según tu plan: {plata(sugerido)}{meses.length === 12 ? ' (pago anual)' : ''}. Si transferiste otro monto, cambialo.</Txt> : null}
           <CampoFecha label="Fecha de la transferencia *" valor={fecha} onChange={setFecha} max={hoyISO()} />
           <Text style={{ color: t.text, fontWeight: '600' }}>Comprobante *</Text>
           {comp ? (

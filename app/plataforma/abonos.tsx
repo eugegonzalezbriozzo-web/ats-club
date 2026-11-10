@@ -6,6 +6,8 @@ import { Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
 import { Boton, Campo, MensajeError, Pantalla, Pildoras, Tarjeta, Titulo, Txt } from '../../src/ui';
 import { avisar } from '../../src/util';
+import { CampoFecha } from '../../src/CampoFecha';
+import { planQueCorresponde, precioMensual, type Plan } from '../../src/types';
 import { hoyISO } from '../../src/util';
 
 const fecha = (iso?: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '—');
@@ -64,6 +66,71 @@ function PagoParaRevisar({ p, club, onListo }: { p: repo.AbonoPago; club: string
   );
 }
 
+/** Plataforma: editar los planes (precio y límite de socios), la vigencia de los precios y el descuento anual. */
+function EditorPlanes({ planes, config, onListo }: { planes: Plan[]; config: repo.ConfigAbono; onListo: () => void }) {
+  const { t } = useTema();
+  const [ed, setEd] = useState(false);
+  const [vals, setVals] = useState<Record<string, { precio: string; hasta: string }>>({});
+  const [hasta, setHasta] = useState(config.preciosHasta);
+  const [regalo, setRegalo] = useState(String(config.mesesRegaloAnual));
+  const [error, setError] = useState<string | null>(null);
+  const abrir = () => {
+    setVals(Object.fromEntries(planes.map((p) => [p.id, { precio: String(Math.round(p.precio)), hasta: p.sociosHasta === null ? '' : String(p.sociosHasta) }])));
+    setHasta(config.preciosHasta); setRegalo(String(config.mesesRegaloAnual)); setEd(true);
+  };
+  const guardar = async () => {
+    setError(null);
+    try {
+      for (const p of planes) {
+        const v = vals[p.id];
+        await repo.guardarPlan(p.id, { precio: Number(v.precio || 0), sociosHasta: v.hasta ? Number(v.hasta) : null });
+      }
+      await repo.guardarConfigAbono({ preciosHasta: hasta, mesesRegaloAnual: Math.min(6, Math.max(0, Number(regalo || 0))) });
+      setEd(false); onListo();
+    } catch (e) { setError((e as Error).message); }
+  };
+  const vencido = config.preciosHasta && config.preciosHasta < new Date().toISOString().slice(0, 10);
+  return (
+    <Tarjeta style={{ gap: 10 }}>
+      <Titulo style={{ fontSize: 17 }}>Planes y precios</Titulo>
+      {!ed ? (
+        <>
+          {planes.map((p, i) => (
+            <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ flex: 1, color: t.text, fontWeight: '700' }}>{p.nombre}</Text>
+              <Txt muted style={{ fontSize: 13 }}>{p.sociosHasta === null ? `más de ${planes[i - 1]?.sociosHasta ?? 0} socios` : `${i ? `${(planes[i - 1].sociosHasta ?? 0) + 1} a ` : 'hasta '}${p.sociosHasta} socios`}</Txt>
+              <Text style={{ color: t.text, fontWeight: '800', minWidth: 90, textAlign: 'right' }}>{plata(p.precio)}/mes</Text>
+            </View>
+          ))}
+          <Txt muted style={{ fontSize: 13, color: vencido ? '#C0392B' : t.muted }}>
+            Precios vigentes hasta el {fecha(config.preciosHasta)}{vencido ? ' (vencidos: actualizalos)' : ''} · pago anual: 12 meses al precio de {12 - config.mesesRegaloAnual}.
+          </Txt>
+          <Text accessibilityRole="button" onPress={abrir} style={{ color: t.accent, fontWeight: '700' }}>Cambiar precios</Text>
+        </>
+      ) : (
+        <>
+          {planes.map((p) => (
+            <View key={p.id} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
+              <Text style={{ width: 80, color: t.text, fontWeight: '700', paddingBottom: 14 }}>{p.nombre}</Text>
+              <View style={{ flex: 1 }}><Campo label="Hasta socios" value={vals[p.id]?.hasta ?? ''} placeholder="sin límite" keyboardType="number-pad"
+                onChangeText={(v) => setVals((x) => ({ ...x, [p.id]: { ...x[p.id], hasta: v.replace(/\D/g, '') } }))} /></View>
+              <View style={{ flex: 1 }}><Campo label="Precio/mes ($)" value={vals[p.id]?.precio ?? ''} keyboardType="number-pad"
+                onChangeText={(v) => setVals((x) => ({ ...x, [p.id]: { ...x[p.id], precio: v.replace(/\D/g, '') } }))} /></View>
+            </View>
+          ))}
+          <CampoFecha label="Precios vigentes hasta" valor={hasta} onChange={setHasta} />
+          <Campo label="Meses de regalo en el pago anual" value={regalo} onChangeText={(v) => setRegalo(v.replace(/\D/g, '').slice(0, 1))} keyboardType="number-pad" />
+          <MensajeError texto={error} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 1 }}><Boton titulo="Guardar" onPress={guardar} /></View>
+            <View style={{ flex: 1 }}><Boton titulo="Cancelar" variante="secundario" onPress={() => setEd(false)} /></View>
+          </View>
+        </>
+      )}
+    </Tarjeta>
+  );
+}
+
 /** Plataforma: vista simple de clubes con alta, fin de la prueba, desde cuándo pagan y cómo vienen con el abono. */
 export default function Abonos() {
   const { t } = useTema();
@@ -72,11 +139,15 @@ export default function Abonos() {
   const [filtro, setFiltro] = useState<'Todos' | 'En prueba' | 'Pagando'>('Todos');
   const [abonos, setAbonos] = useState<repo.AbonoPago[]>([]);
   const [datos, setDatos] = useState('');
+  const [planes, setPlanes] = useState<Plan[]>([]);
+  const [cfg, setCfg] = useState<repo.ConfigAbono | null>(null);
   const [editandoDatos, setEditandoDatos] = useState(false);
   const cargar = useCallback(() => {
     repo.listarClubes().then(setClubes).catch(() => setClubes([]));
     repo.listarAbonos().then(setAbonos).catch(() => setAbonos([]));
     repo.datosPagoATS().then(setDatos).catch(() => {});
+    repo.listarPlanes().then(setPlanes).catch(() => {});
+    repo.configAbono().then(setCfg).catch(() => {});
   }, []);
   useFocusEffect(cargar);
   const pagosDe = (id: string) => abonos.filter((a) => a.clubId === id);
@@ -99,7 +170,13 @@ export default function Abonos() {
 
   const enPrueba = (clubes ?? []).filter((c) => estadoDe(c, hoy, t).texto.startsWith('En prueba')).length;
   const pagando = (clubes ?? []).filter((c) => estadoDe(c, hoy, t).texto === 'Pagando').length;
-  const col = { club: 190, f: 104, estado: 190, pago: 140 };
+  const col = { club: 190, plan: 150, f: 104, estado: 190, pago: 140 };
+  const textoPlan = (c: repo.ResumenClub) => {
+    const p = planes.find((x) => x.id === (c.plan ?? 'mini'));
+    const corr = planQueCorresponde(planes, c.socios);
+    const precio = precioMensual(c, planes);
+    return { texto: `${p?.nombre ?? '—'}${precio !== null ? ` · ${plata(precio)}` : ''}${c.precioEspecial !== null && c.precioEspecial !== undefined ? ' (especial)' : ''}`, aviso: corr && p && corr.id !== p.id ? `${c.socios} socios: corresponde ${corr.nombre}` : '' };
+  };
   const Celda = ({ w, children, bold, color }: { w: number; children: React.ReactNode; bold?: boolean; color?: string }) => (
     <Text numberOfLines={2} style={{ width: w, paddingVertical: 10, paddingHorizontal: 8, color: color ?? t.text, fontWeight: bold ? '700' : '400', fontSize: 14 }}>{children}</Text>
   );
@@ -118,6 +195,7 @@ export default function Abonos() {
         <View style={{ borderWidth: 1, borderColor: t.border, borderRadius: 12, overflow: 'hidden', minWidth: '100%' }}>
           <View style={{ flexDirection: 'row', backgroundColor: t.surface, borderBottomWidth: 1, borderBottomColor: t.border }}>
             <Celda w={col.club} bold>Club</Celda>
+            <Celda w={col.plan} bold>Plan</Celda>
             <Celda w={col.f} bold>Alta</Celda>
             <Celda w={col.f} bold>Fin de prueba</Celda>
             <Celda w={col.f} bold>Empieza a pagar</Celda>
@@ -128,6 +206,7 @@ export default function Abonos() {
             <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={`${c.nombre}: ${e.texto}`} onPress={() => router.push(`/plataforma/club?id=${c.id}`)}
               style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', backgroundColor: pressed ? t.chip : i % 2 ? t.surface : 'transparent', borderTopWidth: i ? 1 : 0, borderTopColor: t.border })}>
               <Celda w={col.club} bold>{c.nombre}</Celda>
+              {(() => { const x = textoPlan(c); return <Celda w={col.plan} color={x.aviso ? '#C77700' : undefined}>{x.texto}{x.aviso ? `\n⚠ ${x.aviso}` : ''}</Celda>; })()}
               <Celda w={col.f}>{fecha(c.creadoEl?.slice(0, 10))}</Celda>
               <Celda w={col.f}>{fecha(c.pruebaHasta)}</Celda>
               <Celda w={col.f}>{fecha(c.pagaDesde)}</Celda>
@@ -138,6 +217,8 @@ export default function Abonos() {
           {clubes && !filas.length ? <Txt muted style={{ padding: 12 }}>No hay clubes para mostrar.</Txt> : null}
         </View>
       </ScrollView>
+
+      {planes.length && cfg ? <EditorPlanes planes={planes} config={cfg} onListo={cargar} /> : null}
 
       <Tarjeta style={{ gap: 8 }}>
         <Titulo style={{ fontSize: 17 }}>Datos para transferir a ATS</Titulo>

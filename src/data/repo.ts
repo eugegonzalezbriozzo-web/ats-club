@@ -19,7 +19,7 @@ import { RECUPERAR_URL, supabase } from './supabase';
 import { desactivarPush } from '../push';
 import { armarNombreCompleto } from '../util';
 import { MAX_SOBRE_MI, arcoDeClase, errorArquero, fijarListados, type Listados } from '../types';
-import type { ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota, Evento, DatosEvento, ItemInventario, Prestamo, DatosItem, Asistencia, ArqueroLista } from '../types';
+import type { Plan, PlanId, ArchivoPdf, Audiencia, Club, DatosArquero, Funcion, Encuesta, Inscripcion, Noticia, Rol, Torneo, Usuario, Voto, Lectura, ConfigPagos, Pago, Comprobante, ConceptoPago, TipoCuota, Evento, DatosEvento, ItemInventario, Prestamo, DatosItem, Asistencia, ArqueroLista } from '../types';
 import { MAX_ACOMP, MAX_OPCIONES, OPC_ASISTENCIA } from '../types';
 import { edad, hoyISO } from '../util';
 import { MAX_TIT_NOTICIA, MAX_TXT_NOTICIA } from '../types';
@@ -250,7 +250,9 @@ function aClub(c: Record<string, any>): Club {
     colorPrincipal: c.color_principal, colorSecundario: c.color_secundario, colorAcento: c.color_acento,
     estado: c.estado ?? 'activo', modulos: Array.isArray(c.modulos) ? c.modulos : undefined,
     pruebaHasta: c.prueba_hasta ?? undefined, pagaDesde: c.paga_desde ?? undefined,
-    exentoIndefinido: !!c.exento_indefinido, exentoMeses: c.exento_meses ?? [], exentoNota: c.exento_nota ?? '', creadoEl: c.creado_el ?? '',
+    exentoIndefinido: !!c.exento_indefinido, exentoMeses: c.exento_meses ?? [], exentoNota: c.exento_nota ?? '',
+    plan: c.plan ?? undefined, precioEspecial: c.precio_especial === null || c.precio_especial === undefined ? null : Number(c.precio_especial),
+    creadoEl: c.creado_el ?? '',
   };
 }
 /** Errores de Supabase → mensajes para el usuario. */
@@ -886,6 +888,8 @@ export async function guardarClub(datos: DatosClub, clubId?: string, emailAdmin?
     ...(datos.exentoIndefinido !== undefined ? { exento_indefinido: !!datos.exentoIndefinido } : {}),
     ...(datos.exentoMeses ? { exento_meses: [...datos.exentoMeses].sort() } : {}),
     ...(datos.exentoNota !== undefined ? { exento_nota: (datos.exentoNota ?? '').trim().slice(0, 200) } : {}),
+    ...(datos.plan ? { plan: datos.plan } : {}),
+    ...(datos.precioEspecial !== undefined ? { precio_especial: datos.precioEspecial } : {}),
   };
   const r = clubId
     ? await supabase.from('clubes').update(fila).eq('id', clubId).select('*').single()
@@ -2306,4 +2310,34 @@ export async function datosPagoATS(): Promise<string> {
 export async function guardarDatosPagoATS(texto: string) {
   const { error } = await supabase.from('plataforma_config').update({ datos_pago: texto.trim().slice(0, 500) }).eq('id', 1);
   if (error) fallo(error, 'No se pudieron guardar los datos.');
+}
+
+
+// ---------- Planes del abono ----------
+export async function listarPlanes(): Promise<Plan[]> {
+  const { data, error } = await supabase.from('planes').select('*').order('orden');
+  if (error) fallo(error);
+  return (data ?? []).map((p: any) => ({ id: p.id, nombre: p.nombre, sociosHasta: p.socios_hasta ?? null, precio: Number(p.precio) || 0, orden: p.orden }));
+}
+/** Plataforma: cambia precio y límite de socios de un plan. */
+export async function guardarPlan(id: PlanId, d: { precio: number; sociosHasta: number | null }) {
+  if (!(d.precio >= 0)) throw new ErrorApp('Revisá el precio.');
+  if (d.sociosHasta !== null && !(d.sociosHasta > 0)) throw new ErrorApp('Revisá el límite de socios.');
+  const { error } = await supabase.from('planes').update({ precio: d.precio, socios_hasta: d.sociosHasta }).eq('id', id);
+  if (error) fallo(error, 'No se pudo guardar el plan.');
+}
+export interface ConfigAbono { datosPago: string; preciosHasta: string; mesesRegaloAnual: number }
+export async function configAbono(): Promise<ConfigAbono> {
+  const { data } = await supabase.from('plataforma_config').select('datos_pago, precios_hasta, meses_regalo_anual').eq('id', 1).maybeSingle();
+  return { datosPago: data?.datos_pago ?? '', preciosHasta: data?.precios_hasta ?? '', mesesRegaloAnual: data?.meses_regalo_anual ?? 2 };
+}
+export async function guardarConfigAbono(d: { preciosHasta: string; mesesRegaloAnual: number }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d.preciosHasta)) throw new ErrorApp('Revisá la fecha de vigencia.');
+  const { error } = await supabase.from('plataforma_config').update({ precios_hasta: d.preciosHasta, meses_regalo_anual: d.mesesRegaloAnual }).eq('id', 1);
+  if (error) fallo(error, 'No se pudo guardar.');
+}
+/** Socios activos (aprobados) del club: para el admin del club o la plataforma. */
+export async function sociosActivos(clubId: string): Promise<number> {
+  const { data } = await supabase.rpc('socios_activos', { p_club: clubId });
+  return Number(data) || 0;
 }

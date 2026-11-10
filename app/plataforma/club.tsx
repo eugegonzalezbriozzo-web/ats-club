@@ -17,7 +17,7 @@ const mesesParaExentar = (elegidos: string[]) => {
 const sumarUnDia = (iso: string) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
 import * as repo from '../../src/data/repo';
 import { FUENTE_TITULO, useTema } from '../../src/theme';
-import { MODULOS, type Club, type EstadoClub, type Modulo } from '../../src/types';
+import { MODULOS, planQueCorresponde, type Club, type EstadoClub, type Modulo, type Plan, type PlanId } from '../../src/types';
 import { Aviso, Boton, Campo, Check, LogoClub, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
 
 /** Alta y edición de clubes. Solo la plataforma. Con ?id=... edita. */
@@ -31,6 +31,9 @@ export default function FormClub() {
   });
   const [slugTocado, setSlugTocado] = useState(false);
   const [admins, setAdmins] = useState<{ id: string; nombreCompleto: string; email: string }[]>([]);
+  const [planes, setPlanes] = useState<Plan[]>([]);
+  const [socios, setSocios] = useState<number | null>(null);
+  const [precioEsp, setPrecioEsp] = useState('');
   const [emailAdmin, setEmailAdmin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -44,8 +47,11 @@ export default function FormClub() {
       setSlugTocado(true);
     });
     repo.adminsDeClub(id).then(setAdmins);
+    repo.sociosActivos(id).then(setSocios).catch(() => {});
   }, [id]);
 
+  useEffect(() => { repo.listarPlanes().then(setPlanes).catch(() => {}); }, []);
+  useEffect(() => { setPrecioEsp(f.precioEspecial !== null && f.precioEspecial !== undefined ? String(f.precioEspecial) : ''); }, [f.precioEspecial === undefined]);
   const set = <K extends keyof repo.DatosClub>(k: K) => (v: repo.DatosClub[K]) => setF((x) => ({ ...x, [k]: v }));
   const avisos = avisosColores(f);
   const slug = repo.crearSlug(f.slug);
@@ -121,6 +127,24 @@ export default function FormClub() {
       {id && f.pruebaHasta ? (
         <>
           <Titulo style={{ marginTop: 8 }}>Prueba y pago</Titulo>
+          {planes.length ? (
+            <>
+              <Pildoras<string>
+                label="Plan"
+                opciones={planes.map((p) => `${p.nombre} · $${Math.round(p.precio).toLocaleString('es-AR')}`)}
+                valor={(() => { const p = planes.find((x) => x.id === (f.plan ?? 'mini')); return p ? `${p.nombre} · $${Math.round(p.precio).toLocaleString('es-AR')}` : ''; })()}
+                onChange={(v) => set('plan')(planes.find((p) => v.startsWith(p.nombre + ' ·'))!.id as PlanId)}
+              />
+              {socios !== null ? (() => {
+                const c = planQueCorresponde(planes, socios);
+                return <Txt muted style={{ fontSize: 13, marginTop: -6, color: c && c.id !== (f.plan ?? 'mini') ? '#C77700' : t.muted }}>
+                  {socios} socios activos · le corresponde {c?.nombre}{c && c.id !== (f.plan ?? 'mini') ? ' (no coincide con el plan elegido)' : ''}
+                </Txt>;
+              })() : null}
+              <Campo label="Precio especial por mes (opcional)" value={precioEsp} keyboardType="number-pad" placeholder="Vacío = precio del plan"
+                onChangeText={(v) => { const x = v.replace(/\D/g, ''); setPrecioEsp(x); set('precioEspecial')(x ? Number(x) : null); }} />
+            </>
+          ) : null}
           <CampoFecha label="Fin del período de prueba" valor={f.pruebaHasta} onChange={(v) => setF((x) => ({
             ...x, pruebaHasta: v,
             // Si "empieza a pagar" venía pegado al fin de la prueba, se mueve con él.

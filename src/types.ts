@@ -49,6 +49,9 @@ export interface Club {
   exentoIndefinido?: boolean;
   exentoMeses?: string[];
   exentoNota?: string;
+  /** Plataforma: plan del abono y precio especial por mes (si tiene). */
+  plan?: PlanId;
+  precioEspecial?: number | null;
   creadoEl: string;
 }
 
@@ -492,4 +495,24 @@ export interface ArqueroLista {
   apellido: string;
   alias: string;
   menor: boolean;
+}
+
+/** Planes del abono de ATS Club (según socios activos). Todos con todas las funciones. */
+export type PlanId = 'mini' | 'estandar' | 'max';
+export interface Plan { id: PlanId; nombre: string; sociosHasta: number | null; precio: number; orden: number }
+/** El plan que corresponde por cantidad de socios activos. */
+export function planQueCorresponde(planes: Plan[], socios: number): Plan | undefined {
+  const ord = [...planes].sort((a, b) => a.orden - b.orden);
+  return ord.find((p) => p.sociosHasta === null || socios <= p.sociosHasta) ?? ord[ord.length - 1];
+}
+/** Precio por mes del club: el especial si tiene, si no el de su plan. */
+export function precioMensual(club: Pick<Club, 'plan' | 'precioEspecial'>, planes: Plan[]): number | null {
+  if (club.precioEspecial !== null && club.precioEspecial !== undefined) return club.precioEspecial;
+  const p = planes.find((x) => x.id === (club.plan ?? 'mini'));
+  return p ? p.precio : null;
+}
+/** Monto sugerido por N meses: si son 12 (pago anual), se descuentan los meses de regalo. */
+export function montoSugerido(precio: number | null, meses: number, mesesRegaloAnual: number): number | null {
+  if (precio === null || !meses) return null;
+  return meses === 12 ? precio * (12 - mesesRegaloAnual) : precio * meses;
 }
