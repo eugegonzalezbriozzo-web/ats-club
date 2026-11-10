@@ -1,11 +1,23 @@
+import type { Modulo } from './types';
 /**
  * Contenido de la burbuja de ayuda ("¿Qué puedo hacer?"): atajos según la pantalla y el rol, y preguntas frecuentes.
  * `ir` = pantalla a la que lleva; si no hay `ir`, es un consejo (se muestra `ayuda`).
- * Preguntas: `soloAdmin` = solo la ven los admins (sección aparte "Para admins").
+ * Preguntas: `modulo` = solo si el club tiene ese módulo prendido. `soloAdmin` = solo la ven los admins (sección aparte "Para admins").
  */
 export interface Atajo { texto: string; icono: string; ir?: string; ayuda?: string }
 /** soloAdmin: solo admins. paraLista: admins y entrenadores/as. */
-export interface Pregunta { p: string; r: string; soloAdmin?: boolean; paraLista?: boolean }
+export interface Pregunta { p: string; r: string; soloAdmin?: boolean; paraLista?: boolean; modulo?: Modulo }
+
+/** A qué módulo pertenece una pantalla (para ocultar atajos de módulos apagados). */
+export function moduloDeRuta(ruta?: string): Modulo | null {
+  if (!ruta) return null;
+  if (ruta.startsWith('/calendario/asistencia') || ruta.startsWith('/asistencia')) return 'asistencia';
+  if (ruta.startsWith('/calendario')) return 'calendario';
+  if (ruta.startsWith('/noticias') || ruta.startsWith('/gestion/noticia')) return 'noticias';
+  if (ruta.startsWith('/pagos') || ruta.startsWith('/gestion/pagos') || ruta.startsWith('/gestion/cuotas')) return 'pagos';
+  if (ruta.startsWith('/gestion/inventario')) return 'inventario';
+  return null;
+}
 
 /** esAdmin: admin del club. tomaLista: admin o entrenador/a. */
 type Quien = { esAdmin: boolean; esTutor: boolean; tomaLista?: boolean };
@@ -183,12 +195,12 @@ export function atajosPara(ruta: string, { esAdmin, esTutor, tomaLista = esAdmin
 export const PREGUNTAS: Pregunta[] = [
   // ---- Para todos ----
   { p: '¿Cómo me inscribo a un torneo?', r: 'En Inicio, en "Torneos", tocá el torneo y después "Inscribirme". Tus datos de arquero se completan solos con los de tu perfil; si para ese torneo usás otro arco o categoría, lo cambiás ahí. Mientras esté abierta, la podés editar.' },
-  { p: '¿Cómo informo un pago?', r: 'Más → Mis pagos → Informar un pago. Elegís qué pagaste (cuota, inscripción u otro), cargás el monto y subís el comprobante. Un admin lo revisa y te llega un aviso.' },
+  { p: '¿Cómo informo un pago?', r: 'Más → Mis pagos → Informar un pago. Elegís qué pagaste (cuota, inscripción u otro), cargás el monto y subís el comprobante. Un admin lo revisa y te llega un aviso.', modulo: 'pagos' },
   { p: '¿Cómo inscribo a mi hijo/a o a un menor a cargo?', r: 'Primero sumalo en Mi perfil → Menores a cargo (el club lo aprueba). Después, al tocar "Inscribirme" en un torneo, elegís a quién inscribir. También podés informar sus pagos y marcar su asistencia.' },
-  { p: '¿Cómo marco la asistencia a una clase?', r: 'El día de la clase, abrí el Calendario y en la clase tocá "Marcar que vine". Si sos tutor/a, aparece un botón por cada menor a cargo. Solo se puede ese mismo día; si te olvidaste, pedíselo al entrenador/a o a un admin. Tu resumen está en Más → Asistencia a clases.' },
-  { p: '¿Cómo respondo una encuesta?', r: 'En Noticias, abrí la publicación y elegí tu respuesta (en "¿Venís?": Voy, No voy o Tal vez). Podés cambiarla hasta que cierre. En Más → Noticias ves cuántas te faltan.' },
+  { p: '¿Cómo marco la asistencia a una clase?', r: 'El día de la clase, abrí el Calendario y en la clase tocá "Marcar que vine". Si sos tutor/a, aparece un botón por cada menor a cargo. Solo se puede ese mismo día; si te olvidaste, pedíselo al entrenador/a o a un admin. Tu resumen está en Más → Asistencia a clases.', modulo: 'asistencia' },
+  { p: '¿Cómo respondo una encuesta?', r: 'En Noticias, abrí la publicación y elegí tu respuesta (en "¿Venís?": Voy, No voy o Tal vez). Podés cambiarla hasta que cierre. En Más → Noticias ves cuántas te faltan.', modulo: 'noticias' },
   { p: '¿Cómo cargo mis datos de arquero?', r: 'Mi perfil → Datos de arquero. Convencional: arco, división y categoría. Adaptado: clase (W1, Open, Visually Impaired) y categoría. También federado y mano.' },
-  { p: '¿Qué hay en el calendario?', r: 'Clases, prácticas, trabajos, reuniones, salidas y los torneos. Cada tipo tiene su color. Si un día se suspende (por ejemplo, un feriado), aparece tachado y te llega un aviso.' },
+  { p: '¿Qué hay en el calendario?', r: 'Clases, prácticas, trabajos, reuniones, salidas y los torneos. Cada tipo tiene su color. Si un día se suspende (por ejemplo, un feriado), aparece tachado y te llega un aviso.', modulo: 'calendario' },
   { p: '¿Cómo instalo la app en el celular?', r: 'Android: en Chrome, menú ⋮ → "Instalar app" o "Agregar a la pantalla de inicio". iPhone: en Safari, botón Compartir → "Agregar a inicio". En iPhone, las notificaciones solo funcionan así.' },
   { p: 'No me llegan las notificaciones', r: 'Revisá en Más → Notificaciones que estén activadas en este dispositivo y que el tipo de aviso esté marcado. En iPhone solo funcionan con la app instalada en la pantalla de inicio.' },
   { p: '¿Cómo cambio a modo oscuro?', r: 'Tocá la luna (o el sol) arriba a la derecha, en cualquier pantalla.' },
@@ -200,13 +212,13 @@ export const PREGUNTAS: Pregunta[] = [
   // ---- Para admins ----
   { p: '¿Cómo apruebo a un socio nuevo?', r: 'Más → Solicitudes. Ahí aparecen las cuentas nuevas y los pedidos de baja. También te llega una notificación.', soloAdmin: true },
   { p: '¿Cómo sumo socios al club?', r: 'Más → Link del club: compartilo por WhatsApp. Quien entra se registra y queda pendiente hasta que un admin lo apruebe.', soloAdmin: true },
-  { p: '¿Cómo tomo lista?', r: 'En el Calendario tocá "Tomar lista" en la clase y marcá a los que vinieron. Con las flechas pasás a clases anteriores para corregir. En Más → Asistencia a clases ves el resumen y bajás el Excel. Pueden tomar lista los admins y los entrenadores/as.', paraLista: true },
+  { p: '¿Cómo tomo lista?', r: 'En el Calendario tocá "Tomar lista" en la clase y marcá a los que vinieron. Con las flechas pasás a clases anteriores para corregir. En Más → Asistencia a clases ves el resumen y bajás el Excel. Pueden tomar lista los admins y los entrenadores/as.', paraLista: true, modulo: 'asistencia' },
   { p: '¿Cómo hago entrenador/a a alguien?', r: 'En Arqueros, abrí a la persona y en "Funciones en el club" marcá Entrenador/a. Desde ese momento puede tomar lista y ver la asistencia de todos.', soloAdmin: true },
   { p: '¿Cómo hago admin a alguien?', r: 'Más → Socios y roles: elegí "Admin" en la persona. Puede haber varios admins.', soloAdmin: true },
   { p: '¿Cómo creo un torneo?', r: 'Más → Torneos e inscriptos → Nuevo torneo. Cargás fechas (puede durar varios días), cuándo abre y cierra la inscripción, notas y la invitación en PDF o link. A los socios les llega un aviso.', soloAdmin: true },
-  { p: '¿Cómo cargo una clase que se repite?', r: 'Calendario → Nuevo evento → "Se repite todas las semanas" y elegí los días. Marcá "Tomar asistencia" si querés lista. Para un feriado, tocá la clase ese día → "Suspender solo este día".', soloAdmin: true },
-  { p: '¿Cómo publico algo en noticias y calendario a la vez?', r: 'Al crear el evento marcá "Publicar también como noticia", o al escribir la noticia tocá "Agregar al calendario". Se carga una vez y llega un solo aviso.', soloAdmin: true },
-  { p: '¿Cómo manejo las cuotas?', r: 'Más → Pagos: revisás comprobantes (aprobar o rechazar), ves quién debe y bajás el Excel. Los tipos de cuota, montos y cuentas para transferir se configuran en Pagos → Cuentas y cuotas.', soloAdmin: true },
+  { p: '¿Cómo cargo una clase que se repite?', r: 'Calendario → Nuevo evento → "Se repite todas las semanas" y elegí los días. Marcá "Tomar asistencia" si querés lista. Para un feriado, tocá la clase ese día → "Suspender solo este día".', soloAdmin: true, modulo: 'calendario' },
+  { p: '¿Cómo publico algo en noticias y calendario a la vez?', r: 'Al crear el evento marcá "Publicar también como noticia", o al escribir la noticia tocá "Agregar al calendario". Se carga una vez y llega un solo aviso.', soloAdmin: true, modulo: 'noticias' },
+  { p: '¿Cómo manejo las cuotas?', r: 'Más → Pagos: revisás comprobantes (aprobar o rechazar), ves quién debe y bajás el Excel. Los tipos de cuota, montos y cuentas para transferir se configuran en Pagos → Cuentas y cuotas.', soloAdmin: true, modulo: 'pagos' },
   { p: '¿Cómo cambio el logo o los datos del club?', r: 'Más → Datos del club: logo, teléfono, email, Instagram, Facebook y TikTok. Se ven en Más y en el encabezado.', soloAdmin: true },
   { p: '¿Qué Excel puedo bajar?', r: 'Inscriptos de un torneo, respuestas de una encuesta, pagos y cuotas, inventario y asistencia a clases.', soloAdmin: true },
 ];

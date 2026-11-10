@@ -4,7 +4,8 @@ import { usePathname, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Linking, Modal, PanResponder, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { atajosPara, PREGUNTAS } from './ayuda';
+import { atajosPara, moduloDeRuta, PREGUNTAS } from './ayuda';
+import { tieneModulo } from './types';
 import { useAuth } from './auth';
 import { LogoATS } from './LogoATS';
 import { Text } from './texto';
@@ -80,7 +81,10 @@ export function BurbujaAyuda() {
   if (!usuario || !club || RUTAS_SIN_BURBUJA.some((r) => ruta.startsWith(r)) || ruta.startsWith('/c/')) return null;
 
   const esTutor = usuario.funciones.includes('tutor');
-  const { titulo, atajos } = atajosPara(ruta, { esAdmin, esTutor, tomaLista: esAdmin || usuario.funciones.includes('entrenador') });
+  const { titulo, atajos: todos } = atajosPara(ruta, { esAdmin, esTutor, tomaLista: esAdmin || usuario.funciones.includes('entrenador') });
+  // Sin atajos ni preguntas de módulos que el club no tiene prendidos.
+  const atajos = todos.filter((a) => { const m = moduloDeRuta(a.ir); return !m || tieneModulo(club, m); });
+  const preguntas = PREGUNTAS.filter((q) => !q.modulo || tieneModulo(club, q.modulo));
   const ir = (destino: string) => { setAbierta(false); router.push(destino as never); };
   const wa = club.telefono && numeroWhatsApp(club.telefono);
 
@@ -122,16 +126,16 @@ export function BurbujaAyuda() {
             {atajos.map((a) => <FilaAtajo key={a.texto} {...a} onIr={ir} />)}
 
             <Seccion texto="Preguntas frecuentes" />
-            {PREGUNTAS.filter((q) => !q.soloAdmin && !q.paraLista).map((q) => <FilaPregunta key={q.p} {...q} />)}
+            {preguntas.filter((q) => !q.soloAdmin && !q.paraLista).map((q) => <FilaPregunta key={q.p} {...q} />)}
             {esAdmin ? (
               <>
                 <Seccion texto="Para admins" />
-                {PREGUNTAS.filter((q) => q.soloAdmin || q.paraLista).map((q) => <FilaPregunta key={q.p} {...q} />)}
+                {preguntas.filter((q) => q.soloAdmin || q.paraLista).map((q) => <FilaPregunta key={q.p} {...q} />)}
               </>
             ) : usuario.funciones.includes('entrenador') ? (
               <>
                 <Seccion texto="Para entrenadores/as" />
-                {PREGUNTAS.filter((q) => q.paraLista).map((q) => <FilaPregunta key={q.p} {...q} />)}
+                {preguntas.filter((q) => q.paraLista).map((q) => <FilaPregunta key={q.p} {...q} />)}
               </>
             ) : null}
 

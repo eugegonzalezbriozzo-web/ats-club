@@ -10,6 +10,7 @@ import { PieATS } from '../../src/LogoATS';
 import { ContactoClub } from '../../src/ContactoClub';
 import { useTema } from '../../src/theme';
 import { Boton, Pantalla, Tarjeta, Txt } from '../../src/ui';
+import { tieneModulo } from '../../src/types';
 
 /** `principal`: ícono con el color principal del club (las opciones de Administración). */
 function FilaMenu({ icono, titulo, detalle, badge, onPress, principal }: {
@@ -90,7 +91,7 @@ export default function Mas() {
         </View>
       </View>
       <Seccion texto="Club" />
-      <FilaMenu
+      {tieneModulo(club, 'noticias') ? <FilaMenu
         icono="newspaper-outline"
         titulo="Noticias"
         badge={sinResponder}
@@ -102,8 +103,8 @@ export default function Mas() {
               : 'Todavía no hay noticias'
         }
         onPress={() => router.push('/noticias')}
-      />
-      {club && usuario.clubId === club.id ? (
+      /> : null}
+      {club && usuario.clubId === club.id && tieneModulo(club, 'pagos') ? (
         <FilaMenu
           icono="cash-outline"
           titulo="Mis pagos"
@@ -112,7 +113,7 @@ export default function Mas() {
           onPress={() => router.push('/pagos')}
         />
       ) : null}
-      {club && usuario.clubId === club.id ? (
+      {club && usuario.clubId === club.id && tieneModulo(club, 'asistencia') ? (
         <FilaMenu
           icono="checkbox-outline"
           titulo="Asistencia a clases"
@@ -137,16 +138,16 @@ export default function Mas() {
             badge={pendientes + bajas}
             onPress={() => router.push('/gestion/solicitudes')}
           />
-          <FilaMenu principal
+          {tieneModulo(club, 'pagos') ? <FilaMenu principal
             icono="cash-outline"
             titulo="Pagos"
             badge={enRevision}
             detalle={enRevision ? `${enRevision} comprobante${enRevision === 1 ? '' : 's'} para revisar` : 'Cuotas, inscripciones y cuentas del club'}
             onPress={() => router.push('/gestion/pagos')}
-          />
+          /> : null}
           <FilaMenu principal icono="locate-outline" titulo="Torneos e inscriptos" detalle="Crear y editar torneos, ver y confirmar inscriptos" onPress={() => router.push('/admin')} />
-          <FilaMenu principal icono="megaphone-outline" titulo="Noticias y encuestas" detalle="Publicar para todos, federados, no federados o comisión" onPress={() => router.push('/gestion/noticias')} />
-          <FilaMenu principal icono="cube-outline" titulo="Inventario" detalle="Equipo del club y préstamos (solo admins)" onPress={() => router.push('/gestion/inventario')} />
+          {tieneModulo(club, 'noticias') ? <FilaMenu principal icono="megaphone-outline" titulo="Noticias y encuestas" detalle="Publicar para todos, federados, no federados o comisión" onPress={() => router.push('/gestion/noticias')} /> : null}
+          {tieneModulo(club, 'inventario') ? <FilaMenu principal icono="cube-outline" titulo="Inventario" detalle="Equipo del club y préstamos (solo admins)" onPress={() => router.push('/gestion/inventario')} /> : null}
           <FilaMenu principal icono="key-outline" titulo="Socios y roles" detalle="Quién es usuario y quién es admin" onPress={() => router.push('/gestion/usuarios')} />
           <FilaMenu principal icono="share-social-outline" titulo="Datos del club" detalle="Logo, teléfono, email, Instagram, Facebook y TikTok" onPress={() => router.push('/gestion/club')} />
         </>

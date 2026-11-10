@@ -13,9 +13,10 @@ import { useTema } from '../../src/theme';
 import type { ConfigPagos, Pago, Torneo, Usuario } from '../../src/types';
 import { Aviso, Boton, MensajeError, Pantalla, Pildoras, Tarjeta, Txt, Vacio } from '../../src/ui';
 import { fechaCorta, plata } from '../../src/util';
+import { conModulo } from '../../src/ModuloApagado';
 
 /** Admin: pagos en revisión, estado de cuotas de los socios e historial. */
-export default function Pagos() {
+function Pagos() {
   const { t } = useTema();
   const { club, usuario } = useAuth();
   const router = useRouter();
@@ -118,3 +119,5 @@ export default function Pagos() {
     </Pantalla>
   );
 }
+
+export default conModulo('pagos', Pagos);

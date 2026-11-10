@@ -13,6 +13,7 @@ import { useTema } from '../../src/theme';
 import type { Comprobante, ConceptoPago, ConfigPagos, Inscripcion, Pago, Torneo, Usuario } from '../../src/types';
 import { Boton, Campo, Check, MensajeError, Pantalla, Pildoras, Tarjeta, Txt, NotaObligatorios } from '../../src/ui';
 import { hoyISO, plata } from '../../src/util';
+import { conModulo } from '../../src/ModuloApagado';
 
 const NOMBRE_CONCEPTO: Record<ConceptoPago, string> = { cuota: 'Cuota', inscripcion: 'Inscripción a torneo', otros: 'Otros gastos' };
 
@@ -20,7 +21,7 @@ const NOMBRE_CONCEPTO: Record<ConceptoPago, string> = { cuota: 'Cuota', inscripc
  * Socio: informa un pago con comprobante (queda en revisión).
  * Admin (?admin=1): registra un pago de cualquier socio (efectivo, etc.); queda aprobado.
  */
-export default function InformarPago() {
+function InformarPago() {
   const q = useLocalSearchParams<{ concepto?: ConceptoPago; torneoId?: string; admin?: string; usuarioId?: string; para?: string }>();
   const { t } = useTema();
   const { club, usuario, esAdmin } = useAuth();
@@ -268,3 +269,5 @@ export default function InformarPago() {
     </Pantalla>
   );
 }
+
+export default conModulo('pagos', InformarPago);

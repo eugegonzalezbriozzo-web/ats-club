@@ -9,9 +9,10 @@ import { useTema } from '../../src/theme';
 import type { ConfigPagos, Inscripcion, Pago, Torneo, Usuario } from '../../src/types';
 import { Boton, Pantalla, Tarjeta, Txt } from '../../src/ui';
 import { fechaCorta, plata } from '../../src/util';
+import { conModulo } from '../../src/ModuloApagado';
 
 /** Socio: estado de su cuota, inscripciones a pagar, datos para transferir y sus pagos. */
-export default function MisPagos() {
+function MisPagos() {
   const { t } = useTema();
   const { club, usuario } = useAuth();
   const router = useRouter();
@@ -125,3 +126,5 @@ export default function MisPagos() {
     </Pantalla>
   );
 }
+
+export default conModulo('pagos', MisPagos);

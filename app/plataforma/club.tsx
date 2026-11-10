@@ -7,8 +7,8 @@ import { Text, TextInput } from '../../src/texto';
 import { BASE, avisosColores, hexValido, marcaClub, normalizarHex } from '../../src/color';
 import * as repo from '../../src/data/repo';
 import { FUENTE_TITULO, useTema } from '../../src/theme';
-import type { Club, EstadoClub } from '../../src/types';
-import { Aviso, Boton, Campo, LogoClub, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
+import { MODULOS, type Club, type EstadoClub, type Modulo } from '../../src/types';
+import { Aviso, Boton, Campo, Check, LogoClub, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
 
 const SUGERIDOS = ['#C8102E', '#111111', '#FFFFFF', '#1B6E4A', '#0F2A3F', '#F2B33D', '#1F4FA0', '#6B2D8C', '#E86A10', '#2E7D32'];
 
@@ -90,6 +90,7 @@ export default function FormClub() {
   const { t } = useTema();
   const [f, setF] = useState<repo.DatosClub>({
     nombre: '', slug: '', localidad: '', email: '', telefono: '', instagram: '', facebook: '', tiktok: '', logo: '', colorPrincipal: '#1F4FA0', colorSecundario: '#111111', colorAcento: '#FFFFFF', estado: 'activo',
+    modulos: MODULOS.map((m) => m.id),
   });
   const [slugTocado, setSlugTocado] = useState(false);
   const [admins, setAdmins] = useState<{ id: string; nombreCompleto: string; email: string }[]>([]);
@@ -179,6 +180,23 @@ export default function FormClub() {
         onChange={(v) => set('estado')((v === 'Activo' ? 'activo' : 'inactivo') as EstadoClub)}
       />
       {f.estado === 'inactivo' ? <Aviso icono="lock-closed-outline" texto="Con el club inactivo, sus socios no pueden entrar ni registrarse. Los datos se conservan." /> : null}
+
+      <Titulo style={{ marginTop: 8 }}>Módulos</Titulo>
+      <Txt muted style={{ fontSize: 13 }}>Qué funciones tiene este club. Socios, arqueros, torneos e inscripciones están siempre. Si apagás algo, se oculta en la app (los datos no se borran).</Txt>
+      {MODULOS.map((m) => {
+        const ms = f.modulos ?? MODULOS.map((x) => x.id);
+        const on = ms.includes(m.id);
+        const bloqueado = m.id === 'asistencia' && !ms.includes('calendario');
+        return (
+          <View key={m.id} style={{ gap: 2, opacity: bloqueado ? 0.5 : 1 }}>
+            <Check label={m.nombre} valor={on && !bloqueado} onChange={(v) => {
+              if (bloqueado) return;
+              set('modulos')((v ? [...ms, m.id] : ms.filter((x) => x !== m.id)) as Modulo[]);
+            }} />
+            <Txt muted style={{ fontSize: 12, marginLeft: 34 }}>{bloqueado ? 'Prendé primero el calendario.' : m.detalle}</Txt>
+          </View>
+        );
+      })}
 
       <Titulo style={{ marginTop: 8 }}>Admin del club</Titulo>
       {id ? (

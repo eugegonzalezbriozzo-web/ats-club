@@ -40,7 +40,25 @@ export interface Club {
   colorSecundario: string;
   colorAcento: string;
   estado: EstadoClub;
+  /** Funciones prendidas para el club (las prende o apaga la plataforma). */
+  modulos?: Modulo[];
   creadoEl: string;
+}
+
+/** Módulos que la plataforma puede prender o apagar por club. Socios, arqueros, torneos e inscripciones están siempre. */
+export type Modulo = 'noticias' | 'calendario' | 'asistencia' | 'pagos' | 'inventario';
+export const MODULOS: { id: Modulo; nombre: string; detalle: string }[] = [
+  { id: 'noticias', nombre: 'Noticias y encuestas', detalle: 'Publicaciones, "¿Venís?" y encuestas' },
+  { id: 'calendario', nombre: 'Calendario', detalle: 'Clases, prácticas, reuniones y salidas' },
+  { id: 'asistencia', nombre: 'Asistencia a clases', detalle: 'Necesita el calendario' },
+  { id: 'pagos', nombre: 'Pagos y cuotas', detalle: 'Cuota social, pagos de inscripciones y comprobantes' },
+  { id: 'inventario', nombre: 'Inventario', detalle: 'Equipo del club y préstamos' },
+];
+/** ¿El club tiene prendido este módulo? (si no tiene la lista, todos). La asistencia necesita el calendario. */
+export function tieneModulo(club: Pick<Club, 'modulos'> | null | undefined, m: Modulo): boolean {
+  const ms = club?.modulos ?? MODULOS.map((x) => x.id);
+  if (m === 'asistencia' && !ms.includes('calendario')) return false;
+  return ms.includes(m);
 }
 
 /** Datos de competencia: viven en el perfil y se copian a cada inscripción. */

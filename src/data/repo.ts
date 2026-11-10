@@ -248,7 +248,7 @@ function aClub(c: Record<string, any>): Club {
     id: c.id, slug: c.slug, nombre: c.nombre, localidad: c.localidad ?? '', email: c.email ?? '', telefono: c.telefono ?? '',
     instagram: c.instagram ?? '', facebook: c.facebook ?? '', tiktok: c.tiktok ?? '', logo: c.logo_url ?? '',
     colorPrincipal: c.color_principal, colorSecundario: c.color_secundario, colorAcento: c.color_acento,
-    estado: c.estado ?? 'activo', creadoEl: c.creado_el ?? '',
+    estado: c.estado ?? 'activo', modulos: Array.isArray(c.modulos) ? c.modulos : undefined, creadoEl: c.creado_el ?? '',
   };
 }
 /** Errores de Supabase → mensajes para el usuario. */
@@ -878,6 +878,7 @@ export async function guardarClub(datos: DatosClub, clubId?: string, emailAdmin?
     ...(logoNuevo ? {} : { logo_url: datos.logo || null }),
     instagram: (datos.instagram ?? '').trim(), facebook: (datos.facebook ?? '').trim(), tiktok: (datos.tiktok ?? '').trim(),
     color_principal: datos.colorPrincipal, color_secundario: datos.colorSecundario, color_acento: datos.colorAcento, estado: datos.estado,
+    ...(datos.modulos ? { modulos: datos.modulos } : {}),
   };
   const r = clubId
     ? await supabase.from('clubes').update(fila).eq('id', clubId).select('*').single()

@@ -7,6 +7,7 @@ import { useAuth } from '../../src/auth';
 import * as repo from '../../src/data/repo';
 import { useTema } from '../../src/theme';
 import { Aviso, Boton, Chip, Grilla, LogoClub, Pantalla, Tarjeta, Titulo, Txt } from '../../src/ui';
+import { MODULOS, tieneModulo } from '../../src/types';
 
 // Límites del plan gratis de Supabase.
 const LIMITE_BASE = 500 * 1024 * 1024;
@@ -137,6 +138,11 @@ export default function Clubes() {
                     {a.torneosProximos} torneo{a.torneosProximos === 1 ? '' : 's'} próximo{a.torneosProximos === 1 ? '' : 's'} · {a.noticias30} noticias (30 días) · {a.eventos} eventos · {a.asistencias30} asistencias (30 días) · {a.pagosRevision} pagos por revisar · {mb(a.espacio)}
                   </Txt>
                 </View>
+              ) : null}
+              {MODULOS.some((m) => !tieneModulo(c, m.id)) ? (
+                <Txt muted style={{ fontSize: 13 }}>
+                  Apagado: {MODULOS.filter((m) => !tieneModulo(c, m.id)).map((m) => m.nombre).join(', ')}
+                </Txt>
               ) : null}
               {c.admins === 0 ? <Aviso icono="alert-circle-outline" texto="Este club no tiene admin. Asignale uno desde Editar." /> : null}
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>

@@ -11,6 +11,7 @@ import { useTema } from '../src/theme';
 import type { ArqueroLista, Asistencia, Evento } from '../src/types';
 import { Boton, Cargando, Pantalla, Pildoras, Tarjeta, Titulo, Txt, Vacio } from '../src/ui';
 import { avisar, hoyISO } from '../src/util';
+import { conModulo } from '../src/ModuloApagado';
 
 const ddmm = (iso: string) => `${DIAS_CORTOS[diaSemana(iso)]} ${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const pct = (n: number, de: number) => (de ? Math.round((n / de) * 100) : 0);
@@ -21,7 +22,7 @@ const VERDE = '#2E9E5B';
  * Admins y entrenadores/as: todos los arqueros, por arquero y por clase, y Excel.
  * Los demás: la suya y la de sus menores a cargo.
  */
-export default function ResumenAsistencia() {
+function ResumenAsistencia() {
   const { t } = useTema();
   const router = useRouter();
   const { club, esAdmin, usuario } = useAuth();
@@ -186,3 +187,5 @@ export default function ResumenAsistencia() {
     </Pantalla>
   );
 }
+
+export default conModulo('asistencia', ResumenAsistencia);

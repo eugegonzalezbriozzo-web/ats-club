@@ -8,9 +8,10 @@ import { abrirPdf } from '../../../src/Pdf';
 import type { Pago, Torneo } from '../../../src/types';
 import { Boton, Pantalla, Txt, Vacio } from '../../../src/ui';
 import { fechaCorta, plata } from '../../../src/util';
+import { conModulo } from '../../../src/ModuloApagado';
 
 /** Comprobante de un pago: lo ve quien pagó y los admins. */
-export default function VerComprobante() {
+function VerComprobante() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { club, usuario, esAdmin } = useAuth();
   const { width } = useWindowDimensions();
@@ -54,3 +55,5 @@ export default function VerComprobante() {
     </Pantalla>
   );
 }
+
+export default conModulo('pagos', VerComprobante);

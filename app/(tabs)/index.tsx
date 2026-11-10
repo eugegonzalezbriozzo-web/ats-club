@@ -14,6 +14,7 @@ import { BannerPush } from '../../src/BannerPush';
 import { BotonCalendario } from '../../src/BotonCalendario';
 import { Aviso, Grilla, Pantalla, Titulo, Txt, Vacio } from '../../src/ui';
 import { hoyISO, finTorneo } from '../../src/util';
+import { tieneModulo } from '../../src/types';
 
 /** Inicio: noticias del club + torneos (próximos / pasados). */
 export default function Inicio() {
@@ -71,7 +72,7 @@ export default function Inicio() {
             [
               { n: pendientes.cuentas, icono: 'person-add-outline', texto: (n: number) => `${n} cuenta${n === 1 ? '' : 's'} nueva${n === 1 ? '' : 's'} para aprobar`, ir: '/gestion/solicitudes' },
               { n: pendientes.bajas, icono: 'exit-outline', texto: (n: number) => `${n} pedido${n === 1 ? '' : 's'} de baja`, ir: '/gestion/solicitudes' },
-              { n: pendientes.pagos, icono: 'cash-outline', texto: (n: number) => `${n} comprobante${n === 1 ? '' : 's'} de pago para revisar`, ir: '/gestion/pagos' },
+              { n: tieneModulo(club, 'pagos') ? pendientes.pagos : 0, icono: 'cash-outline', texto: (n: number) => `${n} comprobante${n === 1 ? '' : 's'} de pago para revisar`, ir: '/gestion/pagos' },
             ] as const
           )
             .filter((a) => a.n > 0)
@@ -89,8 +90,8 @@ export default function Inicio() {
               </Pressable>
             ))
         : null}
-      <SeccionNoticias noticias={noticias} />
-      {club ? <BotonCalendario clubId={club.id} /> : null}
+      {tieneModulo(club, 'noticias') ? <SeccionNoticias noticias={noticias} /> : null}
+      {club && tieneModulo(club, 'calendario') ? <BotonCalendario clubId={club.id} /> : null}
       <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginTop: 8 }}>
         <Titulo>Torneos</Titulo>
         {esAdmin ? (

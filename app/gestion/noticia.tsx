@@ -11,11 +11,13 @@ import { cuandoEvento } from '../../src/calendario';
 import { Aviso, Boton, Campo, Check, MensajeError, Pantalla, Pildoras, Tarjeta, Titulo, NotaObligatorios } from '../../src/ui';
 import { confirmar, fechaCorta, hoyISO } from '../../src/util';
 import { CampoFecha } from '../../src/CampoFecha';
+import { conModulo } from '../../src/ModuloApagado';
+import { tieneModulo } from '../../src/types';
 
 const TIPOS = ['¿Venís?', 'Opciones propias'] as const;
 
 /** Alta y edición de una publicación: noticia, encuesta o ambas. Con ?id=... edita. */
-export default function FormNoticia() {
+function FormNoticia() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { t } = useTema();
   const { club, usuario } = useAuth();
@@ -206,7 +208,7 @@ export default function FormNoticia() {
         </Tarjeta>
       )}
 
- {!conCal ? (
+ {!tieneModulo(club, 'calendario') ? null : !conCal ? (
         <Boton titulo="Agregar al calendario" variante="secundario" icono="calendar-outline" onPress={() => {
           setConCal(true);
           if (!calFecha) setCalFecha(hoyISO());
@@ -248,3 +250,5 @@ export default function FormNoticia() {
     </Pantalla>
   );
 }
+
+export default conModulo('noticias', FormNoticia);

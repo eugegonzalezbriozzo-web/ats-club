@@ -7,7 +7,7 @@ import { TarjetaInvitacion } from '../../src/Pdf';
 import * as repo from '../../src/data/repo';
 import { FUENTE_TITULO, useTema } from '../../src/theme';
 import type { Inscripcion, Torneo, Usuario } from '../../src/types';
-import { claseSinDivision, resumenArquero } from '../../src/types';
+import { claseSinDivision, resumenArquero, tieneModulo } from '../../src/types';
 import { Avatar } from '../../src/FotoPerfil';
 import { Aviso, Boton, Cargando, Chip, FilaDato, MensajeError, Pantalla, Tarjeta, Txt, Vacio } from '../../src/ui';
 import { TEXTO_PAGO_INS } from '../../src/Pagos';
@@ -150,9 +150,9 @@ export default function DetalleTorneo() {
           {torneo.valor > 0 && esSocio ? (
             <>
               <Txt>
-                {estadoPago ? TEXTO_PAGO_INS[estadoPago] : 'Pago sin informar'} · {plata(torneo.valor)}
+                {tieneModulo(club, 'pagos') ? `${estadoPago ? TEXTO_PAGO_INS[estadoPago] : 'Pago sin informar'} · ` : 'Inscripción: '}{plata(torneo.valor)}
               </Txt>
-              {estadoPago === null || estadoPago === 'rechazado' ? (
+              {(estadoPago === null || estadoPago === 'rechazado') && tieneModulo(club, 'pagos') ? (
                 <Boton titulo="Informar pago" variante="secundario" icono="cash-outline" onPress={() => router.push(`/pagos/informar?concepto=inscripcion&torneoId=${torneo.id}`)} />
               ) : null}
             </>
@@ -178,9 +178,9 @@ export default function DetalleTorneo() {
               </View>
               {mi ? (
                 <>
-                  <Txt muted style={{ fontSize: 13 }}>{resumenArquero(mi)}{torneo.valor > 0 ? ` · ${pago ? TEXTO_PAGO_INS[pago] : 'Pago sin informar'}` : ''}</Txt>
+                  <Txt muted style={{ fontSize: 13 }}>{resumenArquero(mi)}{torneo.valor > 0 && tieneModulo(club, 'pagos') ? ` · ${pago ? TEXTO_PAGO_INS[pago] : 'Pago sin informar'}` : ''}</Txt>
                   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                    {torneo.valor > 0 && (pago === null || pago === 'rechazado') ? (
+                    {torneo.valor > 0 && (pago === null || pago === 'rechazado') && tieneModulo(club, 'pagos') ? (
                       <Boton titulo="Informar pago" variante="secundario" icono="cash-outline" onPress={() => router.push(`/pagos/informar?concepto=inscripcion&torneoId=${torneo.id}&para=${m.id}`)} />
                     ) : null}
                     {estado === 'abierta' ? <Boton titulo="Editar" variante="secundario" icono="create-outline" onPress={() => router.push(`/inscribir/${torneo.id}?para=${m.id}`)} /> : null}

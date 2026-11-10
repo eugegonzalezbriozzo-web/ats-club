@@ -9,13 +9,14 @@ import { Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
 import type { CuentaClub } from '../../src/types';
 import { Boton, Campo, MensajeError, Pantalla, Tarjeta, Titulo, Txt } from '../../src/ui';
+import { conModulo } from '../../src/ModuloApagado';
 
 type TipoForm = { id: string; nombre: string; monto: string; cambios: { desde: string; monto: string }[] };
 const nuevoId = () => Math.random().toString(36).slice(2, 10);
 const soloNumeros = (v: string) => v.replace(/[^\d]/g, '');
 
 /** Admin: cuentas para transferir, tipos de cuota (con cambios de precio programados) y desde qué mes se cobra. */
-export default function CuentasYCuotas() {
+function CuentasYCuotas() {
   const { t } = useTema();
   const { club } = useAuth();
   const router = useRouter();
@@ -123,3 +124,5 @@ export default function CuentasYCuotas() {
     </Pantalla>
   );
 }
+
+export default conModulo('pagos', CuentasYCuotas);

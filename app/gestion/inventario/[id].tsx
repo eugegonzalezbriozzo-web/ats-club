@@ -9,11 +9,12 @@ import { useTema } from '../../../src/theme';
 import { ESTADOS_ITEM, tiposUsados, type DatosItem, type ItemInventario, type Prestamo, type Usuario } from '../../../src/types';
 import { Boton, Campo, Cargando, MensajeError, Pantalla, Pildoras, Titulo, Txt, NotaObligatorios } from '../../../src/ui';
 import { confirmar, fechaCorta, hoyISO } from '../../../src/util';
+import { conModulo } from '../../../src/ModuloApagado';
 
 const VACIO: DatosItem = { nombre: '', tipo: '', cantidad: 1, estado: 'bueno', ubicacion: '', nota: '' };
 
 /** Admin: un ítem del inventario (o uno nuevo con id "nuevo") y sus préstamos. */
-export default function ItemInventarioPantalla() {
+function ItemInventarioPantalla() {
   const { t } = useTema();
   const router = useRouter();
   const { club } = useAuth();
@@ -173,3 +174,5 @@ export default function ItemInventarioPantalla() {
     </Pantalla>
   );
 }
+
+export default conModulo('inventario', ItemInventarioPantalla);

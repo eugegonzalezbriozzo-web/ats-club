@@ -5,9 +5,10 @@ import * as repo from '../src/data/repo';
 import { TarjetaNoticia } from '../src/Noticias';
 import type { Noticia } from '../src/types';
 import { Pantalla, Pildoras, Vacio } from '../src/ui';
+import { conModulo } from '../src/ModuloApagado';
 
 /** Todas las publicaciones que ve este socio, con filtro (todas / encuestas / sin responder). */
-export default function TodasLasNoticias() {
+function TodasLasNoticias() {
   const { club, usuario, esAdmin } = useAuth();
   const [todas, setTodas] = useState<Noticia[]>([]);
   const [falta, setFalta] = useState<string[]>([]);
@@ -34,3 +35,5 @@ export default function TodasLasNoticias() {
     </Pantalla>
   );
 }
+
+export default conModulo('noticias', TodasLasNoticias);

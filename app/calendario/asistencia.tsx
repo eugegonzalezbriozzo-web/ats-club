@@ -10,12 +10,13 @@ import { useTema } from '../../src/theme';
 import type { ArqueroLista, Evento } from '../../src/types';
 import { Boton, Campo, Cargando, Chip, Pantalla, Titulo, Txt, Vacio } from '../../src/ui';
 import { avisar, hoyISO } from '../../src/util';
+import { conModulo } from '../../src/ModuloApagado';
 
 const DIAS_LARGOS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const tituloDia = (iso: string) => `${DIAS_LARGOS[diaSemana(iso)]} ${Number(iso.slice(8, 10))} de ${MESES[Number(iso.slice(5, 7)) - 1]}`;
 
 /** Tomar lista (admins y entrenadores/as): quién vino a una clase. Se puede ir a clases anteriores y corregir. */
-export default function TomarLista() {
+function TomarLista() {
   const { t } = useTema();
   const router = useRouter();
   const { club, esAdmin, usuario } = useAuth();
@@ -115,3 +116,5 @@ export default function TomarLista() {
     </Pantalla>
   );
 }
+
+export default conModulo('asistencia', TomarLista);

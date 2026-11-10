@@ -9,9 +9,10 @@ import { Text } from '../../../src/texto';
 import { useTema } from '../../../src/theme';
 import { ESTADOS_ITEM, iconoItem, tiposUsados, type ItemInventario } from '../../../src/types';
 import { Boton, Campo, Cargando, Chip, Pantalla, Pildoras, Txt, Vacio } from '../../../src/ui';
+import { conModulo } from '../../../src/ModuloApagado';
 
 /** Admin: inventario del club (los socios no lo ven). Lista con filtro por tipo y buscador. */
-export default function Inventario() {
+function Inventario() {
   const { t } = useTema();
   const router = useRouter();
   const { club } = useAuth();
@@ -91,3 +92,5 @@ export default function Inventario() {
     </Pantalla>
   );
 }
+
+export default conModulo('inventario', Inventario);

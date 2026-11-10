@@ -14,6 +14,7 @@ import { cuandoEvento } from './calendario';
 import { AUDIENCIAS, MAX_ACOMP } from './types';
 import { Boton, Chip, Tarjeta, Titulo, Txt } from './ui';
 import { fechaCorta, hoyISO } from './util';
+import { tieneModulo } from './types';
 
 export const nombreAudiencia = (a?: string) => AUDIENCIAS.find((x) => x.valor === (a ?? 'todos'))?.nombre ?? 'Todos';
 
@@ -201,9 +202,10 @@ export function TarjetaNoticia({ n, enInicio, onCambio }: { n: Noticia; enInicio
   const [votos, setVotos] = useState<repo.VotoConPersona[] | null>(null);
   const [lect, setLect] = useState<repo.EstadoLectura | null>(null);
   const [evento, setEvento] = useState<Evento | null>(null);
+  const { club: clubN } = useAuth();
   const router = useRouter();
   useEffect(() => {
-    if (abierta) repo.eventoDeNoticia(n.id).then(setEvento).catch(() => {});
+    if (abierta && tieneModulo(clubN, 'calendario')) repo.eventoDeNoticia(n.id).then(setEvento).catch(() => {});
   }, [abierta, n.id]);
   const aud = n.audiencia ?? 'todos';
   const cargarLectura = useCallback(() => {

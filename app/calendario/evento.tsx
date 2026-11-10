@@ -11,11 +11,13 @@ import { useTema } from '../../src/theme';
 import { AUDIENCIAS, colorEvento, tiposUsados, type DatosEvento } from '../../src/types';
 import { Boton, Campo, Cargando, Check, Etiqueta, MensajeError, Pantalla, NotaObligatorios, Pildoras, Txt } from '../../src/ui';
 import { confirmar, hoyISO } from '../../src/util';
+import { conModulo } from '../../src/ModuloApagado';
+import { tieneModulo } from '../../src/types';
 
 const ORDEN_DIAS = [1, 2, 3, 4, 5, 6, 0]; // lunes primero
 
 /** Admin: nuevo evento del calendario (o editar, con ?id=). */
-export default function EventoForm() {
+function EventoForm() {
   const { t } = useTema();
   const router = useRouter();
   const { club, esAdmin } = useAuth();
@@ -155,14 +157,18 @@ export default function EventoForm() {
         {d.audiencia === 'comision' ? 'Solo los admins del club.' : 'Les llega una notificación a quienes lo ven (si las activaron).'}
       </Txt>
 
-      <Check label="Tomar asistencia" valor={d.asistencia} onChange={set('asistencia')} />
-      <Txt muted style={{ fontSize: 13, marginTop: -6 }}>
-        {d.asistencia
-          ? 'El día de la clase cada arquero marca "Vine" (el tutor/a, por sus menores). Admins y entrenadores/as toman lista y corrigen días anteriores.'
-          : 'Para clases de la escuela, por ejemplo.'}
-      </Txt>
+      {tieneModulo(club, 'asistencia') ? (
+        <>
+          <Check label="Tomar asistencia" valor={d.asistencia} onChange={set('asistencia')} />
+          <Txt muted style={{ fontSize: 13, marginTop: -6 }}>
+            {d.asistencia
+              ? 'El día de la clase cada arquero marca "Vine" (el tutor/a, por sus menores). Admins y entrenadores/as toman lista y corrigen días anteriores.'
+              : 'Para clases de la escuela, por ejemplo.'}
+          </Txt>
+        </>
+      ) : null}
 
-      {noticiaId ? (
+      {!tieneModulo(club, 'noticias') ? null : noticiaId ? (
         <View style={{ gap: 6, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Ionicons name="newspaper-outline" size={18} color={t.accent} />
@@ -189,3 +195,5 @@ export default function EventoForm() {
     </Pantalla>
   );
 }
+
+export default conModulo('calendario', EventoForm);

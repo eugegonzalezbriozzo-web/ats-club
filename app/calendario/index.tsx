@@ -11,13 +11,15 @@ import type { Evento, Torneo, Usuario } from '../../src/types';
 import { AUDIENCIAS } from '../../src/types';
 import { Boton, Cargando, Chip, Pantalla, Titulo, Txt, Vacio } from '../../src/ui';
 import { avisar, confirmar, hoyISO } from '../../src/util';
+import { conModulo } from '../../src/ModuloApagado';
+import { tieneModulo } from '../../src/types';
 
 const DIAS_GRILLA = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 const DIAS_LARGOS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const tituloDia = (iso: string) => `${DIAS_LARGOS[diaSemana(iso)]} ${Number(iso.slice(8, 10))} de ${MESES[Number(iso.slice(5, 7)) - 1]}`;
 
 /** Calendario del club: mes con puntitos de colores, lo del día elegido y lo que viene. El admin carga y edita. */
-export default function Calendario() {
+function Calendario() {
   const { t } = useTema();
   const router = useRouter();
   const { club, esAdmin, usuario } = useAuth();
@@ -115,7 +117,7 @@ export default function Calendario() {
             {[conDia ? `${DIAS_CORTOS[diaSemana(o.dia)]} ${o.dia.slice(8, 10)}/${o.dia.slice(5, 7)}` : null, o.hora, o.lugar].filter(Boolean).join(' · ') || 'Todo el día'}
           </Txt>
           {aud ? <View style={{ flexDirection: 'row' }}><Chip texto={aud === 'Comisión' ? 'Solo comisión' : `Para ${aud.toLowerCase()}`} /></View> : null}
-          {ev?.asistencia && !o.suspendido ? (
+          {ev?.asistencia && !o.suspendido && tieneModulo(club, 'asistencia') ? (
             <View style={{ gap: 6, marginTop: 4 }}>
               {o.dia === hoy && mios.length ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -159,7 +161,7 @@ export default function Calendario() {
           {abiertoEste && ev ? (
             <View style={{ gap: 8, marginTop: 4 }}>
               {ev.nota ? <Txt style={{ fontSize: 14 }}>{ev.nota}</Txt> : null}
-              {ev.noticiaId ? (
+              {ev.noticiaId && tieneModulo(club, 'noticias') ? (
                 <Text accessibilityRole="button" onPress={() => router.push('/noticias')} style={{ color: t.accent, fontWeight: '700' }}>Ver la noticia</Text>
               ) : null}
               {esAdmin ? (
@@ -250,3 +252,5 @@ export default function Calendario() {
     </Pantalla>
   );
 }
+
+export default conModulo('calendario', Calendario);

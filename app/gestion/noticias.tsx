@@ -9,9 +9,10 @@ import { useTema } from '../../src/theme';
 import type { Noticia } from '../../src/types';
 import { Boton, Chip, Pantalla, Tarjeta, Txt, Vacio } from '../../src/ui';
 import { confirmar } from '../../src/util';
+import { conModulo } from '../../src/ModuloApagado';
 
 /** Admin del club: alta, baja y modificación de noticias. */
-export default function GestionNoticias() {
+function GestionNoticias() {
   const { t } = useTema();
   const { club, usuario, esAdmin } = useAuth();
   const router = useRouter();
@@ -72,3 +73,5 @@ export default function GestionNoticias() {
     </Pantalla>
   );
 }
+
+export default conModulo('noticias', GestionNoticias);
