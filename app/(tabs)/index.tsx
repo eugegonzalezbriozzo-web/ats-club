@@ -74,7 +74,7 @@ export default function Inicio() {
       <PrimerosPasos />
       {esAdmin && !usuario?.esSuperadmin && !club?.exentoIndefinido && club?.pruebaHasta && hoy <= club.pruebaHasta && diasHasta(club.pruebaHasta) <= 7 ? (
         <Pressable accessibilityRole="button" onPress={() => router.push('/gestion/abono')}>
-          <Aviso icono="gift-outline" texto={`El mes de prueba termina ${diasHasta(club.pruebaHasta) === 0 ? 'hoy' : `en ${diasHasta(club.pruebaHasta)} día${diasHasta(club.pruebaHasta) === 1 ? '' : 's'}`}. Mirá cómo seguir en Abono de ATS Club.`} />
+          <Aviso icono="gift-outline" texto={`El período de prueba termina ${diasHasta(club.pruebaHasta) === 0 ? 'hoy' : `en ${diasHasta(club.pruebaHasta)} día${diasHasta(club.pruebaHasta) === 1 ? '' : 's'}`}. Mirá cómo seguir en Abono de ATS Club.`} />
         </Pressable>
       ) : null}
 

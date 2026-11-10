@@ -121,7 +121,7 @@ export default function FormClub() {
       {id && f.pruebaHasta ? (
         <>
           <Titulo style={{ marginTop: 8 }}>Prueba y pago</Titulo>
-          <CampoFecha label="Fin del mes de prueba" valor={f.pruebaHasta} onChange={(v) => setF((x) => ({
+          <CampoFecha label="Fin del período de prueba" valor={f.pruebaHasta} onChange={(v) => setF((x) => ({
             ...x, pruebaHasta: v,
             // Si "empieza a pagar" venía pegado al fin de la prueba, se mueve con él.
             pagaDesde: x.pagaDesde && x.pruebaHasta && x.pagaDesde === sumarUnDia(x.pruebaHasta) ? sumarUnDia(v) : x.pagaDesde,
@@ -152,7 +152,7 @@ export default function FormClub() {
           ) : null}
         </>
       ) : !id ? (
-        <Txt muted style={{ fontSize: 13, marginTop: 8 }}>Prueba: un mes desde hoy. Empieza a pagar al día siguiente. Se puede cambiar después.</Txt>
+        <Txt muted style={{ fontSize: 13, marginTop: 8 }}>Período de prueba: hasta el último día del mes que viene (si el alta es un día 1, hasta fin de este mes). Paga desde el 1 del mes siguiente. Se puede cambiar después.</Txt>
       ) : null}
 
       <Titulo style={{ marginTop: 8 }}>Módulos</Titulo>

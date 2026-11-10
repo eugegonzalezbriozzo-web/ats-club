@@ -74,14 +74,14 @@ export default function Abono() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Ionicons name={est.exento || est.enPrueba ? 'gift-outline' : est.alDia ? 'checkmark-circle' : 'alert-circle'} size={24} color={est.exento || est.enPrueba ? t.accent : est.alDia ? '#2E9E5B' : '#C77700'} />
           <Titulo style={{ fontSize: 18, flex: 1 }}>
-            {est.exento ? 'Sin cargo' : est.enPrueba ? 'Mes de prueba' : est.alDia ? 'Abono al día' : `Debés ${est.debe.length} mes${est.debe.length === 1 ? '' : 'es'}`}
+            {est.exento ? 'Sin cargo' : est.enPrueba ? 'Período de prueba' : est.alDia ? 'Abono al día' : `Debés ${est.debe.length} mes${est.debe.length === 1 ? '' : 'es'}`}
           </Titulo>
         </View>
         <Txt muted>
           {est.exento
             ? 'ATS exceptuó a tu club del pago del abono. No tenés que pagar nada por ahora.'
             : est.enPrueba
-            ? `La prueba termina el ${fechaAR(club2.pruebaHasta)}. El abono empieza el ${fechaAR(club2.pagaDesde)}.`
+            ? `El período de prueba termina el ${fechaAR(club2.pruebaHasta)}. El abono empieza el ${fechaAR(club2.pagaDesde)}.`
             : est.alDia
               ? est.revision.size ? 'Tenés pagos en revisión.' : '¡Gracias! No hay meses pendientes.'
               : `Pendiente: ${est.debe.map(repo.nombreMes).join(', ')}.`}
