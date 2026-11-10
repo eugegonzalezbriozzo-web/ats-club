@@ -191,6 +191,7 @@ export default function Clubes() {
       {abonosRevision ? (
         <Boton titulo={`${abonosRevision} pago${abonosRevision === 1 ? '' : 's'} de abono para revisar`} icono="cash-outline" onPress={() => router.push('/plataforma/abonos')} />
       ) : null}
+      <Boton titulo="Admins de los clubes (WhatsApp)" variante="secundario" icono="logo-whatsapp" onPress={() => router.push('/plataforma/admins')} />
       <Boton titulo="Prueba y pagos de los clubes" variante="secundario" icono="calendar-outline" onPress={() => router.push('/plataforma/abonos')} />
       <Boton titulo="Nuevo club" icono="add" onPress={() => router.push('/plataforma/club')} />
       <Txt muted style={{ fontSize: 13 }}>Los clubes también pueden pedir sumarse solos desde la pantalla de ingreso ("Sumá tu club"): .../sumar-club</Txt>

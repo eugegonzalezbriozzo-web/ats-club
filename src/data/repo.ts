@@ -947,6 +947,17 @@ export async function adminsDeClub(clubId: string): Promise<Usuario[]> {
   return (await sociosRemotos(clubId)).filter((u) => u.rol === 'admin' && u.estado === 'aprobado');
 }
 
+/** Plataforma: los admins aprobados de todos los clubes (con su WhatsApp y email). */
+export async function adminsDeTodosLosClubes(): Promise<{ clubId: string; admin: Usuario }[]> {
+  const { data, error } = await supabase
+    .from('membresias')
+    .select('club_id, rol, estado, creado_el, perfil:perfiles!membresias_usuario_id_fkey(*)')
+    .eq('rol', 'admin').eq('estado', 'aprobado');
+  if (error) fallo(error);
+  return (data ?? []).filter((m: any) => m.perfil).map((m: any) => ({ clubId: m.club_id, admin: aUsuario(m.perfil, m) }))
+    .sort((a, b) => a.admin.apellido.localeCompare(b.admin.apellido));
+}
+
 /* ================= Socios del club (admin) ================= */
 
 export async function listarSocios(clubId: string): Promise<Usuario[]> {
