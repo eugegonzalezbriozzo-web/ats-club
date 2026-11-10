@@ -2182,3 +2182,88 @@ export async function rechazarSolicitudClub(id: string, motivo: string) {
   const { error } = await supabase.rpc('rechazar_solicitud_club', { p_id: id, p_motivo: motivo.trim() });
   if (error) fallo(error, 'No se pudo rechazar.');
 }
+
+// ---------- Abono de los clubes a ATS Club ----------
+// El admin del club informa el pago (meses, monto a mano, fecha, comprobante); la plataforma lo aprueba o rechaza.
+// Si un club no paga, solo hay avisos: nada se bloquea.
+
+export interface AbonoPago {
+  id: string; clubId: string; meses: string[]; monto: number; fecha: string;
+  comprobanteRuta: string | null; comprobanteTipo: 'imagen' | 'pdf' | null; nota: string;
+  estado: 'revision' | 'aprobado' | 'rechazado'; motivo: string; creadoEl: string; resueltoEl: string | null;
+}
+const aAbono = (a: any): AbonoPago => ({
+  id: a.id, clubId: a.club_id, meses: a.meses ?? [], monto: Number(a.monto) || 0, fecha: a.fecha,
+  comprobanteRuta: a.comprobante_path ?? null, comprobanteTipo: a.comprobante_tipo ?? null, nota: a.nota ?? '',
+  estado: a.estado, motivo: a.motivo ?? '', creadoEl: a.creado_el, resueltoEl: a.resuelto_el ?? null,
+});
+
+/** Pagos del abono: de un club (su admin) o de todos (plataforma, sin clubId). */
+export async function listarAbonos(clubId?: string): Promise<AbonoPago[]> {
+  let q = supabase.from('abono_pagos').select('*').order('creado_el', { ascending: false }).limit(500);
+  if (clubId) q = q.eq('club_id', clubId);
+  const { data, error } = await q;
+  if (error) fallo(error);
+  return (data ?? []).map(aAbono);
+}
+
+/** Estado del abono de un club: meses que corresponde pagar (desde "paga desde" hasta este mes), pagados, en revisión y adeudados. */
+export function estadoAbono(club: Pick<Club, 'pagaDesde' | 'pruebaHasta'>, pagos: AbonoPago[]) {
+  const hoy = hoyISO();
+  const enPrueba = !!club.pruebaHasta && hoy <= club.pruebaHasta;
+  const desde = (club.pagaDesde ?? hoy).slice(0, 7);
+  const actual = mesActual();
+  const corresponden: string[] = [];
+  for (let m = desde; m <= actual && corresponden.length < 120; m = sumarMes(m, 1)) corresponden.push(m);
+  const pagados = new Set(pagos.filter((p) => p.estado === 'aprobado').flatMap((p) => p.meses));
+  const revision = new Set(pagos.filter((p) => p.estado === 'revision').flatMap((p) => p.meses));
+  const debe = corresponden.filter((m) => !pagados.has(m) && !revision.has(m));
+  return { enPrueba, desde, corresponden, pagados, revision, debe, alDia: !debe.length };
+}
+
+export async function informarAbono(clubId: string, d: { meses: string[]; monto: number; fecha: string; comprobante: Comprobante | null; nota: string }) {
+  if (!d.meses.length) throw new ErrorApp('Elegí qué mes o meses pagás.');
+  if (!(d.monto > 0)) throw new ErrorApp('Escribí el monto transferido.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fecha) || d.fecha > hoyISO()) throw new ErrorApp('Revisá la fecha de la transferencia.');
+  if (!d.comprobante) throw new ErrorApp('Adjuntá el comprobante (captura de pantalla o PDF).');
+  const yo = (await supabase.auth.getUser()).data.user?.id;
+  const pdf = d.comprobante.tipo === 'pdf';
+  const ruta = `${clubId}/abono-ats/${Date.now()}-${nuevoId()}.${pdf ? 'pdf' : 'jpg'}`;
+  let bytes: Uint8Array;
+  try { bytes = await bytesDe(d.comprobante.uri); } catch { throw new ErrorApp('No se pudo leer el comprobante. Probá elegirlo de nuevo.'); }
+  if (bytes.length > 5 * 1024 * 1024) throw new ErrorApp('El comprobante pesa más de 5 MB. Probá con una captura de pantalla.');
+  const up = await supabase.storage.from('comprobantes').upload(ruta, bytes, { contentType: pdf ? 'application/pdf' : 'image/jpeg' });
+  if (up.error) throw new ErrorApp('No se pudo subir el comprobante. Probá de nuevo.');
+  const { error } = await supabase.from('abono_pagos').insert({
+    club_id: clubId, informado_por: yo, meses: [...d.meses].sort(), monto: d.monto, fecha: d.fecha,
+    comprobante_path: ruta, comprobante_tipo: d.comprobante.tipo, nota: d.nota.trim().slice(0, 300),
+  });
+  if (error) {
+    await supabase.storage.from('comprobantes').remove([ruta]);
+    fallo(error, 'No se pudo informar el pago.');
+  }
+}
+
+/** El club retira un pago que todavía está en revisión. */
+export async function retirarAbono(p: AbonoPago) {
+  const { error } = await supabase.from('abono_pagos').delete().eq('id', p.id).eq('estado', 'revision');
+  if (error) fallo(error);
+  if (p.comprobanteRuta) await supabase.storage.from('comprobantes').remove([p.comprobanteRuta]);
+}
+
+/** Plataforma: aprueba o rechaza (con motivo). */
+export async function resolverAbono(id: string, estado: 'aprobado' | 'rechazado', motivo = '') {
+  if (estado === 'rechazado' && !motivo.trim()) throw new ErrorApp('Escribí el motivo así el club sabe qué corregir.');
+  const { error } = await supabase.from('abono_pagos').update({ estado, motivo: estado === 'rechazado' ? motivo.trim().slice(0, 300) : '' }).eq('id', id);
+  if (error) fallo(error, 'No se pudo actualizar el pago.');
+}
+
+/** Datos para transferir a ATS (los carga la plataforma; los ven los admins de los clubes). */
+export async function datosPagoATS(): Promise<string> {
+  const { data } = await supabase.from('plataforma_config').select('datos_pago').eq('id', 1).maybeSingle();
+  return data?.datos_pago ?? '';
+}
+export async function guardarDatosPagoATS(texto: string) {
+  const { error } = await supabase.from('plataforma_config').update({ datos_pago: texto.trim().slice(0, 500) }).eq('id', 1);
+  if (error) fallo(error, 'No se pudieron guardar los datos.');
+}

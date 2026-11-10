@@ -133,6 +133,7 @@ function Navegacion() {
         <Stack.Screen name="plataforma/index" options={{ title: 'ATS Club', headerLeft: () => <View style={{ marginLeft: 12, marginRight: 8 }}><LogoATS size={28} /></View> }} />
         <Stack.Screen name="plataforma/club" options={{ title: 'Club' }} />
         <Stack.Screen name="plataforma/abonos" options={{ title: 'Prueba y pagos' }} />
+        <Stack.Screen name="gestion/abono" options={{ title: 'Abono de ATS Club' }} />
       </Stack>
       {/* Ayuda flotante (logo de ATS), encima de todas las pantallas del club. */}
       <BurbujaAyuda />

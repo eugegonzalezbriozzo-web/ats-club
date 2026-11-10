@@ -22,6 +22,7 @@ export default function Inicio() {
   const { t } = useTema();
   const { usuario, club, esAdmin } = useAuth();
   const [pendientes, setPendientes] = useState({ cuentas: 0, bajas: 0, pagos: 0 });
+  const [abonoDebe, setAbonoDebe] = useState(0);
   const router = useRouter();
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [noticias, setNoticias] = useState<Noticia[]>([]);
@@ -32,6 +33,8 @@ export default function Inicio() {
       if (!club) return;
       repo.listarTorneos(club.id).then(setTorneos);
       repo.listarNoticias(club.id, { esAdmin, federado: usuario?.federado }).then(setNoticias);
+      if (esAdmin && usuario && !usuario.esSuperadmin)
+        repo.listarAbonos(club.id).then((ps) => setAbonoDebe(repo.estadoAbono(club, ps).debe.length)).catch(() => {});
       if (esAdmin && usuario)
         Promise.all([repo.listarSocios(club.id), repo.listarPagos(club.id, { id: usuario.id, esAdmin: true })]).then(([us, ps]) =>
           setPendientes({
@@ -44,6 +47,7 @@ export default function Inicio() {
   );
 
   const hoy = hoyISO();
+  const diasHasta = (iso: string) => Math.round((new Date(`${iso}T12:00:00`).getTime() - new Date(`${hoy}T12:00:00`).getTime()) / 86400000);
   const lista = vista === 'proximos' ? torneos.filter((x) => finTorneo(x) >= hoy) : torneos.filter((x) => finTorneo(x) < hoy).reverse();
 
   return (
@@ -68,12 +72,18 @@ export default function Inicio() {
       ) : null}
       <BannerPush />
       <PrimerosPasos />
+      {esAdmin && !usuario?.esSuperadmin && club?.pruebaHasta && hoy <= club.pruebaHasta && diasHasta(club.pruebaHasta) <= 7 ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push('/gestion/abono')}>
+          <Aviso icono="gift-outline" texto={`El mes de prueba termina ${diasHasta(club.pruebaHasta) === 0 ? 'hoy' : `en ${diasHasta(club.pruebaHasta)} día${diasHasta(club.pruebaHasta) === 1 ? '' : 's'}`}. Mirá cómo seguir en Abono de ATS Club.`} />
+        </Pressable>
+      ) : null}
 
       {esAdmin
         ? (
             [
               { n: pendientes.cuentas, icono: 'person-add-outline', texto: (n: number) => `${n} cuenta${n === 1 ? '' : 's'} nueva${n === 1 ? '' : 's'} para aprobar`, ir: '/gestion/solicitudes' },
               { n: pendientes.bajas, icono: 'exit-outline', texto: (n: number) => `${n} pedido${n === 1 ? '' : 's'} de baja`, ir: '/gestion/solicitudes' },
+              { n: abonoDebe, icono: 'card-outline', texto: (n: number) => `${n} mes${n === 1 ? '' : 'es'} de abono de ATS Club sin pagar`, ir: '/gestion/abono' },
               { n: tieneModulo(club, 'pagos') ? pendientes.pagos : 0, icono: 'cash-outline', texto: (n: number) => `${n} comprobante${n === 1 ? '' : 's'} de pago para revisar`, ir: '/gestion/pagos' },
             ] as const
           )

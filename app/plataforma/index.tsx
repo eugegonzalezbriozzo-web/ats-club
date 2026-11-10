@@ -96,11 +96,13 @@ export default function Clubes() {
   const [clubes, setClubes] = useState<repo.ResumenClub[]>([]);
   const [panel, setPanel] = useState<repo.PanelPlataforma | null>(null);
   const [solicitudes, setSolicitudes] = useState<repo.SolicitudClub[]>([]);
+  const [abonosRevision, setAbonosRevision] = useState(0);
 
   const cargar = useCallback(() => {
     repo.listarClubes().then(setClubes);
     repo.panelPlataforma().then(setPanel).catch(() => setPanel(null));
     repo.listarSolicitudesClub().then(setSolicitudes).catch(() => setSolicitudes([]));
+    repo.listarAbonos().then((a) => setAbonosRevision(a.filter((x) => x.estado === 'revision').length)).catch(() => {});
   }, []);
   useFocusEffect(cargar);
   const pendientesClub = solicitudes.filter((s) => s.estado === 'pendiente');
@@ -186,6 +188,9 @@ export default function Clubes() {
         </Tarjeta>
       ) : null}
 
+      {abonosRevision ? (
+        <Boton titulo={`${abonosRevision} pago${abonosRevision === 1 ? '' : 's'} de abono para revisar`} icono="cash-outline" onPress={() => router.push('/plataforma/abonos')} />
+      ) : null}
       <Boton titulo="Prueba y pagos de los clubes" variante="secundario" icono="calendar-outline" onPress={() => router.push('/plataforma/abonos')} />
       <Boton titulo="Nuevo club" icono="add" onPress={() => router.push('/plataforma/club')} />
       <Txt muted style={{ fontSize: 13 }}>Los clubes también pueden pedir sumarse solos desde la pantalla de ingreso ("Sumá tu club"): .../sumar-club</Txt>
