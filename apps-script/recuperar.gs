@@ -466,3 +466,31 @@ function probar() {
   var r = doPost({ postData: { contents: JSON.stringify({ accion: 'recuperar', email: 'ats.archery@gmail.com' }) } });
   console.log(r.getContent());
 }
+
+/* ---------- Mantener despierto Supabase (plan gratis) ----------
+ * Supabase pausa los proyectos gratis tras 7 días con poca actividad.
+ * mantenerDespierto() hace una consulta chiquita a la base (y a la API de Auth) todos los días.
+ * Para activarlo: en el editor elegí la función "instalarDespertador" y tocá Ejecutar UNA vez (pide permiso).
+ */
+function mantenerDespierto() {
+  var c = config();
+  var urls = [
+    c.url + '/rest/v1/planes?select=id&limit=1',
+    c.url + '/rest/v1/clubes?select=id&limit=1',
+    c.url + '/auth/v1/health',
+  ];
+  urls.forEach(function (u) {
+    var r = UrlFetchApp.fetch(u, { headers: c.h, muteHttpExceptions: true });
+    console.log(u.replace(c.url, '') + ' → ' + r.getResponseCode());
+  });
+}
+
+/** Ejecutar UNA vez: crea el disparador diario (entre las 10 y las 11) que llama a mantenerDespierto. */
+function instalarDespertador() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'mantenerDespierto') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('mantenerDespierto').timeBased().everyDays(1).atHour(10).create();
+  mantenerDespierto();
+  console.log('Listo: Supabase se va a consultar todos los días.');
+}
