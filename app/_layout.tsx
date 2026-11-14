@@ -12,6 +12,7 @@ import { FUENTES } from '../src/texto';
 import { registrarServiceWorker } from '../src/push';
 import { AccionesHeader } from '../src/ContactoClub';
 import { BurbujaAyuda } from '../src/BurbujaAyuda';
+import { usePwaDelClub } from '../src/pwaClub';
 import {
   K2D_300Light,
   K2D_400Regular,
@@ -72,8 +73,9 @@ function Guardia() {
 
 function Navegacion() {
   const { t, alternar } = useTema();
-  const { cargando, club } = useAuth();
+  const { cargando, club, clubTema } = useAuth();
   const { width } = useWindowDimensions();
+  usePwaDelClub(clubTema); // app instalada con el logo, la sigla y el color del club
   if (cargando) return <Cargando />;
 
   return (
