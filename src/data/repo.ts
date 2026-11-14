@@ -2344,7 +2344,7 @@ export async function sociosActivos(clubId: string): Promise<number> {
   return Number(data) || 0;
 }
 
-/** Admin del club (o plataforma): cambia la sigla. */
+/** Solo la plataforma (ATS) cambia la sigla de un club. */
 export async function cambiarSiglaClub(clubId: string, sigla: string) {
   const v = sigla.trim();
   if (v.length < 2 || v.length > 12) throw new ErrorApp('La sigla tiene que tener entre 2 y 12 caracteres.');
