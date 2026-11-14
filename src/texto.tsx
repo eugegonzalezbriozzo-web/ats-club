@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 
 export const FUENTES = {
+  '300': 'K2D_300Light',
   '400': 'K2D_400Regular',
   '500': 'K2D_500Medium',
   '600': 'K2D_600SemiBold',
@@ -32,6 +33,7 @@ export function fuente(peso?: TextStyle['fontWeight']) {
   if (p >= 700) return FUENTES['700'];
   if (p >= 600) return FUENTES['600'];
   if (p >= 500) return FUENTES['500'];
+  if (p <= 300) return FUENTES['300'];
   return FUENTES['400'];
 }
 

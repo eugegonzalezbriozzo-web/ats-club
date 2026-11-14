@@ -13,6 +13,7 @@ import { registrarServiceWorker } from '../src/push';
 import { AccionesHeader } from '../src/ContactoClub';
 import { BurbujaAyuda } from '../src/BurbujaAyuda';
 import {
+  K2D_300Light,
   K2D_400Regular,
   K2D_500Medium,
   K2D_600SemiBold,
@@ -144,7 +145,7 @@ function Navegacion() {
 
 export default function RootLayout() {
   // Tipografía K2D: se carga antes de mostrar la app.
-  const [fuentesListas] = useFonts({ K2D_400Regular, K2D_500Medium, K2D_600SemiBold, K2D_700Bold, K2D_800ExtraBold });
+  const [fuentesListas] = useFonts({ K2D_300Light, K2D_400Regular, K2D_500Medium, K2D_600SemiBold, K2D_700Bold, K2D_800ExtraBold });
   useEffect(() => registrarServiceWorker(), []); // para las notificaciones push (web)
   if (!fuentesListas) return null;
   return (

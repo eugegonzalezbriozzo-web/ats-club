@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import * as repo from '../../src/data/repo';
 import { useAuth } from '../../src/auth';
 import { useTema } from '../../src/theme';
-import { View, useWindowDimensions } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ANCHO_COMPU, BotonIcono, LogoClub } from '../../src/ui';
 import { FUENTES } from '../../src/texto';
@@ -81,7 +81,19 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Inicio',
-          headerTitle: esSuperadmin ? `${club?.nombre ?? ''} · vista plataforma` : club?.nombre ?? '',
+          // Sigla grande y, debajo, el nombre completo en letra chica y liviana.
+          headerTitle: () => (
+            <View style={{ flexShrink: 1 }}>
+              <Text numberOfLines={1} style={{ color: t.onHeader, fontFamily: FUENTES['800'], fontSize: 20, lineHeight: 24 }}>
+                {club?.sigla || club?.nombre || ''}
+              </Text>
+              {club?.sigla ? (
+                <Text numberOfLines={1} style={{ color: t.onHeader, fontFamily: FUENTES['300'], fontSize: 12, lineHeight: 15, opacity: 0.9 }}>
+                  {esSuperadmin ? `${club.nombre} · vista plataforma` : club.nombre}
+                </Text>
+              ) : null}
+            </View>
+          ),
           tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} />,
         }}
       />
