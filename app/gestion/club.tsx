@@ -11,6 +11,7 @@ export default function ContactoClubForm() {
   const router = useRouter();
   const [f, setF] = useState({ email: club?.email ?? '', telefono: club?.telefono ?? '', instagram: club?.instagram ?? '', facebook: club?.facebook ?? '', tiktok: club?.tiktok ?? '' });
   const [logo, setLogo] = useState(club?.logo ?? '');
+  const [sigla, setSigla] = useState(club?.sigla ?? '');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const set = (k: keyof typeof f) => (v: string) => setF((x) => ({ ...x, [k]: v }));
@@ -19,6 +20,7 @@ export default function ContactoClubForm() {
     setError(null);
     setEnviando(true);
     try {
+      if (sigla.trim() !== (club.sigla ?? '')) await repo.cambiarSiglaClub(club.id, sigla);
       if (logo !== (club.logo ?? '')) await repo.cambiarLogoClub(club.id, logo);
       await repo.actualizarContactoClub(club.id, f);
       await refrescar();
@@ -30,8 +32,10 @@ export default function ContactoClubForm() {
   };
   return (
     <Pantalla pie={<Boton titulo="Guardar" onPress={guardar} cargando={enviando} />}>
-      <Txt muted>Lo ven los socios del club. El nombre, los colores y el link del club los cambia la plataforma (ATS).</Txt>
+      <Txt muted>Lo ven los socios del club. El nombre completo, los colores y el link del club los cambia la plataforma (ATS).</Txt>
       {club ? <CampoLogo logo={logo} club={club} onChange={setLogo} /> : null}
+      <Campo label="Sigla del club *" value={sigla} onChangeText={setSigla} maxLength={12} placeholder="Ej.: ASC" autoCapitalize="characters" />
+      <Txt muted style={{ fontSize: 12, marginTop: -6 }}>Nombre corto (2 a 12 caracteres): se usa donde el nombre completo no entra, como debajo del ícono de la app.</Txt>
       <Campo label="Email del club" value={f.email} onChangeText={set('email')} placeholder="comision@miclub.com" keyboardType="email-address" autoCapitalize="none" />
       <Campo label="Teléfono / WhatsApp del club" value={f.telefono} onChangeText={set('telefono')} placeholder="Ej.: 351 555 1234 (sin 0 ni 15)" keyboardType="phone-pad" />
       <Campo label="Instagram" value={f.instagram} onChangeText={set('instagram')} placeholder="@miclub o el link" autoCapitalize="none" />

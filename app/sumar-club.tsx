@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
+import { siglaSugerida } from '../src/types';
 import { elegirLogo } from '../src/CampoLogo';
 import { avisosColores } from '../src/color';
 import { sugerirColores, type Combinacion } from '../src/coloresLogo';
@@ -24,7 +25,8 @@ export default function SumarClub() {
   const router = useRouter();
   const { usuario, refrescar } = useAuth();
   const conCuenta = !!usuario;
-  const [d, setD] = useState({ nombreClub: '', localidad: '', sociosAprox: '', mensaje: '' });
+  const [d, setD] = useState({ nombreClub: '', sigla: '', localidad: '', sociosAprox: '', mensaje: '' });
+  const [siglaTocada, setSiglaTocada] = useState(false);
   // Identidad (opcional): logo y colores. Los colores se sugieren a partir del logo.
   const [logo, setLogo] = useState('');
   const [colores, setColores] = useState<Combinacion>({ colorPrincipal: '#1F4FA0', colorSecundario: '#111111', colorAcento: '#FFFFFF' });
@@ -65,6 +67,7 @@ export default function SumarClub() {
   const seguir = async () => {
     setError(null);
     if (d.nombreClub.trim().length < 2) return setError('Completá el nombre del club.');
+    if (d.sigla.trim().length < 2) return setError('Completá la sigla del club (de 2 a 12 caracteres, por ejemplo ASC).');
     if (d.localidad.trim().length < 2) return setError('Completá la localidad del club.');
     if (!conCuenta && !acepto) return setError('Para seguir, aceptá la política de privacidad.');
     setEnviando(true);
@@ -157,7 +160,9 @@ export default function SumarClub() {
           <NotaObligatorios />
 
           <Titulo style={{ fontSize: 20 }}>Tu club</Titulo>
-          <Campo label="Nombre del club *" value={d.nombreClub} onChangeText={setDd('nombreClub')} maxLength={80} placeholder="Ej.: Arqueros del Lago" />
+          <Campo label="Nombre del club *" value={d.nombreClub} onChangeText={(v) => setD((x) => ({ ...x, nombreClub: v, sigla: siglaTocada ? x.sigla : siglaSugerida(v) }))} maxLength={80} placeholder="Ej.: Arqueros del Lago" />
+          <Campo label="Sigla *" value={d.sigla} onChangeText={(v) => { setSiglaTocada(true); setDd('sigla')(v); }} maxLength={12} placeholder="Ej.: ADL" autoCapitalize="characters" />
+          <Txt muted style={{ fontSize: 12, marginTop: -6 }}>Nombre corto o acrónimo (2 a 12 caracteres). Va debajo del ícono de la app en el celular.</Txt>
           <Campo label="Localidad *" value={d.localidad} onChangeText={setDd('localidad')} maxLength={80} placeholder="Ej.: Villa Carlos Paz, Córdoba" />
           <Campo label="¿Cuántos socios tienen, más o menos?" value={d.sociosAprox} onChangeText={(v) => setDd('sociosAprox')(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={6} placeholder="Ej.: 30" />
           <Campo label="Algo más que quieras contarnos" value={d.mensaje} onChangeText={setDd('mensaje')} maxLength={500} multiline placeholder="Ej.: tenemos escuela los sábados y vamos a 4 torneos por año" />

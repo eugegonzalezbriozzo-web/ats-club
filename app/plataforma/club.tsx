@@ -17,7 +17,7 @@ const mesesParaExentar = (elegidos: string[]) => {
 const sumarUnDia = (iso: string) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
 import * as repo from '../../src/data/repo';
 import { FUENTE_TITULO, useTema } from '../../src/theme';
-import { MODULOS, planQueCorresponde, type Club, type EstadoClub, type Modulo, type Plan, type PlanId } from '../../src/types';
+import { MODULOS, planQueCorresponde, siglaSugerida, type Club, type EstadoClub, type Modulo, type Plan, type PlanId } from '../../src/types';
 import { Aviso, Boton, Campo, Check, LogoClub, MensajeError, Pantalla, Pildoras, Titulo, Txt } from '../../src/ui';
 
 /** Alta y edición de clubes. Solo la plataforma. Con ?id=... edita. */
@@ -31,6 +31,7 @@ export default function FormClub() {
   });
   const [slugTocado, setSlugTocado] = useState(false);
   const [admins, setAdmins] = useState<{ id: string; nombreCompleto: string; email: string }[]>([]);
+  const [siglaTocada, setSiglaTocada] = useState(!!id);
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [socios, setSocios] = useState<number | null>(null);
   const [precioEsp, setPrecioEsp] = useState('');
@@ -77,8 +78,11 @@ export default function FormClub() {
         label="Nombre del club *"
         value={f.nombre}
         placeholder="Ej.: Arquería Sierras Chicas"
-        onChangeText={(v) => setF((x) => ({ ...x, nombre: v, slug: slugTocado ? x.slug : repo.crearSlug(v) }))}
+        onChangeText={(v) => setF((x) => ({ ...x, nombre: v, slug: slugTocado ? x.slug : repo.crearSlug(v), sigla: siglaTocada ? x.sigla : siglaSugerida(v) }))}
       />
+      <Campo label="Sigla *" value={f.sigla ?? ''} maxLength={12} placeholder="Ej.: ASC" autoCapitalize="characters"
+        onChangeText={(v) => { setSiglaTocada(true); set('sigla')(v); }} />
+      <Txt muted style={{ fontSize: 12, marginTop: -6 }}>Nombre corto, de 2 a 12 caracteres: se usa donde el nombre completo no entra (por ejemplo, debajo del ícono de la app).</Txt>
       <Campo label="Localidad" value={f.localidad} onChangeText={set('localidad')} placeholder="Ej.: Río Ceballos, Córdoba" />
       <Campo
         label="Email de contacto del club (opcional)"

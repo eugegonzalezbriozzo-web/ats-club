@@ -41,7 +41,7 @@ function TarjetaSolicitud({ s, onListo }: { s: repo.SolicitudClub; onListo: (clu
   return (
     <Tarjeta style={{ gap: 8, borderColor: t.accent, borderWidth: 1.5 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Text style={{ flex: 1, color: t.text, fontSize: 17, fontWeight: '800' }}>{s.nombreClub}</Text>
+        <Text style={{ flex: 1, color: t.text, fontSize: 17, fontWeight: '800' }}>{s.nombreClub}{s.sigla ? ` (${s.sigla})` : ''}</Text>
         <Chip texto={haceTexto(s.creadoEl)} />
       </View>
       <Txt>{s.localidad}{s.sociosAprox ? ` · unos ${s.sociosAprox} socios` : ''}</Txt>
@@ -203,7 +203,7 @@ export default function Clubes() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <LogoClub club={c} size={52} />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={{ color: t.text, fontSize: 17, fontWeight: '700' }}>{c.nombre}</Text>
+                  <Text style={{ color: t.text, fontSize: 17, fontWeight: '700' }}>{c.nombre}{c.sigla ? <Text style={{ color: t.muted, fontWeight: '600' }}> · {c.sigla}</Text> : null}</Text>
                   <Txt muted style={{ fontSize: 13 }}>{c.localidad || 'Sin localidad'}</Txt>
                   {c.creadoEl ? <Txt muted style={{ fontSize: 12 }}>Alta: {new Date(c.creadoEl).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })} ({haceTexto(c.creadoEl)})</Txt> : null}
                 </View>

@@ -248,7 +248,7 @@ function aClub(c: Record<string, any>): Club {
     id: c.id, slug: c.slug, nombre: c.nombre, localidad: c.localidad ?? '', email: c.email ?? '', telefono: c.telefono ?? '',
     instagram: c.instagram ?? '', facebook: c.facebook ?? '', tiktok: c.tiktok ?? '', logo: c.logo_url ?? '',
     colorPrincipal: c.color_principal, colorSecundario: c.color_secundario, colorAcento: c.color_acento,
-    estado: c.estado ?? 'activo', modulos: Array.isArray(c.modulos) ? c.modulos : undefined,
+    estado: c.estado ?? 'activo', modulos: Array.isArray(c.modulos) ? c.modulos : undefined, sigla: c.sigla ?? undefined,
     pruebaHasta: c.prueba_hasta ?? undefined, pagaDesde: c.paga_desde ?? undefined,
     exentoIndefinido: !!c.exento_indefinido, exentoMeses: c.exento_meses ?? [], exentoNota: c.exento_nota ?? '',
     plan: c.plan ?? undefined, precioEspecial: c.precio_especial === null || c.precio_especial === undefined ? null : Number(c.precio_especial),
@@ -872,13 +872,14 @@ export async function cambiarLogoClub(clubId: string, logo: string) {
 export async function guardarClub(datos: DatosClub, clubId?: string, emailAdmin?: string): Promise<Club> {
   const slug = crearSlug(datos.slug);
   if (!datos.nombre.trim()) throw new ErrorApp('Completá el nombre del club.');
+  if ((datos.sigla ?? '').trim().length < 2 || (datos.sigla ?? '').trim().length > 12) throw new ErrorApp('Completá la sigla del club (de 2 a 12 caracteres, por ejemplo ASC).');
   if (!slug) throw new ErrorApp('Completá el identificador del link (por ejemplo: sierras-chicas).');
   if (SLUGS_RESERVADOS.includes(slug)) throw new ErrorApp('Ese identificador está reservado. Elegí otro.');
   const email = (datos.email ?? '').trim().toLowerCase();
   if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new ErrorApp('El email del club no parece válido.');
   const logoNuevo = datos.logo?.startsWith('data:') ? datos.logo : null;
   const fila = {
-    slug, nombre: datos.nombre.trim(), localidad: datos.localidad.trim(), email, telefono: (datos.telefono ?? '').trim().slice(0, 40),
+    slug, nombre: datos.nombre.trim(), sigla: (datos.sigla ?? '').trim(), localidad: datos.localidad.trim(), email, telefono: (datos.telefono ?? '').trim().slice(0, 40),
     ...(logoNuevo ? {} : { logo_url: datos.logo || null }),
     instagram: (datos.instagram ?? '').trim(), facebook: (datos.facebook ?? '').trim(), tiktok: (datos.tiktok ?? '').trim(),
     color_principal: datos.colorPrincipal, color_secundario: datos.colorSecundario, color_acento: datos.colorAcento, estado: datos.estado,
@@ -2095,7 +2096,7 @@ export async function listaAsistencia(clubId: string): Promise<ArqueroLista[]> {
 // ---------- "Sumá tu club": solicitudes de clubes nuevos ----------
 
 export interface SolicitudClub {
-  id: string; nombreClub: string; localidad: string; sociosAprox: number | null; mensaje: string;
+  id: string; nombreClub: string; sigla: string; localidad: string; sociosAprox: number | null; mensaje: string;
   estado: 'pendiente' | 'aprobada' | 'rechazada'; motivo: string; clubId: string | null; creadoEl: string;
   /** Logo (data URI PNG) y colores que eligió quien pide (opcionales). */
   logo: string; colorPrincipal?: string; colorSecundario?: string; colorAcento?: string;
@@ -2103,22 +2104,23 @@ export interface SolicitudClub {
   persona?: string; email?: string; telefono?: string;
 }
 const aSolicitudClub = (s: any): SolicitudClub => ({
-  id: s.id, nombreClub: s.nombre_club, localidad: s.localidad, sociosAprox: s.socios_aprox ?? null, mensaje: s.mensaje ?? '',
+  id: s.id, nombreClub: s.nombre_club, sigla: s.sigla ?? '', localidad: s.localidad, sociosAprox: s.socios_aprox ?? null, mensaje: s.mensaje ?? '',
   estado: s.estado, motivo: s.motivo ?? '', clubId: s.club_id ?? null, creadoEl: s.creado_el,
   logo: s.logo ?? '', colorPrincipal: s.color_principal ?? undefined, colorSecundario: s.color_secundario ?? undefined, colorAcento: s.color_acento ?? undefined,
   persona: s.persona, email: s.email, telefono: s.telefono,
 });
 
 export interface DatosSolicitudClub {
-  nombreClub: string; localidad: string; sociosAprox?: string; mensaje?: string;
+  nombreClub: string; sigla: string; localidad: string; sociosAprox?: string; mensaje?: string;
   logo?: string; colorPrincipal?: string; colorSecundario?: string; colorAcento?: string;
 }
 function validarSolicitudClub(d: DatosSolicitudClub) {
   if (d.nombreClub.trim().length < 2) throw new ErrorApp('Completá el nombre del club.');
+  if (d.sigla.trim().length < 2 || d.sigla.trim().length > 12) throw new ErrorApp('Completá la sigla del club (de 2 a 12 caracteres, por ejemplo ASC).');
   if (d.localidad.trim().length < 2) throw new ErrorApp('Completá la localidad del club.');
 }
 const filaSolicitudClub = (uid: string, d: DatosSolicitudClub) => ({
-  usuario_id: uid, nombre_club: d.nombreClub.trim().slice(0, 80), localidad: d.localidad.trim().slice(0, 80),
+  usuario_id: uid, nombre_club: d.nombreClub.trim().slice(0, 80), sigla: d.sigla.trim().slice(0, 12), localidad: d.localidad.trim().slice(0, 80),
   socios_aprox: d.sociosAprox && /^\d+$/.test(d.sociosAprox.trim()) ? Math.min(Number(d.sociosAprox.trim()), 100000) : null,
   mensaje: (d.mensaje ?? '').trim().slice(0, 500),
   logo: d.logo?.startsWith('data:image/png;base64,') && d.logo.length <= 400000 ? d.logo : '',
@@ -2340,4 +2342,12 @@ export async function guardarConfigAbono(d: { preciosHasta: string; mesesRegaloA
 export async function sociosActivos(clubId: string): Promise<number> {
   const { data } = await supabase.rpc('socios_activos', { p_club: clubId });
   return Number(data) || 0;
+}
+
+/** Admin del club (o plataforma): cambia la sigla. */
+export async function cambiarSiglaClub(clubId: string, sigla: string) {
+  const v = sigla.trim();
+  if (v.length < 2 || v.length > 12) throw new ErrorApp('La sigla tiene que tener entre 2 y 12 caracteres.');
+  const { error } = await supabase.rpc('cambiar_sigla_club', { p_club: clubId, p_sigla: v });
+  if (error) fallo(error, 'No se pudo guardar la sigla.');
 }

@@ -49,6 +49,8 @@ export interface Club {
   exentoIndefinido?: boolean;
   exentoMeses?: string[];
   exentoNota?: string;
+  /** Sigla o nombre corto (2 a 12 caracteres), obligatoria. Ej.: ASC. */
+  sigla?: string;
   /** Plataforma: plan del abono y precio especial por mes (si tiene). */
   plan?: PlanId;
   precioEspecial?: number | null;
@@ -515,4 +517,13 @@ export function precioMensual(club: Pick<Club, 'plan' | 'precioEspecial'>, plane
 export function montoSugerido(precio: number | null, meses: number, mesesRegaloAnual: number): number | null {
   if (precio === null || !meses) return null;
   return meses === 12 ? precio * (12 - mesesRegaloAnual) : precio * meses;
+}
+
+/** Sigla sugerida a partir del nombre: iniciales de las palabras importantes (Arquería Sierras Chicas → ASC). */
+export function siglaSugerida(nombre: string): string {
+  const chicas = new Set(['de', 'del', 'la', 'las', 'el', 'los', 'y', 'e', 'en', 'club']);
+  const pal = nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^A-Za-z0-9]+/).filter(Boolean);
+  const imp = pal.filter((p) => !chicas.has(p.toLowerCase()));
+  const s = (imp.length >= 2 ? imp : pal).map((p) => p[0]).join('').toUpperCase().slice(0, 6);
+  return s.length >= 2 ? s : (pal[0] ?? '').slice(0, 4).toUpperCase();
 }
