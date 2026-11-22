@@ -12,17 +12,17 @@ import { Text } from '../../src/texto';
 import { useTema } from '../../src/theme';
 import type { Comprobante, ConceptoPago, ConfigPagos, Inscripcion, Pago, Torneo, Usuario } from '../../src/types';
 import { Boton, Campo, Check, MensajeError, Pantalla, Pildoras, Tarjeta, Txt, NotaObligatorios } from '../../src/ui';
-import { hoyISO, plata } from '../../src/util';
+import { fechaCorta, hoyISO, plata } from '../../src/util';
 import { conModulo } from '../../src/ModuloApagado';
 
-const NOMBRE_CONCEPTO: Record<ConceptoPago, string> = { cuota: 'Cuota', inscripcion: 'Inscripción a torneo', otros: 'Otros gastos' };
+const NOMBRE_CONCEPTO: Record<ConceptoPago, string> = { cuota: 'Cuota', unico: 'Pago único', inscripcion: 'Inscripción a torneo', otros: 'Otros gastos' };
 
 /**
  * Socio: informa un pago con comprobante (queda en revisión).
  * Admin (?admin=1): registra un pago de cualquier socio (efectivo, etc.); queda aprobado.
  */
 function InformarPago() {
-  const q = useLocalSearchParams<{ concepto?: ConceptoPago; torneoId?: string; admin?: string; usuarioId?: string; para?: string }>();
+  const q = useLocalSearchParams<{ concepto?: ConceptoPago; torneoId?: string; admin?: string; usuarioId?: string; para?: string; unico?: string }>();
   const { t } = useTema();
   const { club, usuario, esAdmin } = useAuth();
   const router = useRouter();
@@ -40,6 +40,7 @@ function InformarPago() {
   const [concepto, setConcepto] = useState<ConceptoPago>(q.concepto ?? 'cuota');
   const [periodos, setPeriodos] = useState<string[] | null>(null);
   const [torneoId, setTorneoId] = useState(q.torneoId ?? '');
+  const [unicoId, setUnicoId] = useState(q.unico ?? '');
   const [descripcion, setDescripcion] = useState('');
   const [montoManual, setMontoManual] = useState<string | null>(null);
   const [fecha, setFecha] = useState(hoyISO());
@@ -75,7 +76,10 @@ function InformarPago() {
     .map((i) => ({ i, tor: torneos.find((x) => x.id === i.torneoId) }))
     .filter((x): x is { i: Inscripcion; tor: Torneo } => !!x.tor && x.tor.valor > 0)
     .filter((x) => !['aprobado', 'revision'].includes(repo.estadoPagoInscripcion(pagos, x.tor.id, x.i.usuarioId) ?? ''));
-  const conceptos: ConceptoPago[] = [...(cfg?.tipos.length ? (['cuota'] as const) : []), 'inscripcion', 'otros'];
+  // Pagos únicos que le tocan a quien paga y todavía no pagó (ni están en revisión).
+  const unicosPagables = cfg && u ? repo.pagosUnicosDe(cfg, u.id, pagos).filter((x) => x.estado === 'pendiente' || x.estado === 'rechazado') : [];
+  const uSel = unicosPagables.find((x) => x.tipo.id === unicoId) ?? (unicosPagables.length === 1 ? unicosPagables[0] : undefined);
+  const conceptos: ConceptoPago[] = [...(cfg?.tipos.length ? (['cuota'] as const) : []), ...(unicosPagables.length ? (['unico'] as const) : []), 'inscripcion', 'otros'];
   const conc: ConceptoPago = conceptos.includes(concepto) ? concepto : conceptos[0];
 
   const hoyMes = repo.mesActual();
@@ -84,7 +88,8 @@ function InformarPago() {
     : [];
   const sel = periodos ?? (ec ? (ec.debe.length ? [ec.debe[0]] : ec.mesEnCursoPendiente ? [hoyMes] : []) : []);
   const tSel = insPagables.find((x) => x.tor.id === torneoId);
-  const montoAuto = conc === 'cuota' ? (ec ? sel.reduce((s, m) => s + repo.montoTipo(ec.tipo, m), 0) : 0) : conc === 'inscripcion' ? (tSel?.tor.valor ?? 0) : 0;
+  const montoAuto = conc === 'cuota' ? (ec ? sel.reduce((s, m) => s + repo.montoTipo(ec.tipo, m), 0) : 0)
+    : conc === 'inscripcion' ? (tSel?.tor.valor ?? 0) : conc === 'unico' ? (uSel?.tipo.monto ?? 0) : 0;
   const monto = montoManual ?? (montoAuto ? String(montoAuto) : '');
 
   const adjuntar = async (cual: 'foto' | 'pdf') => {
@@ -109,7 +114,8 @@ function InformarPago() {
         usuario,
         {
           usuarioId: porAdmin ? uid : u?.id ?? usuario.id, concepto: conc, periodos: conc === 'cuota' ? sel : [],
-          torneoId: conc === 'inscripcion' ? (tSel?.tor.id ?? null) : null, descripcion,
+          torneoId: conc === 'inscripcion' ? (tSel?.tor.id ?? null) : null,
+          descripcion: conc === 'unico' ? (uSel?.tipo.nombre ?? '') : descripcion, tipoCuotaId: conc === 'unico' ? (uSel?.tipo.id ?? null) : null,
           monto: Number(String(monto).replace(/[^\d]/g, '')), fecha, cuentaId: cuentaId || null, comprobante: comp, nota,
         },
         porAdmin,
@@ -143,6 +149,7 @@ function InformarPago() {
             setUid(m ? m.id : usuario?.id ?? '');
             setPeriodos(null);
             setTorneoId('');
+            setUnicoId('');
             setMontoManual(null);
           }}
         />
@@ -222,6 +229,27 @@ function InformarPago() {
             }}
           />
         )
+      ) : null}
+
+      {u && conc === 'unico' ? (
+        <View style={{ gap: 4 }}>
+          <Pildoras
+            label="¿Cuál? *"
+            opciones={unicosPagables.map((x) => x.tipo.nombre)}
+            valor={uSel?.tipo.nombre ?? ''}
+            onChange={(v) => {
+              setUnicoId(unicosPagables.find((x) => x.tipo.nombre === v)!.tipo.id);
+              setMontoManual(null);
+            }}
+          />
+          {uSel ? (
+            <Txt muted style={{ fontSize: 13 }}>
+              {plata(uSel.tipo.monto)}
+              {uSel.tipo.vence ? ` · vence el ${fechaCorta(uSel.tipo.vence)}` : ''}
+              {uSel.tipo.marcaFederado ? ' · al aprobarse, queda federado/a' : ''}
+            </Txt>
+          ) : null}
+        </View>
       ) : null}
 
       {conc === 'otros' ? (

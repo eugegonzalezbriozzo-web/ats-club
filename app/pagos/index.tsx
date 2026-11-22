@@ -71,6 +71,29 @@ function MisPagos() {
           <Boton titulo="Informar pago de cuota" icono="cash-outline" onPress={() => router.push('/pagos/informar?concepto=cuota')} />
         </Tarjeta>
       ) : null}
+      {[{ quien: usuario, pagosDe: pagos, propio: true }, ...menores.map(({ m, pagos: pm }) => ({ quien: m, pagosDe: pm, propio: false }))].flatMap(({ quien, pagosDe, propio }) =>
+        repo.pagosUnicosDe(cfg, quien.id, pagosDe).map(({ tipo, estado, obligatorio, vencido }) => (
+          <Tarjeta key={`${quien.id}-${tipo.id}`} style={{ gap: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <Text style={{ color: t.text, fontSize: 16, fontWeight: '700', flex: 1 }}>{tipo.nombre}{propio ? '' : ` · ${quien.alias || quien.nombre}`}</Text>
+              <Etiqueta
+                texto={estado === 'pagado' ? 'Pagado' : estado === 'revision' ? 'En revisión' : estado === 'rechazado' ? 'Pago rechazado' : vencido ? 'Vencido' : obligatorio ? 'Pendiente' : 'Opcional'}
+                tipo={estado === 'pagado' ? 'ok' : estado === 'rechazado' || vencido ? 'marca' : 'aviso'}
+              />
+            </View>
+            <Txt muted style={{ fontSize: 13 }}>
+              Pago único · {plata(tipo.monto)}
+              {tipo.vence ? ` · vence el ${fechaCorta(tipo.vence)}` : ''}
+              {tipo.marcaFederado && estado !== 'pagado' ? (propio ? ' · al aprobarse, quedás federado/a' : ' · al aprobarse, queda federado/a') : ''}
+              {propio ? '' : ' · a tu cargo'}
+            </Txt>
+            {estado === 'pendiente' || estado === 'rechazado' ? (
+              <Boton titulo="Informar pago" variante="secundario" icono="cash-outline"
+                onPress={() => router.push(`/pagos/informar?concepto=unico&unico=${tipo.id}${propio ? '' : `&para=${quien.id}`}`)} />
+            ) : null}
+          </Tarjeta>
+        )),
+      )}
       {aPagar.map(({ i, tor, e }) => (
         <Tarjeta key={i.id} style={{ gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>

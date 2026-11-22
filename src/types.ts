@@ -349,18 +349,28 @@ export interface CambioPrecio {
 }
 export interface TipoCuota {
   id: string;
-  nombre: string; // ej.: General, Menores
+  nombre: string; // ej.: General, Menores, Matrícula federación
   monto: number; // monto base (hasta el primer cambio)
   cambios: CambioPrecio[];
+  /** mensual (cuota social) o único (se paga una sola vez). Sin dato = mensual. */
+  frecuencia?: 'mensual' | 'unico';
+  /** Pago único: vencimiento opcional (YYYY-MM-DD). */
+  vence?: string | null;
+  /** Pago único: 'todos' = cualquier socio lo puede pagar (opcional); 'elegidos' = solo esos socios, y les figura pendiente. */
+  para?: 'todos' | 'elegidos';
+  socios?: string[];
+  /** Pago único: al aprobarse, el socio queda federado. */
+  marcaFederado?: boolean;
 }
 /** Configuración de pagos de un club (la edita el admin). Sin tipos = el club no cobra cuota por la app. */
 export interface ConfigPagos {
   clubId: string;
   cuentas: CuentaClub[];
-  tipos: TipoCuota[];
+  tipos: TipoCuota[]; // cuotas mensuales
+  unicos: TipoCuota[]; // pagos únicos
   cuotaDesde: string; // YYYY-MM: los meses anteriores no son deuda
 }
-export type ConceptoPago = 'cuota' | 'inscripcion' | 'otros';
+export type ConceptoPago = 'cuota' | 'inscripcion' | 'otros' | 'unico';
 export type EstadoPago = 'revision' | 'aprobado' | 'rechazado';
 /** Comprobante: foto (JPEG) o PDF. Local: data URI. Con Supabase: ruta en Storage (bucket privado). */
 export interface Comprobante {
@@ -379,7 +389,8 @@ export interface Pago {
   concepto: ConceptoPago;
   periodos: string[]; // cuota: meses YYYY-MM
   torneoId: string | null; // inscripción
-  descripcion: string; // otros gastos
+  descripcion: string; // otros gastos; pago único: su nombre
+  tipoCuotaId: string | null; // pago único
   monto: number;
   fecha: string; // fecha de la transferencia (YYYY-MM-DD)
   cuentaId: string | null;

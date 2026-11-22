@@ -22,6 +22,7 @@ const ESTADO_PAGO = { revision: 'En revisión', aprobado: 'Aprobado', rechazado:
 export function textoConcepto(p: Pago, torneos: Torneo[]) {
   if (p.concepto === 'cuota') return `Cuota · ${p.periodos.map(repo.nombreMes).join(', ')}`;
   if (p.concepto === 'otros') return `Otros gastos · ${p.descripcion || 'sin detalle'}`;
+  if (p.concepto === 'unico') return `Pago único · ${p.descripcion || 'sin detalle'}`;
   const tor = torneos.find((x) => x.id === p.torneoId);
   return `Inscripción · ${tor ? tor.nombre : 'torneo eliminado'}`;
 }

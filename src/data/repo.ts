@@ -1653,6 +1653,9 @@ function configPagosDemo(): ConfigPagos[] {
       { id: 'tc1', nombre: 'General', monto: 15000, cambios: [{ desde: sumarMes(mesActual(), 3), monto: 18000 }] },
       { id: 'tc2', nombre: 'Menores', monto: 10000, cambios: [] },
     ],
+    unicos: [
+      { id: 'tu1', nombre: 'Matrícula de federación', monto: 25000, cambios: [], frecuencia: 'unico', vence: null, para: 'todos', socios: [], marcaFederado: true },
+    ],
   }];
 }
 function pagosDemo(): Pago[] {
@@ -1662,7 +1665,7 @@ function pagosDemo(): Pago[] {
     + '<text x="30" y="230" font-family="sans-serif" font-size="14" fill="#555">Imagen de muestra para probar la app</text></svg>';
   const comp: Comprobante = { tipo: 'imagen', nombre: 'comprobante-ejemplo.svg', tam: svg.length, uri: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) };
   const hace = (d: number) => new Date(Date.now() - d * 86400000).toISOString();
-  const base = { clubId: 'c-sc', usuarioId: 'u-sc-arq', concepto: 'cuota' as const, torneoId: null, descripcion: '', monto: 15000, cuentaId: 'cta1', nota: '', motivo: '' };
+  const base = { clubId: 'c-sc', usuarioId: 'u-sc-arq', concepto: 'cuota' as const, torneoId: null, descripcion: '', tipoCuotaId: null, monto: 15000, cuentaId: 'cta1', nota: '', motivo: '' };
   return [
     { ...base, id: 'pg1', periodos: [sumarMes(mesActual(), -2)], fecha: hace(40).slice(0, 10), comprobante: null, estado: 'aprobado', cargadoPorAdmin: true, creadoEl: hace(40), resueltoPor: 'u-sc-admin', resueltoEl: hace(40) },
     { ...base, id: 'pg2', periodos: [sumarMes(mesActual(), -1)], fecha: hace(1).slice(0, 10), comprobante: comp, estado: 'revision', cargadoPorAdmin: false, creadoEl: hace(1), resueltoPor: null, resueltoEl: null },
@@ -1670,6 +1673,30 @@ function pagosDemo(): Pago[] {
 }
 
 const esUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
+function aTipoCuota(x: any): TipoCuota {
+  return {
+    id: x.id, nombre: x.nombre, monto: Number(x.monto),
+    cambios: (Array.isArray(x.cambios) ? x.cambios : []).map((k: any) => ({ desde: String(k.desde), monto: Number(k.monto) })),
+    frecuencia: x.frecuencia === 'unico' ? 'unico' : 'mensual', vence: x.vence ?? null,
+    para: x.para === 'elegidos' ? 'elegidos' : 'todos', socios: x.socios ?? [], marcaFederado: !!x.marca_federado,
+  };
+}
+
+/** Pagos únicos que le corresponden a un socio (los de "todos" y los que lo eligieron), con su estado. */
+export function pagosUnicosDe(cfg: ConfigPagos, usuarioId: string, pagos: Pago[]) {
+  const hoy = hoyISO();
+  return cfg.unicos
+    .filter((t) => t.para !== 'elegidos' || (t.socios ?? []).includes(usuarioId))
+    .map((tipo) => {
+      const propios = pagos.filter((p) => p.usuarioId === usuarioId && p.concepto === 'unico' && p.tipoCuotaId === tipo.id);
+      const estado: 'pagado' | 'revision' | 'rechazado' | 'pendiente' = propios.some((p) => p.estado === 'aprobado') ? 'pagado'
+        : propios.some((p) => p.estado === 'revision') ? 'revision' : propios.some((p) => p.estado === 'rechazado') ? 'rechazado' : 'pendiente';
+      const obligatorio = tipo.para === 'elegidos';
+      const vencido = obligatorio && estado !== 'pagado' && estado !== 'revision' && !!tipo.vence && tipo.vence < hoy;
+      return { tipo, estado, obligatorio, vencido };
+    });
+}
 
 export async function obtenerConfigPagos(clubId: string): Promise<ConfigPagos> {
   const [{ data: c }, { data: cuentas }, { data: tipos }] = await Promise.all([
@@ -1680,10 +1707,8 @@ export async function obtenerConfigPagos(clubId: string): Promise<ConfigPagos> {
   return {
     clubId, cuotaDesde: c?.cuota_desde || mesActual(),
     cuentas: (cuentas ?? []).map((x: any) => ({ id: x.id, titular: x.titular, banco: x.banco ?? '', alias: x.alias ?? '', cbu: x.cbu ?? '' })),
-    tipos: (tipos ?? []).map((x: any) => ({
-      id: x.id, nombre: x.nombre, monto: Number(x.monto),
-      cambios: (Array.isArray(x.cambios) ? x.cambios : []).map((k: any) => ({ desde: String(k.desde), monto: Number(k.monto) })),
-    })),
+    tipos: (tipos ?? []).filter((x: any) => x.frecuencia !== 'unico').map(aTipoCuota),
+    unicos: (tipos ?? []).filter((x: any) => x.frecuencia === 'unico').map(aTipoCuota),
   };
 }
 
@@ -1708,18 +1733,31 @@ export async function guardarConfigPagos(clubId: string, cfg: Omit<ConfigPagos, 
     if (!c.titular.trim() || (!c.alias.trim() && !c.cbu.trim())) throw new ErrorApp('Cada cuenta necesita titular y alias o CBU.');
     if (c.cbu && !/^\d{22}$/.test(c.cbu.replace(/\s/g, ''))) throw new ErrorApp('El CBU/CVU tiene que tener 22 números.');
   }
+  for (const t of cfg.unicos) {
+    if (!t.nombre.trim() || !(t.monto > 0)) throw new ErrorApp('Cada pago único necesita nombre y monto.');
+    if (t.vence && !/^\d{4}-\d{2}-\d{2}$/.test(t.vence)) throw new ErrorApp(`Revisá el vencimiento de "${t.nombre}".`);
+    if (t.para === 'elegidos' && !(t.socios ?? []).length) throw new ErrorApp(`Elegí a qué socios les corresponde "${t.nombre}".`);
+  }
   for (const t of cfg.tipos) {
     if (!t.nombre.trim() || !(t.monto > 0)) throw new ErrorApp('Cada tipo de cuota necesita nombre y monto.');
     if (t.cambios.some((c) => !/^\d{4}-\d{2}$/.test(c.desde) || !(c.monto > 0))) throw new ErrorApp('Cada cambio de precio necesita mes y monto.');
     if (new Set(t.cambios.map((c) => c.desde)).size !== t.cambios.length) throw new ErrorApp('Hay dos cambios de precio para el mismo mes.');
   }
-  if (!/^\d{4}-\d{2}$/.test(cfg.cuotaDesde)) throw new ErrorApp('Elegí desde qué mes se cobra la cuota.');
+  if (cfg.tipos.length && !/^\d{4}-\d{2}$/.test(cfg.cuotaDesde)) throw new ErrorApp('Elegí desde qué mes se cobra la cuota.');
   await sincronizar('cuentas_club', clubId, cfg.cuentas.map((c) => ({
     id: c.id, titular: c.titular.trim(), banco: c.banco.trim(), alias: c.alias.trim(), cbu: c.cbu.replace(/\s/g, ''),
   })));
-  await sincronizar('tipos_cuota', clubId, cfg.tipos.map((t) => ({
-    id: t.id, nombre: t.nombre.trim(), monto: t.monto, cambios: [...t.cambios].sort((a, b) => a.desde.localeCompare(b.desde)),
-  })));
+  // Mensuales primero (el primero es el tipo por defecto) y después los pagos únicos.
+  await sincronizar('tipos_cuota', clubId, [
+    ...cfg.tipos.map((t) => ({
+      id: t.id, nombre: t.nombre.trim(), monto: t.monto, cambios: [...t.cambios].sort((a, b) => a.desde.localeCompare(b.desde)),
+      frecuencia: 'mensual', vence: null, para: 'todos', socios: [], marca_federado: false,
+    })),
+    ...cfg.unicos.map((t) => ({
+      id: t.id, nombre: t.nombre.trim(), monto: t.monto, cambios: [], frecuencia: 'unico', vence: t.vence || null,
+      para: t.para === 'elegidos' ? 'elegidos' : 'todos', socios: t.para === 'elegidos' ? (t.socios ?? []) : [], marca_federado: !!t.marcaFederado,
+    })),
+  ]);
   const { error } = await supabase.rpc('cambiar_cuota_desde', { p_club: clubId, p_desde: cfg.cuotaDesde });
   if (error) fallo(error, 'No se pudo guardar desde qué mes se cobra.');
 }
@@ -1728,7 +1766,7 @@ function aPago(r: Record<string, any>): Pago {
   const ruta: string | null = r.comprobante_path ?? null;
   return {
     id: r.id, clubId: r.club_id, usuarioId: r.usuario_id, concepto: r.concepto, periodos: r.periodos ?? [], torneoId: r.torneo_id ?? null,
-    descripcion: r.descripcion ?? '', monto: Number(r.monto), fecha: r.fecha, cuentaId: r.cuenta_id ?? null,
+    descripcion: r.descripcion ?? '', tipoCuotaId: r.tipo_cuota_id ?? null, monto: Number(r.monto), fecha: r.fecha, cuentaId: r.cuenta_id ?? null,
     comprobante: ruta ? { tipo: r.comprobante_tipo === 'pdf' ? 'pdf' : 'imagen', nombre: ruta.split('/').pop() ?? 'comprobante', tam: 0, uri: '', ruta } : null,
     nota: r.nota ?? '', estado: r.estado, motivo: r.motivo ?? '', cargadoPorAdmin: !!r.cargado_por_admin, creadoEl: r.creado_el,
     resueltoPor: r.resuelto_por ?? null, resueltoEl: r.resuelto_el ?? null,
@@ -1774,6 +1812,7 @@ export interface DatosPago {
   periodos: string[];
   torneoId: string | null;
   descripcion: string;
+  tipoCuotaId?: string | null;
   monto: number;
   fecha: string;
   cuentaId: string | null;
@@ -1791,6 +1830,7 @@ export async function informarPago(clubId: string, quien: Usuario, d: DatosPago,
   if (!d.usuarioId) throw new ErrorApp('Elegí el socio.');
   if (d.concepto === 'cuota' && !d.periodos.length) throw new ErrorApp('Elegí qué mes o meses pagás.');
   if (d.concepto === 'inscripcion' && !(d.torneoId && (await inscripcionDe(d.usuarioId, d.torneoId)))) throw new ErrorApp('Elegí el torneo.');
+  if (d.concepto === 'unico' && !d.tipoCuotaId) throw new ErrorApp('Elegí qué pago único estás pagando.');
   if (d.concepto === 'otros' && !d.descripcion.trim()) throw new ErrorApp('Contá qué estás pagando (por ejemplo: remera del club).');
   if (!(d.monto > 0)) throw new ErrorApp('Escribí el monto transferido.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fecha) || d.fecha > hoyISO()) throw new ErrorApp('Revisá la fecha de la transferencia.');
@@ -1817,7 +1857,8 @@ export async function informarPago(clubId: string, quien: Usuario, d: DatosPago,
   const fila = {
     club_id: clubId, usuario_id: d.usuarioId, concepto: d.concepto,
     periodos: d.concepto === 'cuota' ? [...d.periodos].sort() : [], torneo_id: d.concepto === 'inscripcion' ? d.torneoId : null,
-    descripcion: d.concepto === 'otros' ? d.descripcion.trim().slice(0, 80) : '', monto: d.monto, fecha: d.fecha,
+    descripcion: d.concepto === 'otros' || d.concepto === 'unico' ? d.descripcion.trim().slice(0, 80) : '', monto: d.monto, fecha: d.fecha,
+    tipo_cuota_id: d.concepto === 'unico' ? d.tipoCuotaId : null,
     cuenta_id: d.cuentaId && esUuid(d.cuentaId) ? d.cuentaId : null,
     comprobante_path: ruta, comprobante_tipo: c ? c.tipo : null, nota: d.nota.trim().slice(0, 140),
     estado: esAdmin ? 'aprobado' : 'revision', cargado_por_admin: esAdmin,

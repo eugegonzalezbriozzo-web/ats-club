@@ -15,7 +15,7 @@ import { Aviso, Boton, MensajeError, Pantalla, Pildoras, Tarjeta, Txt, Vacio } f
 import { fechaCorta, plata } from '../../src/util';
 import { conModulo } from '../../src/ModuloApagado';
 
-/** Admin: pagos en revisión, estado de cuotas de los socios e historial. */
+/** Admin: pagos en revisión, estado de cuotas de los socios, pagos únicos e historial. */
 function Pagos() {
   const { t } = useTema();
   const { club, usuario } = useAuth();
@@ -27,6 +27,8 @@ function Pagos() {
   const [vista, setVista] = useState('En revisión');
   const [filtroC, setFiltroC] = useState('Deben');
   const [filtroH, setFiltroH] = useState('Todos');
+  const [unicoId, setUnicoId] = useState('');
+  const [filtroU, setFiltroU] = useState('No pagaron');
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(() => {
@@ -42,7 +44,16 @@ function Pagos() {
   const revision = pagos.filter((p) => p.estado === 'revision');
   const conCuota = socios.map((s) => ({ s, ec: repo.estadoCuota(cfg, s, pagos) })).filter((x): x is { s: Usuario; ec: repo.EstadoCuota } => !!x.ec);
   const deudores = conCuota.filter((x) => !x.ec.alDia).length;
-  const vistas = [`En revisión (${revision.length})`, ...(cfg.tipos.length ? [`Cuotas${deudores ? ` (${deudores} deben)` : ''}`] : []), 'Historial'];
+  const vistas = [`En revisión (${revision.length})`, ...(cfg.tipos.length ? [`Cuotas${deudores ? ` (${deudores} deben)` : ''}`] : []), ...(cfg.unicos.length ? ['Pagos únicos'] : []), 'Historial'];
+  const unico = cfg.unicos.find((x) => x.id === unicoId) ?? cfg.unicos[0];
+  // Socios a los que les corresponde el pago único elegido, con su estado.
+  const filasUnico = unico
+    ? socios
+        .map((s) => ({ s, e: repo.pagosUnicosDe({ ...cfg, unicos: [unico] }, s.id, pagos)[0] }))
+        .filter((x) => !!x.e)
+        .sort((a, b) => a.s.apellido.localeCompare(b.s.apellido))
+    : [];
+  const pagaron = filasUnico.filter((x) => x.e.estado === 'pagado').length;
   const v = vistas.find((x) => x.split(' ')[0] === vista.split(' ')[0]) ?? vistas[0];
   const socioDe = (id: string) => socios.find((s) => s.id === id);
   const admin = { id: usuario.id, clubId: club.id };
@@ -73,7 +84,7 @@ function Pagos() {
       {cfg.cuentas.length === 0 ? <Aviso icono="alert-circle-outline" texto="Cargá la cuenta del club para que los socios sepan a dónde transferir." /> : null}
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         <View style={{ flexGrow: 1, flexBasis: 160 }}><Boton titulo="Registrar pago" variante="secundario" icono="add" onPress={() => router.push('/pagos/informar?admin=1')} /></View>
-        <View style={{ flexGrow: 1, flexBasis: 160 }}><Boton titulo="Cuentas y cuotas" variante="secundario" icono="settings-outline" onPress={() => router.push('/gestion/cuotas')} /></View>
+        <View style={{ flexGrow: 1, flexBasis: 160 }}><Boton titulo="Cuentas, cuotas y pagos" variante="secundario" icono="settings-outline" onPress={() => router.push('/gestion/cuotas')} /></View>
       </View>
       <Pildoras label="Ver" opciones={vistas} valor={v} onChange={setVista} />
 
@@ -100,6 +111,30 @@ function Pagos() {
                 </View>
                 <Etiqueta texto={ec.alDia ? 'Al día' : `Debe ${ec.debe.length}`} tipo={ec.alDia ? 'ok' : 'aviso'} />
                 {!ec.alDia && s.telefono ? <IconoWhatsApp chico tel={s.telefono} nombre={s.alias || s.nombre} /> : null}
+              </Tarjeta>
+            ))}
+        </>
+      ) : null}
+
+      {v === 'Pagos únicos' && unico ? (
+        <>
+          {cfg.unicos.length > 1 ? <Pildoras label="Pago único" opciones={cfg.unicos.map((x) => x.nombre)} valor={unico.nombre} onChange={(n) => setUnicoId(cfg.unicos.find((x) => x.nombre === n)!.id)} /> : null}
+          <Txt muted>
+            {unico.nombre} · {plata(unico.monto)}{unico.vence ? ` · vence el ${fechaCorta(unico.vence)}` : ''} · {unico.para === 'todos' ? 'opcional para cualquier socio' : 'socios elegidos'}
+            {unico.marcaFederado ? ' · al aprobarse, el socio queda federado' : ''}. Pagaron {pagaron} de {filasUnico.length}.
+          </Txt>
+          <Pildoras label="Mostrar" opciones={['No pagaron', 'Pagaron', 'Todos']} valor={filtroU} onChange={setFiltroU} />
+          {filasUnico
+            .filter((x) => filtroU === 'Todos' || (filtroU === 'Pagaron') === (x.e.estado === 'pagado'))
+            .map(({ s, e }) => (
+              <Tarjeta key={s.id} onPress={() => router.push(`/arquero/${s.id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Avatar foto={s.foto} nombre={s.nombre} apellido={s.apellido} size={40} />
+                <Text style={{ flex: 1, color: t.text, fontWeight: '700' }}>{s.nombreCompleto}</Text>
+                <Etiqueta
+                  texto={e.estado === 'pagado' ? 'Pagado' : e.estado === 'revision' ? 'En revisión' : e.estado === 'rechazado' ? 'Rechazado' : e.vencido ? 'Vencido' : e.obligatorio ? 'Pendiente' : 'No pagó'}
+                  tipo={e.estado === 'pagado' ? 'ok' : e.estado === 'rechazado' || e.vencido ? 'marca' : 'aviso'}
+                />
+                {e.estado !== 'pagado' && e.obligatorio && s.telefono ? <IconoWhatsApp chico tel={s.telefono} nombre={s.alias || s.nombre} /> : null}
               </Tarjeta>
             ))}
         </>
